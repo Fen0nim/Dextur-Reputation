@@ -2,7 +2,7 @@ name: DexturReputation
 version: '${version}'
 main: org.dextur.reputation.paper.DexturReputationPlugin
 api-version: '26.2'
-description: Asynchronous reputation foundation for Dextur (Phase 1)
+description: Asynchronous reputation and voting for Dextur (Phase 2)
 load: POSTWORLD
 softdepend: [PlaceholderAPI]
 commands:
@@ -10,6 +10,10 @@ commands:
     description: Reputation diagnostics and help
   rep:
     description: Reputation profile and language selection
+  like:
+    description: Positive reputation vote
+  dislike:
+    description: Negative reputation vote
 permissions:
   dexturreputation.use:
     default: true
@@ -17,3 +21,17 @@ permissions:
     default: true
   dexturreputation.status:
     default: op
+  dexturreputation.vote:
+    default: true
+  dexturreputation.like:
+    default: true
+  dexturreputation.dislike:
+    default: true
+  dexturreputation.revoke:
+    default: true
+  dexturreputation.history:
+    default: true
+  dexturreputation.gui:
+    default: true
+  dexturreputation.reasons:
+    default: true

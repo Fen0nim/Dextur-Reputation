@@ -88,7 +88,7 @@ class LocalStorageTest {
     }
     @Test void jsonRejectsDuplicateFieldsAndOversizeState() throws Exception {
         SnapshotCodec codec=new SnapshotCodec();byte[] valid=codec.encode(0,StorageFixtures.sample());
-        String duplicate=new String(valid,java.nio.charset.StandardCharsets.UTF_8).replace("\"formatVersion\":1","\"formatVersion\":1,\"formatVersion\":1");
+        String duplicate=new String(valid,java.nio.charset.StandardCharsets.UTF_8).replace("\"formatVersion\":2","\"formatVersion\":2,\"formatVersion\":2");
         assertThrows(Exception.class,() -> codec.decode(duplicate.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         Files.createDirectories(directory.resolve("json"));Files.write(directory.resolve("json/state.json"),valid);
         assertThrows(Exception.class,() -> new JsonStorage(directory.resolve("json"),100,false));

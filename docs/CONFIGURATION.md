@@ -1,6 +1,6 @@
-# Конфигурация Phase 1.1
+# Конфигурация Phase 2
 
-Создаются `config.yml`, `storage.yml`, `integrations.yml`, `lang/ru_RU.yml`, `lang/en_US.yml`.
+Создаются `config.yml`, `storage.yml`, `integrations.yml`, `voting.yml`, `gui.yml`, `lang/ru_RU.yml`, `lang/en_US.yml`.
 Файлы администратора не переписываются. Неизвестные версии, дубликаты YAML, неверные типы,
 пустые обязательные строки, невалидные границы/разметка/placeholder-наборы отклоняются.
 
@@ -45,7 +45,7 @@ MYSQL принимает настоящий process password, не HTTPS proxy p
 цепочку и hostname; настройте Java truststore своего CA. JDBC socketTimeout — 10000 ms, UTC.
 
 `integrations.yml` version 1: `placeholderapi: true`; отсутствие PAPI безопасно.
-Команды/permissions остаются в plugin.yml. Добавлена диагностическая подкоманда `storage`,
+Команды/default permissions объявлены в plugin.yml; узлы голосования переопределяются в voting.yml. Добавлена диагностическая подкоманда `storage`,
 она не выполняет перенос онлайн и не делает блокирующего healthcheck.
 
 ## Локализация
@@ -64,3 +64,11 @@ Reload в этой фазе нет. Настройки целиком приме
 сохраняется; выбранный язык общий по UUID. Смена default-language не меняет сохранённый выбор.
 Кэши очищаются при shutdown, их лимиты не меняют persistent values. Не редактируйте version/checksum
 миграций или pending marker вручную. Старые данные после успешного переноса не удаляются.
+
+## Phase 2
+
+Полная таблица `voting.yml` и правила `gui.yml` — [VOTING.md](VOTING.md). Отсутствующие файлы
+создаются из defaults, существующие не переписываются. При обновлении Phase 1/1.1 новые
+`vote-*`, `gui-*`, `reason-*` ключи подставляются из bundled RU/EN. Custom messages сохраняются.
+Причины пользовательского администратора должны ссылаться на существующие переводы без
+placeholders. Новые настройки валидируются до открытия backend. Нет online reload.

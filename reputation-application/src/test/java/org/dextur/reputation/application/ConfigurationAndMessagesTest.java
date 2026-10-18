@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ConfigurationAndMessagesTest {
     @TempDir Path directory;
     @BeforeEach void resources() throws Exception {
-        for (String file : new String[]{"config.yml", "storage.yml", "integrations.yml", "lang/ru_RU.yml", "lang/en_US.yml"}) {
+        for (String file : new String[]{"config.yml", "storage.yml", "integrations.yml", "voting.yml", "lang/ru_RU.yml", "lang/en_US.yml"}) {
             Path destination = directory.resolve(file);
             Files.createDirectories(destination.getParent());
             try (var in = getClass().getResourceAsStream("/" + file)) { Files.copy(in, destination); }
@@ -116,6 +116,37 @@ class ConfigurationAndMessagesTest {
         Component result = messages.render(PlayerLanguage.en_US, "profile", Map.of("player", attack, "reputation", "0", "tier", "Neutral"));
         assertTrue(PlainTextComponentSerializer.plainText().serialize(result).contains(attack));
         assertNoEvents(result);
+    }
+    @Test void votingDefaultsValidationAndCompleteSafeLocales() throws Exception {
+        var messages=new Messages(directory.resolve("lang"),PlayerLanguage.ru_RU);
+        var defaults=VotingConfiguration.load(directory,messages);assertEquals(108000,defaults.rules().minimumPlaytimeSeconds());
+        assertEquals(604800,defaults.rules().minimumAgeSeconds());assertEquals(7200,defaults.rules().cooldownSeconds());
+        assertEquals(3,defaults.rules().dailyLimit(0));assertEquals(10,defaults.rules().dailyLimit(1000));
+        var ru=YamlFiles.read(directory.resolve("lang/ru_RU.yml"));var en=YamlFiles.read(directory.resolve("lang/en_US.yml"));
+        assertEquals(ru.keySet(),en.keySet());
+        for(String key:ru.keySet()) if(!key.equals("config-version")) {
+            var fields=Messages.placeholders(messages.template(PlayerLanguage.ru_RU,key));
+            for(var language:PlayerLanguage.values()) {
+                var values=fields.stream().collect(java.util.stream.Collectors.toMap(k->k,k->"<click:run_command:'/op x'>unsafe</click>"));
+                assertNoEvents(messages.content(language,key,values));
+            }
+        }
+        Path file=directory.resolve("voting.yml");String original=Files.readString(file);
+        for(String changed:java.util.List.of(original.replace("cooldown-seconds: 7200","cooldown-seconds: -1"),original.replace("reset-zone: UTC","reset-zone: INVALID"),
+                original.replace("types: [POSITIVE]","types: [INVALID]"),original.replace("score: 100, limit: 5","score: 25, limit: 5"),
+                original.replace("message: reason-helpful","message: missing-reason"),original.replace("dexturreputation.like","invalid permission"))) {
+            Files.writeString(file,changed);assertThrows(RuntimeException.class,()->VotingConfiguration.load(directory,messages));
+        }
+    }
+    @Test void phaseOneLocalesReceiveAdditiveVotingDefaultsWithoutOverwritingCustomMessages() throws Exception {
+        for(var language:PlayerLanguage.values()) {
+            Path file=directory.resolve("lang/"+language+".yml");
+            String old=Files.readString(file).lines().filter(l->!l.startsWith("vote-")&&!l.startsWith("gui-")&&!l.startsWith("reason-")).collect(java.util.stream.Collectors.joining("\n"));
+            Files.writeString(file,old+"\nvote-empty: 'Custom empty'\n");
+        }
+        var messages=new Messages(directory.resolve("lang"),PlayerLanguage.ru_RU);
+        for(var language:PlayerLanguage.values()) { assertEquals("Custom empty",messages.template(language,"vote-empty"));assertNotNull(messages.render(language,"vote-help",Map.of())); }
+        assertNotNull(VotingConfiguration.load(directory,messages));
     }
     private void assertNoEvents(Component component) {
         assertNull(component.clickEvent()); assertNull(component.hoverEvent());

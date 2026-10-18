@@ -191,11 +191,60 @@ abstract class DatabaseContract {
             assertThrows(SQLException.class,backend::snapshot);
         }
     }
+    @Test void phaseOneMysqlSchemaUpgradesAdditivelyWithOriginalChecksumAndData() throws Exception {
+        resetPortableTables();var environment=Map.of("TEST_DB_PASSWORD",container().getPassword());
+        try(var backend=SqlStorage.mysql(configuration(),environment,true)) { backend.prepareMigration();backend.importEmpty(StorageFixtures.sample());backend.finishMigration(); }
+        String originalChecksum;
+        try(var database=open();var c=database.dataSource().getConnection();var s=c.createStatement()) {
+            try(var row=s.executeQuery("SELECT checksum FROM dr_schema_history WHERE version=1")) { assertTrue(row.next());originalChecksum=row.getString(1); }
+            s.execute("DROP TABLE dr_active_votes");s.execute("DROP TABLE dr_votes");s.executeUpdate("DELETE FROM dr_schema_history WHERE version=2");
+        }
+        try {
+            try(var backend=SqlStorage.mysql(configuration(),environment,false)) { assertEquals(StorageFixtures.sample(),backend.snapshot());VotingContract.lifecycle(backend); }
+            try(var database=open();var c=database.dataSource().getConnection();var s=c.createStatement();var rows=s.executeQuery("SELECT version,checksum FROM dr_schema_history ORDER BY version")) {
+                assertTrue(rows.next());assertEquals(1,rows.getInt(1));assertEquals(originalChecksum,rows.getString(2));assertTrue(rows.next());assertEquals(2,rows.getInt(1));assertFalse(rows.next());
+            }
+        } finally { resetPortableTables(); }
+    }
+    @Test void votingLifecycleConcurrentRequestsLimitsAndRestart() throws Exception {
+        resetPortableTables();var environment=Map.of("TEST_DB_PASSWORD",container().getPassword());StorageSnapshot before;
+        try(var backend=SqlStorage.mysql(configuration(),environment,false)) {
+            VotingContract.lifecycle(backend);VotingContract.concurrent(backend);VotingContract.limits(backend);before=backend.snapshot();
+        }
+        try(var backend=SqlStorage.mysql(configuration(),environment,false)) { assertEquals(before,backend.snapshot()); }
+        finally { resetPortableTables(); }
+    }
+    @Test void mysqlVoteFailureAfterJournalInsertRollsBackAndCorruptionBlocksStartup() throws Exception {
+        resetPortableTables();var environment=Map.of("TEST_DB_PASSWORD",container().getPassword());
+        try(var backend=SqlStorage.mysql(configuration(),environment,false);var database=open();var c=database.dataSource().getConnection();var s=c.createStatement()) {
+            s.execute("ALTER TABLE dr_profiles ADD CONSTRAINT dr_reject_vote CHECK (community_score=0)");
+            try {
+                var request=VotingContract.request(UUID.randomUUID(),UUID.randomUUID(),org.dextur.reputation.api.VoteType.POSITIVE,"");
+                assertThrows(SQLException.class,()->backend.vote("global",request,VotingContract.facts(),VotingContract.rules(10,0),VotingContract.NOW));assertTrue(backend.snapshot().isEmpty());
+            } finally { s.execute("ALTER TABLE dr_profiles DROP "+(container() instanceof org.testcontainers.containers.MySQLContainer ? "CHECK" : "CONSTRAINT")+" dr_reject_vote"); }
+            VotingContract.lifecycle(backend);s.executeUpdate("DELETE FROM dr_active_votes");
+        }
+        try { assertThrows(SQLException.class,()->SqlStorage.mysql(configuration(),environment,false)); }
+        finally { resetPortableTables(); }
+    }
+    @Test void allSixDirectionsPreserveVotingJournal() throws Exception {
+        var types=org.dextur.reputation.application.StorageType.values();
+        for(var from:types) for(var to:types) if(from!=to) {
+            resetPortableTables();java.nio.file.Path work=directory.resolve("votes-"+from+"-"+to);StorageFixtures.resources(work);
+            java.nio.file.Files.writeString(work.resolve("storage.yml"),portableConfig(from));java.nio.file.Files.writeString(work.resolve("target.yml"),portableConfig(to));
+            var environment=Map.of("DEXTURREPUTATION_DB_PASSWORD",container().getPassword());StorageSnapshot before;
+            try(var source=StorageManager.create(work,Settings.load(work),environment,false)) { VotingContract.lifecycle(source);before=source.snapshot(); }
+            new StorageMigration().migrate(work,work.resolve("target.yml"),work.resolve("backups"),environment);
+            try(var target=StorageManager.create(work,Settings.load(work),environment,false)) { assertEquals(before,target.snapshot()); }
+        }
+        resetPortableTables();
+    }
     private String portableConfig(org.dextur.reputation.application.StorageType type) throws Exception {
         var d=configuration();return StorageFixtures.config(type).replace("host: localhost","host: "+d.host()).replace("port: 3306","port: "+d.port()).replace("database: dexturreputation","database: "+d.schema()).replace("username: dexturreputation","username: "+d.username()).replace("ssl-mode: verify-full","ssl-mode: disable");
     }
     private void resetPortableTables() throws Exception {
         try(var database=open();var c=database.dataSource().getConnection();var s=c.createStatement()) {
+            s.executeUpdate("DELETE FROM dr_active_votes");s.executeUpdate("DELETE FROM dr_votes");
             s.executeUpdate("DELETE FROM dr_profiles");s.executeUpdate("DELETE FROM dr_player_preferences");
             s.execute("CREATE TABLE IF NOT EXISTS dr_storage_control(id INTEGER PRIMARY KEY,pending INTEGER NOT NULL,format_version INTEGER NOT NULL)");
             s.executeUpdate("DELETE FROM dr_storage_control");

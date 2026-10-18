@@ -13,12 +13,15 @@ import javax.sql.DataSource;
 /** MySQL DDL auto-commits. V1 is additive/idempotent and safely retries incomplete creation. */
 public final class SchemaMigrator {
     public void migrate(DataSource source) throws Exception {
-        byte[] sql;
-        try (var in = SchemaMigrator.class.getResourceAsStream("/db/V1__foundation.sql")) {
-            if (in == null) throw new IOException("Missing schema migration V1");
-            sql = in.readAllBytes();
+        java.util.Map<Integer, byte[]> migrations = new java.util.TreeMap<>();
+        java.util.Map<Integer, String> checksums = new java.util.HashMap<>();
+        for (var entry : java.util.Map.of(1, "/db/V1__foundation.sql", 2, "/db/V2__voting.sql").entrySet()) {
+            try (var in = SchemaMigrator.class.getResourceAsStream(entry.getValue())) {
+                if (in == null) throw new IOException("Missing migration " + entry.getKey());
+                byte[] sql = in.readAllBytes(); migrations.put(entry.getKey(), sql);
+                checksums.put(entry.getKey(), HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(sql)));
+            }
         }
-        String checksum = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(sql));
         try (Connection connection = source.getConnection()) {
             String lock = "dr-" + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                     .digest(connection.getCatalog().getBytes(StandardCharsets.UTF_8))).substring(0, 48);
@@ -29,24 +32,26 @@ public final class SchemaMigrator {
                 }
             }
             try {
+                java.util.Set<Integer> applied = new java.util.HashSet<>();
                 try (Statement statement = connection.createStatement()) {
                     statement.execute("CREATE TABLE IF NOT EXISTS dr_schema_history (version INT PRIMARY KEY, checksum CHAR(64) NOT NULL, applied_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6)) ENGINE=InnoDB");
                     try (ResultSet history = statement.executeQuery("SELECT version, checksum FROM dr_schema_history")) {
-                        boolean applied = false;
                         while (history.next()) {
-                            if (history.getInt(1) != 1) throw new SQLException("Unsupported schema version; use a matching plugin release");
-                            if (!checksum.equals(history.getString(2))) throw new SQLException("Migration checksum mismatch; restore the original migration");
-                            applied = true;
+                            int version = history.getInt(1);
+                            if (!checksums.containsKey(version)) throw new SQLException("Unsupported schema version");
+                            if (!checksums.get(version).equals(history.getString(2))) throw new SQLException("Migration checksum mismatch");
+                            applied.add(version);
                         }
-                        if (applied) return;
-                    }
-                    for (String command : new String(sql, StandardCharsets.UTF_8).split(";")) {
-                        if (!command.isBlank()) statement.execute(command);
                     }
                 }
-                try (var statement = connection.prepareStatement("INSERT INTO dr_schema_history(version, checksum) VALUES(1, ?)")) {
-                    statement.setString(1, checksum);
-                    statement.executeUpdate();
+                for (var migration : migrations.entrySet()) if (!applied.contains(migration.getKey())) {
+                    try (Statement statement = connection.createStatement()) {
+                        for (String command : new String(migration.getValue(), StandardCharsets.UTF_8).split(";"))
+                            if (!command.isBlank()) statement.execute(command);
+                    }
+                    try (var statement = connection.prepareStatement("INSERT INTO dr_schema_history(version, checksum) VALUES(?, ?)")) {
+                        statement.setInt(1, migration.getKey()); statement.setString(2, checksums.get(migration.getKey())); statement.executeUpdate();
+                    }
                 }
             } finally {
                 try (var statement = connection.prepareStatement("SELECT RELEASE_LOCK(?)")) {

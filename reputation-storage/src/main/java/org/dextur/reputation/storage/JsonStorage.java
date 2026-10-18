@@ -59,7 +59,7 @@ public final class JsonStorage implements StorageBackend {
         available();for(var p:state.profiles()) if(p.playerId().equals(id)&&p.scopeId().equals(scope)) return p;
         var now=StorageSnapshot.now(); var profile=new ReputationSnapshot(id,scope,0,0,0,"NEUTRAL",0,now,now);
         var profiles=new ArrayList<>(state.profiles());profiles.add(profile);
-        commit(new StorageSnapshot(profiles,state.preferences()));return profile;
+        commit(new StorageSnapshot(profiles,state.preferences(),state.votes()));return profile;
     }
     @Override public synchronized PlayerLanguage language(UUID id,PlayerLanguage fallback) throws IOException {
         available();return state.preferences().stream().filter(p -> p.playerId().equals(id)).map(StorageSnapshot.Preference::language).findFirst().orElse(fallback);
@@ -68,7 +68,21 @@ public final class JsonStorage implements StorageBackend {
         available();Objects.requireNonNull(language);
         for(var p:state.preferences()) if(p.playerId().equals(id)&&p.language()==language) return;
         var preferences=new ArrayList<>(state.preferences());preferences.removeIf(p -> p.playerId().equals(id));
-        preferences.add(new StorageSnapshot.Preference(id,language,StorageSnapshot.now()));commit(new StorageSnapshot(state.profiles(),preferences));
+        preferences.add(new StorageSnapshot.Preference(id,language,StorageSnapshot.now()));commit(new StorageSnapshot(state.profiles(),preferences,state.votes()));
+    }
+    @Override public synchronized org.dextur.reputation.api.VoteEntry operation(UUID id) throws IOException {
+        available();return state.votes().stream().filter(v -> v.operationId().equals(id)).findFirst().orElse(null);
+    }
+    @Override public synchronized org.dextur.reputation.api.VoteReceipt vote(String scope, org.dextur.reputation.api.VoteRequest request,
+            org.dextur.reputation.domain.VoterFacts facts, org.dextur.reputation.domain.VotingRules rules, java.time.Instant now) throws Exception {
+        available();var result=JournalVoting.apply(state,scope,request,facts,rules,now);
+        if(!result.receipt().duplicate()) commit(result.state());return result.receipt();
+    }
+    @Override public synchronized org.dextur.reputation.api.ReputationView votingView(UUID player,String scope) throws Exception {
+        available();getOrCreate(player,scope);return JournalVoting.view(state,player,scope,StorageSnapshot.now());
+    }
+    @Override public synchronized org.dextur.reputation.api.VotePage votingHistory(UUID player,String scope,org.dextur.reputation.api.VotePage.Direction direction,int page,int size) throws Exception {
+        available();return JournalVoting.history(state,player,scope,direction,page,size);
     }
     @Override public synchronized StorageSnapshot snapshot() throws IOException { available();return state; }
     @Override public synchronized void prepareMigration() throws IOException { available();AtomicFiles.replace(pending,new byte[]{1}); }

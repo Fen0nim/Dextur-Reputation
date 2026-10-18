@@ -23,6 +23,7 @@ public final class ReputationApplication implements ReputationService, AutoClose
     private final ThreadPoolExecutor executor;
     private final BoundedCache<UUID, ReputationSnapshot> profiles;
     private final BoundedCache<UUID, PlayerLanguage> languages;
+    private final Object[] profileLocks = java.util.stream.IntStream.range(0, 64).mapToObj(i -> new Object()).toArray();
     private final Object[] languageLocks = java.util.stream.IntStream.range(0, 64).mapToObj(i -> new Object()).toArray();
 
     public ReputationApplication(ProfileRepository repository, Settings settings) {
@@ -60,11 +61,11 @@ public final class ReputationApplication implements ReputationService, AutoClose
         if (executor.isShutdown()) return CompletableFuture.failedFuture(new IllegalStateException("Service closed"));
         Optional<ReputationSnapshot> cached = profiles.get(playerId);
         if (cached.isPresent()) return CompletableFuture.completedFuture(cached.get());
-        return submit(() -> {
+        return submit(() -> withProfiles(playerId, playerId, () -> {
             ReputationSnapshot profile = repository.getOrCreate(playerId, settings.scope());
             profiles.put(playerId, profile);
             return profile;
-        });
+        }));
     }
 
     /** Always goes to the database; concurrent language mutations cannot corrupt a language cache. */
@@ -107,6 +108,12 @@ public final class ReputationApplication implements ReputationService, AutoClose
             throw new IllegalStateException("Interrupted draining database workers", e);
         } finally { profiles.clear(); languages.clear(); }
     }
+
+    <T> T withProfiles(UUID first, UUID second, Operation<T> operation) throws Exception {
+        int a = Math.floorMod(first.hashCode(), profileLocks.length), b = Math.floorMod(second.hashCode(), profileLocks.length);
+        synchronized (profileLocks[Math.min(a,b)]) { synchronized (profileLocks[Math.max(a,b)]) { return operation.run(); } }
+    }
+    void updateProfile(ReputationSnapshot profile) { profiles.put(profile.playerId(), profile); }
 
     public boolean terminated() { return executor.isTerminated(); }
 }

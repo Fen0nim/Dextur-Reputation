@@ -1,4 +1,4 @@
-# Архитектура Phase 1.1
+# Архитектура Phase 2
 
 | Модуль | Ответственность | Зависимости проекта |
 |---|---|---|
@@ -29,8 +29,7 @@ READ COMMITTED, upsert без изменения существующих пол
 Повторные/конкурентные вызовы не меняют revision, оценки или timestamps. Язык хранится
 отдельно по UUID; повторное сохранение того же языка не меняет timestamp. Доступ к языку
 в приложении сериализован фиксированными 64 stripe-locks; число блокировок не растёт
-с количеством игроков. Это локальная упорядоченность; между независимыми серверами
-действует порядок фиксации SQL, кэш ограничен TTL.
+с количеством игроков. Это локальная упорядоченность; совместная запись независимых серверов в один backend не поддерживается.
 
 V1 создаёт три таблицы: `dr_schema_history`, `dr_profiles`, `dr_player_preferences`.
 Временные метки — UTC TIMESTAMP(6); driver/session timezone фиксируется в UTC.
@@ -59,3 +58,31 @@ snapshot и maintenance-методы; публичный ReputationService не 
 SQLite использует user_version, JSON — version/generation/checksum. Подробности ownership,
 crash recovery, atomic activation и ограничений в [STORAGE.md](STORAGE.md). Все timestamps
 локальных backend — UTC Instant с микросекундами, что позволяет перенос без округления SQL.
+
+## Голоса Phase 2
+
+API: VotingService, immutable request/entry/receipt/view/page/statistics, after-commit subscriptions.
+Domain: VoterFacts, VotingRules и чистый VotingEngine; версия 1 использует заданный base weight.
+Application: VotingApplication переиспользует bounded executor и lifecycle foundation. Trusted
+facts собираются на потоке Paper, IO — на workers; pending facts завершаются ошибкой при disable.
+Profile stripes (64, фиксированный порядок пары) синхронизируют чтения профиля и vote cache update.
+Затем публикуется новое committed событие; дубликаты и ошибки не публикуются.
+
+StorageBackend расширяет старый ProfileRepository общим VotingRepository. JSON projector строит
+новый полный snapshot и фиксирует единственный файл. SQL adapter использует indexed reads,
+prepared statements, транзакцию журнала/active index/profile и уникальные ключи. В пределах одного
+владельца операции сериализованы; MySQL voting transaction SERIALIZABLE, профильные старые
+транзакции сохранены. Количество I/O workers/соединений ограничено.
+
+Journal — append-only CAST/REPLACE/REVOKE с operation UUID, hash нормализованного запроса,
+глобальным sequence, предыдущим событием пары, весами и before/after community. Active index
+SQL проверяется по журналу. Portable snapshot проверяет также цепочки, delta и финальный профиль.
+JSON v1 читается, v2 пишет журнал вместе с профилями; SQLite user_version 2, MySQL additive
+V2 с прежним V1 checksum. Migration переносит этот же snapshot, так что проверка активации
+включает голоса, counters/cooldown и историю, а не только profile totals.
+
+Paper: отдельные VotingCommands/VotingGui, immutable config и native Player eligibility. Inventory
+holder служит токеном сессии, busy блокирует повторный click; async callbacks сверяют identity.
+Перед снятием listeners при disable закрываются все GUI плагина, чтобы их предметы не остались доступны.
+Подробные ограничения масштабирования, неопределённого commit и event delivery — VOTING.md.
+Никаких Trust/Phase 3 компонентов не добавлено.

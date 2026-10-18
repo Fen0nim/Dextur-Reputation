@@ -28,7 +28,7 @@ public final class SqlStorage implements StorageBackend {
         var backend=new SqlStorage(null,file,busy,lease);
         try { backend.initialize(migration);return backend; } catch(Exception e) { backend.close();throw e; }
     }
-    private Connection connect() throws SQLException {
+    Connection connect() throws SQLException {
         if(closed) throw new SQLException("Storage closed");
         if(database!=null) { database.ensureOwned();return database.dataSource().getConnection(); }
         Properties props=new Properties();props.setProperty("busy_timeout",Integer.toString(busy));props.setProperty("synchronous","FULL");props.setProperty("foreign_keys","true");
@@ -38,13 +38,13 @@ public final class SqlStorage implements StorageBackend {
         try(Connection c=connect();Statement s=c.createStatement()) {
             if(database==null) {
                 try(var rows=s.executeQuery("PRAGMA integrity_check")) { if(!rows.next()||!"ok".equals(rows.getString(1))) throw new SQLException("SQLite integrity check failed"); }
-                try(var rows=s.executeQuery("PRAGMA user_version")) { if(!rows.next()||rows.getInt(1)>1) throw new SQLException("Unsupported SQLite schema"); }
+                try(var rows=s.executeQuery("PRAGMA user_version")) { if(!rows.next()||rows.getInt(1)>2) throw new SQLException("Unsupported SQLite schema"); }
                 try(var rows=s.executeQuery("PRAGMA journal_mode=WAL")) { if(!rows.next()||!"wal".equalsIgnoreCase(rows.getString(1))) throw new SQLException("SQLite WAL unavailable"); }
                 c.setAutoCommit(false);
                 try {
                     s.execute("CREATE TABLE IF NOT EXISTS dr_profiles(player_uuid TEXT NOT NULL,scope_id TEXT NOT NULL,community_score INTEGER NOT NULL,system_score INTEGER NOT NULL,visible_score INTEGER NOT NULL,tier TEXT NOT NULL,profile_revision INTEGER NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(player_uuid,scope_id))");
                     s.execute("CREATE TABLE IF NOT EXISTS dr_player_preferences(player_uuid TEXT PRIMARY KEY NOT NULL,language TEXT NOT NULL CHECK(language IN ('ru_RU','en_US')),updated_at TEXT NOT NULL)");
-                    s.execute("PRAGMA user_version=1"); c.commit();
+                    SqlVoting.initializeSQLite(c);s.execute("PRAGMA user_version=2"); c.commit();
                 } catch(Exception e) { c.rollback();throw e; } finally { c.setAutoCommit(true); }
             }
             s.execute("CREATE TABLE IF NOT EXISTS dr_storage_control(id INTEGER PRIMARY KEY,pending INTEGER NOT NULL,format_version INTEGER NOT NULL)");
@@ -91,7 +91,7 @@ public final class SqlStorage implements StorageBackend {
             } catch(Exception e) { c.rollback();throw e; }
         }
     }
-    private ReputationSnapshot profile(ResultSet r) throws SQLException {
+    ReputationSnapshot profile(ResultSet r) throws SQLException {
         return new ReputationSnapshot(UUID.fromString(r.getString("player_uuid")),r.getString("scope_id"),r.getLong("community_score"),r.getLong("system_score"),r.getLong("visible_score"),r.getString("tier"),r.getLong("profile_revision"),instant(r,"created_at"),instant(r,"updated_at"));
     }
     private Instant instant(ResultSet r,String column) throws SQLException { return database==null?Instant.parse(r.getString(column)):r.getTimestamp(column).toInstant(); }
@@ -105,9 +105,19 @@ public final class SqlStorage implements StorageBackend {
                 try(var s=c.createStatement();var rows=s.executeQuery("SELECT * FROM dr_player_preferences")) {
                     while(rows.next()) preferences.add(new StorageSnapshot.Preference(UUID.fromString(rows.getString("player_uuid")),PlayerLanguage.parse(rows.getString("language")),instant(rows,"updated_at")));
                 }
-                var snapshot=new StorageSnapshot(profiles,preferences);c.commit();return snapshot;
+                var voting=new SqlVoting(this);var votes=voting.all(c);voting.validateActive(c,votes);
+                var snapshot=new StorageSnapshot(profiles,preferences,votes);c.commit();return snapshot;
             } catch(Exception e) { c.rollback();throw e; }
         }
+    }
+    @Override public synchronized org.dextur.reputation.api.VoteEntry operation(UUID id) throws Exception { return new SqlVoting(this).operation(id); }
+    @Override public synchronized org.dextur.reputation.api.VoteReceipt vote(String scope,org.dextur.reputation.api.VoteRequest request,
+            org.dextur.reputation.domain.VoterFacts facts,org.dextur.reputation.domain.VotingRules rules,java.time.Instant now) throws Exception {
+        return new SqlVoting(this).apply(scope,request,facts,rules,now);
+    }
+    @Override public synchronized org.dextur.reputation.api.ReputationView votingView(UUID player,String scope) throws Exception { return new SqlVoting(this).view(player,scope); }
+    @Override public synchronized org.dextur.reputation.api.VotePage votingHistory(UUID player,String scope,org.dextur.reputation.api.VotePage.Direction direction,int page,int size) throws Exception {
+        return new SqlVoting(this).history(player,scope,direction,page,size);
     }
     @Override public synchronized void prepareMigration() throws SQLException {
         try(Connection c=connect();var s=c.createStatement()) { s.executeUpdate("UPDATE dr_storage_control SET pending=1 WHERE id=1"); }
@@ -117,7 +127,7 @@ public final class SqlStorage implements StorageBackend {
             c.setAutoCommit(false);
             try {
                 try(var s=c.createStatement();var rows=s.executeQuery("SELECT pending FROM dr_storage_control WHERE id=1")) { if(!rows.next()||rows.getInt(1)!=1) throw new SQLException("Target not prepared"); }
-                for(String table:List.of("dr_profiles","dr_player_preferences")) {
+                for(String table:List.of("dr_profiles","dr_player_preferences","dr_votes","dr_active_votes")) {
                     try(var s=c.createStatement();var rows=s.executeQuery("SELECT COUNT(*) FROM "+table)) { if(!rows.next()||rows.getLong(1)!=0) throw new SQLException("Migration target is not empty"); }
                 }
                 try(var s=c.prepareStatement("INSERT INTO dr_profiles(player_uuid,scope_id,community_score,system_score,visible_score,tier,profile_revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)")) {
@@ -128,6 +138,8 @@ public final class SqlStorage implements StorageBackend {
                 try(var s=c.prepareStatement("INSERT INTO dr_player_preferences(player_uuid,language,updated_at) VALUES(?,?,?)")) {
                     for(var p:snapshot.preferences()) { s.setString(1,p.playerId().toString());s.setString(2,p.language().name());timestamp(s,3,p.updatedAt());s.addBatch(); }s.executeBatch();
                 }
+                var voting=new SqlVoting(this);
+                for(var vote:snapshot.votes()) { voting.insert(c,vote);voting.active(c,vote); }
                 c.commit();
             } catch(Exception e) { c.rollback();throw e; }
         }

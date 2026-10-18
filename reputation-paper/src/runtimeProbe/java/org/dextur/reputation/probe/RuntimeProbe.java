@@ -88,8 +88,22 @@ public final class RuntimeProbe extends JavaPlugin {
             if (!"Нейтральный".equals(request.invoke(expansion, offline, "tier"))) throw new AssertionError("Tier placeholder failed");
             getLogger().info("PROBE_PAPI_PASS: registration and all three cached placeholders");
         }
+        Object checkedExpansionManager=expansionManager;
+        if(Boolean.getBoolean("dextur.probe.voting")) new VotingRuntimeProbe(this).start(()->{
+            try { finish(checkedExpansionManager); } catch(Throwable failure) { fail(failure); }
+        },this::fail);
+        else finish(expansionManager);
+    }
+    private void finish(Object expansionManager) throws Exception {
+        // Resolve the dependency class while its plugin classloader is still enabled.
+        Class<org.dextur.reputation.api.VotingService> votingApi=org.dextur.reputation.api.VotingService.class;
         var target = getServer().getPluginManager().getPlugin("DexturReputation");
         getServer().getPluginManager().disablePlugin(target);
+        for(var player:getServer().getOnlinePlayers()) {
+            var holder=player.getOpenInventory().getTopInventory().getHolder();
+            if(holder!=null&&holder.getClass().getName().endsWith("VotingGui$Session")) throw new AssertionError("GUI remained open after listener cleanup");
+        }
+        if (getServer().getServicesManager().load(votingApi) != null) throw new AssertionError("Voting API not unregistered");
         if (getServer().getServicesManager().load(ReputationService.class) != null) throw new AssertionError("API not unregistered on shutdown");
         if (expansionManager != null && expansionManager.getClass().getMethod("getExpansion", String.class).invoke(expansionManager, "dexturreputation") != null) throw new AssertionError("Placeholder expansion not unregistered");
         getLogger().info("PROBE_PASS: startup, API, zero profile, uniqueness, restart persistence, diagnostics, unknown player, shutdown cleanup");

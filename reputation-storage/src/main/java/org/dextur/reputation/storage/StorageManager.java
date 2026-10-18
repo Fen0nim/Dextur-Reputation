@@ -9,7 +9,7 @@ import org.dextur.reputation.domain.PlayerLanguage;
 import org.dextur.reputation.domain.ProfileRepository;
 
 /** Owns exactly one selected backend. No fallback or storage-dependent public API. */
-public final class StorageManager implements ProfileRepository, AutoCloseable {
+public final class StorageManager implements ProfileRepository, org.dextur.reputation.domain.VotingRepository, AutoCloseable {
     private volatile StorageBackend backend;
     private StorageLease lease;
     public void open(Path directory,Settings settings,Map<String,String> environment) throws Exception {
@@ -29,6 +29,15 @@ public final class StorageManager implements ProfileRepository, AutoCloseable {
     @Override public ReputationSnapshot getOrCreate(UUID id,String scope) throws Exception { return backend().getOrCreate(id,scope); }
     @Override public PlayerLanguage language(UUID id,PlayerLanguage fallback) throws Exception { return backend().language(id,fallback); }
     @Override public void setLanguage(UUID id,PlayerLanguage language) throws Exception { backend().setLanguage(id,language); }
+    @Override public org.dextur.reputation.api.VoteEntry operation(UUID id) throws Exception { return backend().operation(id); }
+    @Override public org.dextur.reputation.api.VoteReceipt vote(String scope, org.dextur.reputation.api.VoteRequest request,
+            org.dextur.reputation.domain.VoterFacts facts, org.dextur.reputation.domain.VotingRules rules, java.time.Instant now) throws Exception {
+        return backend().vote(scope,request,facts,rules,now);
+    }
+    @Override public org.dextur.reputation.api.ReputationView votingView(UUID id,String scope) throws Exception { return backend().votingView(id,scope); }
+    @Override public org.dextur.reputation.api.VotePage votingHistory(UUID id,String scope,org.dextur.reputation.api.VotePage.Direction direction,int page,int size) throws Exception {
+        return backend().votingHistory(id,scope,direction,page,size);
+    }
     @Override public void close() {
         try { if(backend!=null) { backend.close();backend=null; } }
         catch(Exception e) { throw new IllegalStateException("Storage close failed",e); }

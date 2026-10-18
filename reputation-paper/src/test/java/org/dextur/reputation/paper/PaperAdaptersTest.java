@@ -122,6 +122,40 @@ class PaperAdaptersTest {
             verifyNoInteractions(repository);
         }
     }
+    private org.dextur.reputation.application.VotingConfiguration votingConfig() throws Exception {
+        try(var in=getClass().getResourceAsStream("/voting.yml")) { Files.copy(in,directory.resolve("voting.yml")); }
+        return org.dextur.reputation.application.VotingConfiguration.load(directory,messages);
+    }
+    @Test void phaseTwoProfileRoutingPreservesOfflineTextAndAddsStatistics() throws Exception {
+        try(var app=new ReputationApplication(repository(),settings)) {
+            var voting=mock(org.dextur.reputation.api.VotingService.class);var commands=new VotingCommands(plugin,app,voting,votingConfig(),messages,settings.defaultLanguage());
+            var sender=mock(CommandSender.class);when(sender.hasPermission(anyString())).thenReturn(true);
+            var offline=mock(org.bukkit.OfflinePlayer.class);UUID id=UUID.randomUUID();when(offline.getUniqueId()).thenReturn(id);when(offline.getName()).thenReturn("Known");when(offline.hasPlayedBefore()).thenReturn(true);when(server.getOfflinePlayerIfCached("Known")).thenReturn(offline);
+            var profile=new ReputationSnapshot(id,"global",7,0,7,"NEUTRAL",5,Instant.EPOCH,Instant.EPOCH);
+            when(voting.view(id)).thenReturn(java.util.concurrent.CompletableFuture.completedFuture(new org.dextur.reputation.api.ReputationView(profile,new org.dextur.reputation.api.VoteStatistics(2,1,3,5))));
+            assertTrue(commands.rep(sender,new String[]{"Known"}));verify(sender,never()).sendMessage(any(Component.class));
+            var reply=mainTasks.poll(3,TimeUnit.SECONDS);assertNotNull(reply);reply.run();
+            var captured=ArgumentCaptor.forClass(Component.class);verify(sender,times(2)).sendMessage(captured.capture());
+            var plain=PlainTextComponentSerializer.plainText();assertTrue(plain.serialize(captured.getAllValues().getFirst()).contains("Known"));
+            assertTrue(plain.serialize(captured.getAllValues().getFirst()).contains("репутация 7"));assertTrue(lastMessage(sender).contains("+2 / −1"));
+            assertFalse(commands.rep(sender,new String[]{"language","en_US"}));verify(server,never()).getOfflinePlayer(anyString());
+        }
+    }
+    @Test void voteCommandParsesCommentAndDoesNotConfirmFailedStorage() throws Exception {
+        try(var app=new ReputationApplication(repository(),settings)) {
+            var voting=mock(org.dextur.reputation.api.VotingService.class);var commands=new VotingCommands(plugin,app,voting,votingConfig(),messages,settings.defaultLanguage());
+            var sender=mock(Player.class);UUID voter=UUID.randomUUID(),target=UUID.randomUUID();when(sender.getUniqueId()).thenReturn(voter);when(sender.isOnline()).thenReturn(true);when(sender.hasPermission(anyString())).thenReturn(true);
+            var offline=mock(org.bukkit.OfflinePlayer.class);when(offline.getUniqueId()).thenReturn(target);when(offline.hasPlayedBefore()).thenReturn(true);when(server.getOfflinePlayerIfCached("Known")).thenReturn(offline);
+            var like=mock(Command.class);when(like.getName()).thenReturn("like");
+            when(voting.submit(any())).thenReturn(java.util.concurrent.CompletableFuture.failedFuture(new java.io.IOException("simulated failure")));
+            commands.onCommand(sender,like,"like",new String[]{"Known","helpful","literal","<red>comment</red>"});
+            var request=ArgumentCaptor.forClass(org.dextur.reputation.api.VoteRequest.class);verify(voting).submit(request.capture());
+            assertEquals(voter,request.getValue().voterId());assertEquals(target,request.getValue().targetId());assertEquals("helpful",request.getValue().reason());assertEquals("literal <red>comment</red>",request.getValue().comment());
+            var reply=mainTasks.poll(3,TimeUnit.SECONDS);assertNotNull(reply);reply.run();
+            assertEquals(PlainTextComponentSerializer.plainText().serialize(messages.render(PlayerLanguage.ru_RU,"error",Map.of())),lastMessage(sender));
+            assertTrue(commands.onTabComplete(sender,like,"like",new String[]{"Known","he"}).contains("helpful"));
+        }
+    }
     private String lastMessage(CommandSender sender) {
         ArgumentCaptor<Component> captured = ArgumentCaptor.forClass(Component.class);
         verify(sender, atLeastOnce()).sendMessage(captured.capture());

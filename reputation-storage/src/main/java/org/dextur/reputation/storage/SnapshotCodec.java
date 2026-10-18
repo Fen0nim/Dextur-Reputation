@@ -15,7 +15,8 @@ import org.dextur.reputation.domain.PlayerLanguage;
 public final class SnapshotCodec {
     public record Document(long generation, StorageSnapshot snapshot) { }
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-    public byte[] encode(long generation, StorageSnapshot snapshot) {
+    public byte[] encode(long generation, StorageSnapshot snapshot) { return encode(2, generation, snapshot); }
+    private byte[] encode(int version, long generation, StorageSnapshot snapshot) {
         JsonObject data = new JsonObject();
         JsonArray profiles = new JsonArray(), preferences = new JsonArray();
         for (var p : snapshot.profiles()) {
@@ -31,8 +32,13 @@ public final class SnapshotCodec {
             row.addProperty("language", p.language().name()); row.addProperty("updatedAt", p.updatedAt().toString()); preferences.add(row);
         }
         data.add("profiles", profiles); data.add("preferences", preferences);
-        JsonObject document = new JsonObject(); document.addProperty("formatVersion", 1); document.addProperty("generation", generation);
-        document.add("data", data); document.addProperty("sha256", digest("1\n" + generation + "\n" + GSON.toJson(data)));
+        if (version >= 2) {
+            JsonArray votes = new JsonArray();
+            for (var vote : snapshot.votes()) votes.add(voteJson(vote));
+            data.add("votes", votes);
+        }
+        JsonObject document = new JsonObject(); document.addProperty("formatVersion", version); document.addProperty("generation", generation);
+        document.add("data", data); document.addProperty("sha256", digest(version + "\n" + generation + "\n" + GSON.toJson(data)));
         return GSON.toJson(document).getBytes(StandardCharsets.UTF_8);
     }
     public Document decode(byte[] bytes) throws IOException {
@@ -41,10 +47,12 @@ public final class SnapshotCodec {
             JsonObject doc = read(reader, 0).getAsJsonObject();
             if (reader.peek() != JsonToken.END_DOCUMENT) throw new IOException("Trailing JSON data");
             keys(doc, "formatVersion", "generation", "data", "sha256");
-            if (number(doc, "formatVersion") != 1) throw new IOException("Unsupported JSON format");
+            int version = Math.toIntExact(number(doc, "formatVersion"));
+            if (version != 1 && version != 2) throw new IOException("Unsupported JSON format");
             long generation = number(doc, "generation");
             if (generation < 0) throw new IOException("Invalid generation");
-            JsonObject data = doc.getAsJsonObject("data"); keys(data, "profiles", "preferences");
+            JsonObject data = doc.getAsJsonObject("data");
+            if (version == 1) keys(data, "profiles", "preferences"); else keys(data, "profiles", "preferences", "votes");
             List<ReputationSnapshot> profiles = new ArrayList<>(); List<StorageSnapshot.Preference> preferences = new ArrayList<>();
             for (var item : data.getAsJsonArray("profiles")) {
                 JsonObject p = item.getAsJsonObject();
@@ -56,12 +64,35 @@ public final class SnapshotCodec {
                 JsonObject p = item.getAsJsonObject(); keys(p, "playerId", "language", "updatedAt");
                 preferences.add(new StorageSnapshot.Preference(UUID.fromString(text(p,"playerId")), PlayerLanguage.parse(text(p,"language")), Instant.parse(text(p,"updatedAt"))));
             }
-            StorageSnapshot snapshot = new StorageSnapshot(profiles, preferences);
+            List<org.dextur.reputation.api.VoteEntry> votes = new ArrayList<>();
+            if (version >= 2) for (var item : data.getAsJsonArray("votes")) votes.add(vote(item.getAsJsonObject()));
+            StorageSnapshot snapshot = new StorageSnapshot(profiles, preferences, votes);
             // Verify canonical logical content; JSON field/row order is not significant.
-            JsonObject canonical = JsonParser.parseString(new String(encode(generation, snapshot), StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonObject canonical = JsonParser.parseString(new String(encode(version, generation, snapshot), StandardCharsets.UTF_8)).getAsJsonObject();
             if (!MessageDigest.isEqual(text(doc,"sha256").getBytes(StandardCharsets.US_ASCII), text(canonical,"sha256").getBytes(StandardCharsets.US_ASCII))) throw new IOException("JSON checksum mismatch");
             return new Document(generation, snapshot);
         } catch (RuntimeException e) { throw new IOException("Invalid storage JSON; preserve files and use explicit recovery", e); }
+    }
+    static JsonObject voteJson(org.dextur.reputation.api.VoteEntry v) {
+        JsonObject row = new JsonObject();
+        row.addProperty("id", v.operationId().toString()); row.addProperty("sequence", v.sequence()); row.addProperty("scope", v.scope());
+        row.addProperty("voter", v.voterId().toString()); row.addProperty("target", v.targetId().toString());
+        row.addProperty("action", v.action().name()); row.addProperty("type", v.type().name()); row.addProperty("reason", v.reason());
+        row.addProperty("comment", v.comment()); row.addProperty("createdAt", v.createdAt().toString());
+        row.addProperty("previous", v.previousOperationId() == null ? "" : v.previousOperationId().toString());
+        row.addProperty("baseWeight", v.baseWeight()); row.addProperty("effectiveWeight", v.effectiveWeight());
+        row.addProperty("calculationVersion", v.calculationVersion()); row.addProperty("requestHash", v.requestHash());
+        row.addProperty("communityBefore", v.communityBefore()); row.addProperty("communityAfter", v.communityAfter());
+        return row;
+    }
+    static org.dextur.reputation.api.VoteEntry vote(JsonObject row) throws IOException {
+        keys(row, "id", "sequence", "scope", "voter", "target", "action", "type", "reason", "comment", "createdAt", "previous", "baseWeight", "effectiveWeight", "calculationVersion", "requestHash", "communityBefore", "communityAfter");
+        String previous = text(row, "previous");
+        return new org.dextur.reputation.api.VoteEntry(UUID.fromString(text(row,"id")), number(row,"sequence"), text(row,"scope"),
+                UUID.fromString(text(row,"voter")), UUID.fromString(text(row,"target")), org.dextur.reputation.api.VoteEntry.Action.valueOf(text(row,"action")),
+                org.dextur.reputation.api.VoteType.valueOf(text(row,"type")), text(row,"reason"), text(row,"comment"), Instant.parse(text(row,"createdAt")),
+                previous.isEmpty() ? null : UUID.fromString(previous), number(row,"baseWeight"), number(row,"effectiveWeight"),
+                Math.toIntExact(number(row,"calculationVersion")), text(row,"requestHash"), number(row,"communityBefore"), number(row,"communityAfter"));
     }
     public String checksum(StorageSnapshot snapshot) { return digest(new String(encode(0, snapshot), StandardCharsets.UTF_8)); }
     private static String digest(String value) {

@@ -6,7 +6,9 @@ import org.dextur.reputation.api.ReputationSnapshot;
 import org.dextur.reputation.domain.PlayerLanguage;
 
 /** Canonically ordered portable representation, including all scopes and preference timestamps. */
-public record StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference> preferences) {
+public record StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference> preferences,
+        List<org.dextur.reputation.api.VoteEntry> votes) {
+    public StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference> preferences) { this(profiles, preferences, List.of()); }
     public record Preference(UUID playerId, PlayerLanguage language, Instant updatedAt) {
         public Preference { Objects.requireNonNull(playerId); Objects.requireNonNull(language); Objects.requireNonNull(updatedAt); }
     }
@@ -21,8 +23,37 @@ public record StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference
         for (var p : preferences) if (!players.add(p.playerId())) throw new IllegalArgumentException("Duplicate preference");
         profiles = profiles.stream().sorted(Comparator.comparing(p -> p.playerId() + "/" + p.scopeId())).toList();
         preferences = preferences.stream().sorted(Comparator.comparing(p -> p.playerId().toString())).toList();
+        votes = votes.stream().sorted(Comparator.comparingLong(org.dextur.reputation.api.VoteEntry::sequence)).toList();
+        Set<UUID> operations = new HashSet<>();
+        Map<String, org.dextur.reputation.api.VoteEntry> pairs = new HashMap<>();
+        Map<String, Long> scores = new HashMap<>();
+        long sequence = 0;
+        for (var vote : votes) {
+            String target = vote.targetId() + "/" + vote.scope();
+            if (!operations.add(vote.operationId()) || vote.sequence() <= sequence
+                    || !ids.contains(target) || !ids.contains(vote.voterId() + "/" + vote.scope())) throw new IllegalArgumentException("Invalid vote journal identity");
+            var request = new org.dextur.reputation.api.VoteRequest(vote.operationId(),vote.voterId(),vote.targetId(),
+                    vote.action()==org.dextur.reputation.api.VoteEntry.Action.REVOKE ? org.dextur.reputation.api.VoteRequest.Action.REVOKE : org.dextur.reputation.api.VoteRequest.Action.SUBMIT,
+                    vote.action()==org.dextur.reputation.api.VoteEntry.Action.REVOKE ? null : vote.type(),
+                    vote.action()==org.dextur.reputation.api.VoteEntry.Action.REVOKE ? "" : vote.reason(),vote.comment());
+            if (!org.dextur.reputation.domain.VotingEngine.hash(vote.scope(),request).equals(vote.requestHash())
+                    || (vote.calculationVersion()==1 && vote.action()!=org.dextur.reputation.api.VoteEntry.Action.REVOKE && vote.effectiveWeight()!=vote.baseWeight()))
+                throw new IllegalArgumentException("Invalid vote request hash or base calculation");
+            var previous = pairs.get(vote.pairKey());
+            if (!Objects.equals(vote.previousOperationId(), previous == null ? null : previous.operationId())
+                    || (vote.action() == org.dextur.reputation.api.VoteEntry.Action.CAST) != (previous == null || previous.action() == org.dextur.reputation.api.VoteEntry.Action.REVOKE))
+                throw new IllegalArgumentException("Invalid vote journal chain");
+            long contribution = previous == null || previous.action() == org.dextur.reputation.api.VoteEntry.Action.REVOKE ? 0 : previous.contribution();
+            if (Math.addExact(Math.subtractExact(vote.communityBefore(), contribution), vote.contribution()) != vote.communityAfter()
+                    || (scores.containsKey(target) && scores.get(target) != vote.communityBefore())) throw new IllegalArgumentException("Inconsistent vote calculation");
+            scores.put(target, vote.communityAfter()); pairs.put(vote.pairKey(), vote); sequence = vote.sequence();
+        }
+        for (var profile : profiles) {
+            Long score = scores.get(profile.playerId() + "/" + profile.scopeId());
+            if (score != null && (score != profile.communityScore() || Math.addExact(profile.communityScore(),profile.systemScore()) != profile.visibleScore())) throw new IllegalArgumentException("Profile/journal mismatch");
+        }
     }
     public static StorageSnapshot empty() { return new StorageSnapshot(List.of(), List.of()); }
-    public boolean isEmpty() { return profiles.isEmpty() && preferences.isEmpty(); }
+    public boolean isEmpty() { return profiles.isEmpty() && preferences.isEmpty() && votes.isEmpty(); }
     static Instant now() { return Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); }
 }

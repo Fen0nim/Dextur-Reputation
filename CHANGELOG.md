@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0-SNAPSHOT — Phase 2
+
+- Голоса +/− с причинами/комментариями, доверенная eligibility Paper, известные offline targets.
+- Настраиваемые квоты, cooldown, repeat policy, безопасные replacement/revocation без накопления вклада.
+- Immutable journal, idempotent operation UUID, atomic profile/vote commits во всех backend.
+- JSON v2 с чтением Phase 1.1; additive MySQL V2 и SQLite schema 2; перенос полного журнала.
+- VotingService, immutable views/history/receipts и after-commit subscriptions; прежний API сохранён.
+- Команды, безопасный постраничный inventory GUI, RU/EN и additive config/locale upgrade.
+- Расширенные локальные/SQL тесты и runtime QA с настоящими подключёнными игроками.
+
 ## 0.1.1-SNAPSHOT — Phase 1.1
 
 - Единый storage.type JSON/SQLITE/MYSQL; JSON default для новых установок, MYSQL для legacy v1.
@@ -21,4 +31,4 @@
 - Модульные и настоящие SQL-интеграционные тесты, отдельный Paper runtime probe, CI и документация.
 - Удалены из отслеживания случайно закоммиченные кэши Gradle и HTML build reports.
 
-Голосование и все функции Phase 2–8 не включены. Итоговый стабильный релиз пока не объявлен.
+Функции Phase 3–8 не включены. Итоговый стабильный релиз пока не объявлен.

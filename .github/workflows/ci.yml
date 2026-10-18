@@ -1,4 +1,4 @@
-name: Phase 1.1 verification
+name: Phase 2 verification
 on:
   push:
   pull_request:
@@ -20,7 +20,7 @@ jobs:
       - run: sha256sum reputation-paper/build/libs/DexturReputation-StorageAdmin.jar > reputation-paper/build/libs/DexturReputation-StorageAdmin.jar.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: DexturReputation-phase1.1
+          name: DexturReputation-phase2
           path: |
             reputation-paper/build/libs/DexturReputation.jar
             reputation-paper/build/libs/DexturReputation.jar.sha256

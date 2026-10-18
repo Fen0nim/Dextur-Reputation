@@ -21,11 +21,14 @@ final class ReputationCommands implements CommandExecutor, TabCompleter {
     private final ReputationApplication application;
     private final Settings settings;
     private final Messages messages;
+    private VotingCommands voting;
+    void voting(VotingCommands voting) { this.voting=voting; }
 
     ReputationCommands(DexturReputationPlugin plugin, ReputationApplication application, Settings settings, Messages messages) {
         this.plugin = plugin; this.application = application; this.settings = settings; this.messages = messages;
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (voting != null && command.getName().equals("rep") && voting.rep(sender,args)) return true;
         PlayerLanguage language = sender instanceof Player player ? application.cachedLanguage(player.getUniqueId()) : settings.defaultLanguage();
         if (command.getName().equals("dexturreputation")) {
             String action = args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT);
@@ -100,6 +103,7 @@ final class ReputationCommands implements CommandExecutor, TabCompleter {
         sender.sendMessage(messages.render(language, key, placeholders));
     }
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (voting != null && command.getName().equals("rep")) return voting.onTabComplete(sender,command,alias,args);
         List<String> candidates;
         if (command.getName().equals("dexturreputation")) {
             candidates = args.length == 1 ? (sender.hasPermission("dexturreputation.status") ? List.of("help", "version", "status", "storage") : List.of("help", "version")) : List.of();

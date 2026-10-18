@@ -4,7 +4,7 @@
 Adventure/MiniMessage **5.2.0**. `plugin.yml` использует `api-version: '26.2'`.
 Автоматические интеграционные тесты: MariaDB **11.4.8**, MySQL **8.4.7**,
 MariaDB Connector/J **3.5.6**, HikariCP **6.3.0**. Сборка: Gradle **9.7.0**.
-PAPI — необязательная интеграция **2.12.3**. Результаты runtime-проверок — TEST_REPORT.md.
+PAPI — необязательная интеграция **2.12.3**. Результаты runtime-проверок — [PHASE_2_TEST_REPORT.md](PHASE_2_TEST_REPORT.md).
 
 Paper предоставляет Adventure/SLF4J; они исключены из shaded JAR. HikariCP/SnakeYAML
 перемещены во внутренние packages, MariaDB JDBC включён с service descriptor.
@@ -31,3 +31,16 @@ JSON требует local POSIX FS с atomic rename/directory fsync. Один в
 соединений (request pool + dedicated ownership session). Migration CLI — отдельный fat JAR.
 Актуальные результаты в [PHASE_1_1_TEST_REPORT.md](PHASE_1_1_TEST_REPORT.md); раздел выше
 сохранён как история исходного Phase 1 target.
+
+## Phase 2
+
+ReputationService/ReputationSnapshot и PAPI placeholder names сохранены. Добавлен независимый
+VotingService. JSON v1 и SQLite schema 1 обновляются без потери профилей/языков, MySQL V1
+сохранена байт-в-байт и дополнена V2. Flat storage v1 остаётся MYSQL. Голоса входят в существующий
+offline migration/recovery protocol. Администраторские config/lang файлы не перезаписываются.
+
+Runtime --voting использует реальных offline-mode клиентов протокола 776 и native Player команды,
+GUI events и cache checks на Paper 26.2. Это автоматизация серверного поведения; пиксельный
+вид интерфейса/ручной клиент Minecraft не проверялся. Default eligibility/cooldowns/quota в этом
+сценарии ослаблены только в изолированных QA-конфигах; границы production defaults тестируются
+модульно. Phase 3 не начата.

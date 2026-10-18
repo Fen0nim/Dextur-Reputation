@@ -1,0 +1,48 @@
+config-version: 1
+# Eligibility comes from Paper: total play ticks and first join on this server.
+minimum-playtime-seconds: 108000
+minimum-account-age-seconds: 604800
+cooldown-seconds: 7200
+pair-cooldown-seconds: 7200
+base-daily-limit: 3
+daily-thresholds:
+  - {score: 25, limit: 4}
+  - {score: 100, limit: 5}
+  - {score: 250, limit: 6}
+  - {score: 500, limit: 8}
+  - {score: 1000, limit: 10}
+reset-zone: UTC
+reset-hour: 0
+# REPLACE: one active vote per pair; ONCE: one submission ever per pair.
+repeat-policy: REPLACE
+allow-revoke: true
+maximum-comment-length: 250
+positive-weight: 1
+negative-weight: 1
+history-page-size: 9
+notify-target: true
+open-gui-on-profile: false
+permissions:
+  vote: dexturreputation.vote
+  positive: dexturreputation.like
+  negative: dexturreputation.dislike
+  revoke: dexturreputation.revoke
+  history: dexturreputation.history
+  gui: dexturreputation.gui
+  reasons: dexturreputation.reasons
+reasons:
+  helpful:
+    message: reason-helpful
+    types: [POSITIVE]
+  friendly:
+    message: reason-friendly
+    types: [POSITIVE]
+  fair:
+    message: reason-fair
+    types: [POSITIVE]
+  rude:
+    message: reason-rude
+    types: [NEGATIVE]
+  unfair:
+    message: reason-unfair
+    types: [NEGATIVE]

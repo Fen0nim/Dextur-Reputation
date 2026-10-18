@@ -1,0 +1,17 @@
+config-version: 1
+# First 36 slots contain reasons/history. Navigation uses the remaining slots.
+size: 54
+content-slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]
+reason-material: PAPER
+entry-material: BOOK
+buttons:
+  profile: {slot: 40, material: PLAYER_HEAD}
+  like: {slot: 38, material: LIME_DYE}
+  dislike: {slot: 42, material: RED_DYE}
+  revoke: {slot: 49, material: BARRIER}
+  history: {slot: 45, material: BOOK}
+  given: {slot: 46, material: WRITABLE_BOOK}
+  close: {slot: 53, material: OAK_DOOR}
+  back: {slot: 49, material: ARROW}
+  previous: {slot: 45, material: ARROW}
+  next: {slot: 51, material: ARROW}

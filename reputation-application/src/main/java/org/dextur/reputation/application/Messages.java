@@ -40,6 +40,7 @@ public final class Messages {
             Map<String, Object> yaml = new HashMap<>(bundled ? shipped : YamlFiles.read(directory.resolve(language.name() + ".yml")));
             // Additive fallback for new storage keys; never overwrite administrator customizations.
             for (String key : STORAGE_KEYS) yaml.putIfAbsent(key, shipped.get(key));
+            for (String key : shipped.keySet()) if (key.startsWith("vote-") || key.startsWith("gui-") || key.startsWith("reason-")) yaml.putIfAbsent(key, shipped.get(key));
             YamlFiles.version(yaml);
             Map<String, String> values = new HashMap<>();
             for (String key : yaml.keySet()) {
@@ -70,6 +71,15 @@ public final class Messages {
         if (!values.keySet().containsAll(placeholders(text))) throw new IllegalArgumentException("Missing placeholders for " + key);
         Component content = mini.deserialize(translate(text), resolvers(text, values));
         return key.equals("prefix") ? content : mini.deserialize(template(language, "prefix")).append(content);
+    }
+
+    public Component content(PlayerLanguage language, String key, Map<String, String> values) {
+        String text = template(language, key);
+        if (!values.keySet().containsAll(placeholders(text))) throw new IllegalArgumentException("Missing placeholders for " + key);
+        return mini.deserialize(translate(text), resolvers(text, values));
+    }
+    public String plain(PlayerLanguage language, String key) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(content(language,key,Map.of()));
     }
 
     public Component tier(PlayerLanguage language) { return mini.deserialize(template(language, "tier-neutral")); }

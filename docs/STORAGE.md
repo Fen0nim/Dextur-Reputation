@@ -1,4 +1,4 @@
-# Хранилища, резервные копии и перенос — Phase 1.1
+# Хранилища, резервные копии и перенос — Phase 2
 
 ## Выбор и совместимость
 
@@ -38,7 +38,8 @@ storage:
 
 ## JSON
 
-`storage/json/state.json` содержит formatVersion, generation, profiles, preferences и SHA-256.
+`storage/json/state.json` содержит formatVersion=2, generation, profiles, preferences, votes и SHA-256.
+Формат 1 Phase 1.1 читается без потери данных; запись обновляет его до 2.
 Сохраняются **все scope, оценки, tier, revision, UUID, timestamps профилей и выбора языка**.
 Снимок канонически сортируется; дубликаты ключей/профилей/языков, некорректные UUID/enum/числа,
 неподдерживаемый формат и неверная checksum отвергаются. Hash защищает от повреждения,
@@ -55,7 +56,7 @@ storage:
 файлы создаются с POSIX mode 0600. Нет неатомарного обходного пути. Ошибка/неопределённый
 результат записи переводит открытый backend в fail-closed до перезапуска/проверки.
 Если rename успел завершиться до ошибки fsync/падения, после рестарта может существовать новая
-полная версия, хотя caller не получил успех. Повторные getOrCreate/выбор того же языка идемпотентны.
+полная версия, хотя caller не получил успех. Повторные getOrCreate/выбор того же языка идемпотентны; голос повторяйте с тем же operationId.
 
 Повреждённый/пропавший primary **не** вызывает автоматического отката или создания пустой БД,
 если остались backup/tmp. Корректный primary загружается; незавершённый tmp не активируется.
@@ -91,7 +92,7 @@ UTC TIMESTAMP(6), HikariCP, MariaDB Connector/J и неизменённая V1/c
 Пароль берётся только из окружения, не записывается в snapshot/receipt/config и не выводится CLI.
 Для production `ssl-mode: verify-full`; `disable` только для изолированных тестов.
 
-На одну физическую базу допускается один владелец DexturReputation 1.1. Отдельная JDBC-сессия
+На одну физическую базу допускается один владелец DexturReputation. Отдельная JDBC-сессия
 удерживает advisory lock; она добавляется **к** настроенному request pool (учтите N+1 соединений).
 Перед операциями проверяется сохранение владения. Потеря сессии не вызывает автоматического
 перехвата: операции завершаются ошибкой до явного рестарта. Pool/ownership очищаются вместе.
@@ -128,7 +129,7 @@ java -jar DexturReputation-StorageAdmin.jar migrate \
 `storage-before.yml`, `storage-target.yml`. Все backup перечитываются и проверяются.
 Назначение помечается pending, выполняется атомарный bulk import (JSON snapshot / SQL transaction).
 Затем сравниваются полные source/target snapshots, а не только counts: timestamps, языки,
-оценки, scope и revision должны совпасть. Создаётся проверенный `VERIFIED.json`.
+оценки, scope, revision и полный журнал голосов должны совпасть. Создаётся проверенный `VERIFIED.json`.
 **Только после этого** снимается pending и атомарно заменяется активный `storage.yml`.
 Конфигурация содержит один selector, поэтому два активных backend не появляются.
 
@@ -172,5 +173,16 @@ java -jar DexturReputation-StorageAdmin.jar recover-json \
   использовать официальный SQLite backup API. Не удалять WAL вручную.
 - MYSQL: согласованный дамп/backup средствами СУБД с безопасными client credentials;
   `--single-transaction` для InnoDB, без concurrent DDL. Дополнительно сохранить конфиги/lang.
-- Portable snapshots миграции содержат все данные Phase 1.1, но не произвольные таблицы других
+- Portable snapshots миграции содержат все данные Phase 1/1.1/2, но не произвольные таблицы других
   плагинов и не являются заменой полного DBA backup. Храните внешние копии и проверяйте restore.
+
+## Журнал Phase 2
+
+Additive MySQL migration V2 добавляет dr_votes и dr_active_votes, сохраняя исходный V1/checksum.
+SQLite user_version=2. JSON profiles и votes фиксируются одним snapshot; SQL — одной транзакцией.
+Backup и recovery всегда охватывают их вместе. Все шесть направлений migration переносят
+полную историю, idempotency IDs и веса, восстанавливают active index, сверяют результат перед
+активацией. Подробный расчёт/квоты/границы событий и роста журнала — [VOTING.md](VOTING.md).
+Downgrade требует полного согласованного pre-upgrade backup; старый плагин не понимает новую
+схему. После JSON ошибки сначала проверьте состояние, не повторяйте команды с новым намерением
+вслепую: commit мог успеть завершиться. API предоставляет явный idempotent retry.

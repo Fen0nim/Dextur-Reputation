@@ -31,6 +31,7 @@ def main():
     parser.add_argument("--storage-type", choices=("JSON", "SQLITE", "MYSQL"), default="JSON")
     parser.add_argument("--legacy-mysql", action="store_true", help="Test unchanged Phase 1 storage.yml")
     parser.add_argument("--mojang-cache", type=Path, help="Reuse a cached Mojang server jar after checking Paper's embedded SHA-256")
+    parser.add_argument("--voting", action="store_true", help="Exercise Phase 2 with two local protocol 776 clients and relaxed QA eligibility/cooldowns")
     args = parser.parse_args()
     if args.legacy_mysql and args.storage_type != "MYSQL":
         parser.error("--legacy-mysql requires --storage-type MYSQL")
@@ -61,7 +62,7 @@ def main():
         (directory / "cache").mkdir()
         shutil.copyfile(args.mojang_cache, directory / "cache" / filename)
     (directory / "eula.txt").write_text("eula=true\n")
-    (directory / "server.properties").write_text("server-ip=127.0.0.1\nserver-port=25566\nonline-mode=false\nview-distance=2\nsimulation-distance=2\nmax-players=1\nlevel-name=smoke-world\ngenerate-structures=false\n")
+    (directory / "server.properties").write_text("server-ip=127.0.0.1\nserver-port=25566\nonline-mode=false\nview-distance=2\nsimulation-distance=2\nmax-players=2\nlevel-name=smoke-world\ngenerate-structures=false\n")
     plugins = directory / "plugins"
     config = plugins / "DexturReputation"
     config.mkdir(parents=True)
@@ -70,6 +71,9 @@ def main():
     resources = ROOT / "reputation-paper/src/main/resources"
     for name in ("config.yml", "integrations.yml"):
         shutil.copyfile(resources / name, config / name)
+    if args.voting:
+        voting = (resources / "voting.yml").read_text().replace("minimum-playtime-seconds: 108000", "minimum-playtime-seconds: 0").replace("minimum-account-age-seconds: 604800", "minimum-account-age-seconds: 0").replace("cooldown-seconds: 7200", "cooldown-seconds: 0").replace("base-daily-limit: 3", "base-daily-limit: 1000")
+        (config / "voting.yml").write_text(voting)
     container = "dextur-smoke-" + secrets.token_hex(6)
     password = secrets.token_urlsafe(32)
     environment = os.environ.copy()
@@ -106,6 +110,8 @@ def main():
             for protocol in ("http", "https"):
                 launch.extend([f"-D{protocol}.proxyHost={proxy.hostname}", f"-D{protocol}.proxyPort={proxy.port or 80}"])
         launch.append("-Ddextur.probe.storage=" + args.storage_type)
+        if args.voting:
+            launch.append("-Ddextur.probe.voting=true")
         launch += ["-jar", "paper.jar", "--nogui"]
         server_environment = os.environ.copy()
         if args.storage_type == "MYSQL":
@@ -117,11 +123,27 @@ def main():
             if run == 3:
                 shutil.copyfile(args.placeholderapi_jar, plugins / "PlaceholderAPI.jar")
             log = directory / f"smoke-{run}.log"
-            with log.open("w") as output:
-                result = subprocess.run(launch, cwd=directory, env=server_environment, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, timeout=180)
+            clients = []
+            try:
+                if args.voting:
+                    import sys
+                    for username in ("Phase2Voter", "Phase2Target"):
+                        client_log = (directory / f"client-{username}-{run}.log").open("w")
+                        client = subprocess.Popen([sys.executable, str(ROOT / "scripts/paper-test-client.py"), "--username", username], stdout=client_log, stderr=subprocess.STDOUT)
+                        clients.append((client, client_log))
+                with log.open("w") as output:
+                    result = subprocess.run(launch, cwd=directory, env=server_environment, stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT, timeout=180)
+            finally:
+                for client, client_log in clients:
+                    if client.poll() is None:
+                        client.terminate()
+                    client.wait(timeout=5)
+                    client_log.close()
             text = log.read_text()
             if result.returncode != 0 or "PROBE_PASS:" not in text or "PROBE_FAIL:" in text:
                 raise RuntimeError(f"Paper run {run} failed; inspect {log}")
+            if args.voting and "PROBE_VOTING_PASS:" not in text:
+                raise RuntimeError(f"Voting verification missing; inspect {log}")
             if run == 3 and "PROBE_PAPI_PASS:" not in text:
                 raise RuntimeError(f"PlaceholderAPI verification missing; inspect {log}")
             print(f"Paper 26.2 {args.storage_type} run {run}: PASS ({log})", flush=True)
