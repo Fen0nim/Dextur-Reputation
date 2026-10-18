@@ -14,14 +14,24 @@ public final class YamlFiles {
     private YamlFiles() { }
 
     public static Map<String, Object> read(Path path) throws IOException {
+        try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+            return read(reader, path.getFileName().toString());
+        }
+    }
+    public static Map<String, Object> resource(String resource) throws IOException {
+        var stream = YamlFiles.class.getResourceAsStream(resource);
+        if (stream == null) throw new IOException("Missing bundled resource: " + resource);
+        try (Reader reader = new java.io.InputStreamReader(stream, StandardCharsets.UTF_8)) { return read(reader, resource); }
+    }
+    private static Map<String, Object> read(Reader reader, String name) throws IOException {
         LoaderOptions options = new LoaderOptions();
         options.setAllowDuplicateKeys(false);
         options.setMaxAliasesForCollections(0);
         options.setCodePointLimit(1_000_000);
-        try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+        {
             Object value = new Yaml(new SafeConstructor(options)).load(reader);
             if (!(value instanceof Map<?, ?> map) || map.keySet().stream().anyMatch(k -> !(k instanceof String))) {
-                throw new IllegalArgumentException(path.getFileName() + ": expected a YAML mapping");
+                throw new IllegalArgumentException(name + ": expected a YAML mapping");
             }
             @SuppressWarnings("unchecked") Map<String, Object> result = (Map<String, Object>) map;
             return Map.copyOf(result);

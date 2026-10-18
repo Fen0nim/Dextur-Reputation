@@ -19,8 +19,7 @@ import org.dextur.reputation.api.ReputationService;
 import org.dextur.reputation.application.Messages;
 import org.dextur.reputation.application.ReputationApplication;
 import org.dextur.reputation.application.Settings;
-import org.dextur.reputation.storage.Database;
-import org.dextur.reputation.storage.JdbcProfiles;
+import org.dextur.reputation.storage.StorageManager;
 
 public final class DexturReputationPlugin extends JavaPlugin implements Listener {
     private final AtomicBoolean stopping = new AtomicBoolean();
@@ -32,30 +31,36 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
 
     @Override public void onEnable() {
         stopping.set(false);
+        org.dextur.reputation.domain.PlayerLanguage startupLanguage=org.dextur.reputation.domain.PlayerLanguage.ru_RU;
         try {
             defaults();
+            startupLanguage=org.dextur.reputation.domain.PlayerLanguage.parse(org.dextur.reputation.application.YamlFiles.text(
+                    org.dextur.reputation.application.YamlFiles.read(getDataFolder().toPath().resolve("config.yml")),"default-language"));
             // Build the complete immutable configuration before exposing any service.
             settings = Settings.load(getDataFolder().toPath());
             messages = new Messages(getDataFolder().toPath().resolve("lang"), settings.defaultLanguage());
         } catch (Exception e) {
-            getLogger().severe("Configuration rejected: " + e.getMessage());
+            try {
+                getComponentLogger().error(Messages.bundled(startupLanguage).render(startupLanguage,"storage-config-invalid",
+                        Map.of("reason",e instanceof IllegalArgumentException ? String.valueOf(e.getMessage()) : e.getClass().getSimpleName())));
+            } catch (Exception localization) { getLogger().severe("Configuration rejected / Конфигурация отклонена"); }
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
-        Database database = new Database();
-        application = new ReputationApplication(new JdbcProfiles(database::dataSource), settings, database::close);
+        StorageManager storage = new StorageManager();
+        application = new ReputationApplication(storage, settings, storage::close);
         ReputationCommands commands = new ReputationCommands(this, application, settings, messages);
         for (String name : new String[]{"dexturreputation", "rep"}) {
             var command = Objects.requireNonNull(getCommand(name), "Missing command " + name);
             command.setExecutor(commands); command.setTabCompleter(commands);
         }
         getServer().getPluginManager().registerEvents(this, this);
-        application.submit(() -> { database.open(settings.database(), System.getenv()); return null; })
+        Path dataDirectory = getDataFolder().toPath();
+        application.submit(() -> { storage.open(dataDirectory, settings, System.getenv()); return null; })
                 .whenComplete((ignored, error) -> onMain(() -> {
                     if (error != null) {
-                        getLogger().severe("Database startup failed (" + root(error).getClass().getSimpleName()
-                                + "). Check storage.yml, connectivity, schema permissions and environment variable "
-                                + settings.database().passwordEnvironment() + ". No service was registered.");
+                        getComponentLogger().error(messages.render(settings.defaultLanguage(), "storage-failed",
+                                Map.of("type", settings.storage().type().name(), "error", root(error).getClass().getSimpleName())));
                         getServer().getPluginManager().disablePlugin(this);
                         return;
                     }
@@ -99,6 +104,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     @EventHandler public void join(PlayerJoinEvent event) { warm(event.getPlayer().getUniqueId()); }
     @EventHandler public void quit(PlayerQuitEvent event) { if (application != null) application.forget(event.getPlayer().getUniqueId()); }
     public boolean ready() { return ready && !stopping.get(); }
+    public String storageType() { return settings.storage().type().name(); }
     public boolean hasPlaceholders() { return placeholders != null && placeholders.isRegistered(); }
     public void logFailure(String operation, Throwable error) {
         // Never print SQLException messages, credentials, URLs, SQL parameters or player input.

@@ -1,90 +1,83 @@
-# DexturReputation — Phase 1
+# DexturReputation — Phase 1.1
 
-Основа системы репутации Dextur для **Paper 26.2**, **Java 25**, **MySQL 8.4 / MariaDB 11.4**.
-Версия `0.1.0-SNAPSHOT` не является финальным релизом всей системы. Голосование, Trust,
-GUI, ограничения и другие функции следующих фаз пока отсутствуют. Все новые профили имеют
-нулевые оценки и статус `NEUTRAL`.
+Основа репутации Dextur: **Paper 26.2**, **Java 25**, три взаимозаменяемых хранилища.
+Новые установки используют **JSON без БД и пароля**. SQLite и MySQL/MariaDB выбираются
+единственным параметром `storage.type`. Конфиги Phase 1 без этого параметра по-прежнему
+используют MySQL; обновление не переключает и не переносит данные автоматически.
 
-## Сборка и тесты
+Голосование, Trust, GUI и игровые функции Phase 2–8 отсутствуют. Новые профили имеют
+нулевые оценки, tier `NEUTRAL`; публичный API и прежние команды сохранены.
 
-```sh
-./gradlew clean build --no-build-cache
-```
-
-Нужны JDK 25, Интернет для первоначальной загрузки зависимостей и работающий Docker.
-`build` запускает модульные тесты и обязательные интеграционные тесты с настоящими
-MySQL/MariaDB через Testcontainers. Недоступный Docker приводит к ошибке проверки,
-а не к незаметному пропуску тестов. Отдельная быстрая проверка без БД:
+## Сборка и проверка
 
 ```sh
-./gradlew test
-./gradlew :reputation-storage:integrationTest
+./gradlew clean build :reputation-paper:runtimeProbeJar --no-build-cache
 ```
 
-Плагин: `reputation-paper/build/libs/DexturReputation.jar`.
-API для других плагинов: `reputation-api/build/libs/reputation-api-0.1.0-SNAPSHOT.jar`
-(подключать как `compileOnly`, не включать вторую копию API в потребителя).
-Gradle Wrapper, контрольная сумма дистрибутива, версии библиотек, dependency locks и
-порядок/время ZIP-записей фиксированы. Обновлять зависимости следует отдельным изменением
-с `--write-locks`, проверкой артефактов и повторным запуском тестов.
+Нужны JDK 25 и Docker для обязательных тестов MySQL/MariaDB. `./gradlew test` выполняет
+локальные suites, включая JSON/SQLite; `./gradlew :reputation-storage:integrationTest` — SQL
+контракты. Недоступный Docker приводит к FAIL, не к незаметному пропуску.
+Gradle Wrapper 9.7.0, версии/locks зависимостей и SHA-256 фиксированы. Проверка TLS не отключается.
 
-## Установка
+Результаты сборки:
 
-1. Создайте отдельную UTF-8 базу и пользователя; выдайте ему `SELECT`, `INSERT`, `UPDATE`,
-   `CREATE` для этой базы. Плагин не создаёт саму базу и пользователей. Для будущих
-   миграций могут понадобиться дополнительные права после проверки конкретной миграции.
-2. Скопируйте JAR в `plugins/` Paper 26.2. Запускайте сервер на Java 25.
-3. При первом запуске создаются только используемые конфигурационные файлы. Задайте
-   адрес БД, имя базы и пользователя в `plugins/DexturReputation/storage.yml`.
-4. Передайте пароль серверному процессу через `DEXTURREPUTATION_DB_PASSWORD`, используя
-   средства управления секретами вашего хостинга. Не помещайте пароль в Git, чат или логи.
-5. По умолчанию включена проверка сертификата/имени сервера БД (`ssl-mode: verify-full`).
-   Установите доверенный CA в Java truststore при необходимости. `disable` допустим только
-   для изолированных локальных тестов, без передачи реальных данных.
-6. Перезапустите сервер. Готовность подтверждает строка `READY: ReputationService registered`.
-   До завершения подключения/миграции команды профиля возвращают локализованное сообщение
-   недоступности. При ошибке настройки или старта БД плагин отключается без регистрации API.
+- `reputation-paper/build/libs/DexturReputation.jar` — устанавливаемый Paper-плагин.
+- `reputation-paper/build/libs/DexturReputation-StorageAdmin.jar` — **отдельный offline CLI**
+  для переноса/восстановления. Не помещайте этот JAR в `plugins/`.
+- `reputation-api/build/libs/reputation-api-0.1.1-SNAPSHOT.jar` — API для `compileOnly`;
+  не упаковывайте повторную копию API в плагины-потребители.
 
-SQL никогда не выполняется на основном потоке Paper. Очередь и кэши ограничены.
-При выключении новые запросы отклоняются, принятые операции завершаются перед закрытием
-пула. Если истёк ограниченный срок ожидания, журнал явно сообщает об этом; уже принятые
-операции продолжают завершение, затем пул закрывается автоматически.
+## Установка и обновление
 
-## Команды
+1. Установите основной JAR в `plugins/` Paper 26.2 и запустите сервер на Java 25.
+2. На новой установке автоматически создаются конфиги и JSON в
+   `plugins/DexturReputation/storage/json/`. База данных для этого не требуется.
+3. Дождитесь `READY: ReputationService registered`. В случае ошибки выбранного хранилища
+   плагин отключается; подмены другим backend нет.
+4. При обновлении Phase 1 оставьте прежний `storage.yml`: его формат v1 сохраняет MYSQL.
+   Новый параметр и новые сообщения не требуют перезаписи пользовательских файлов.
+5. Для переноса существующих данных остановите сервер и выполните процедуру
+   [STORAGE.md](docs/STORAGE.md). Простая правка типа не переносит данные.
 
-`/dexturreputation [help|version|status]`, `/rep [игрок]`, `/rep language ru_RU|en_US`.
-Русский — язык по умолчанию; выбранный игроком язык хранится в БД независимо от scope.
-Ник используется только для безопасного поиска известного серверу игрока, ключ хранения — UUID.
-Неизвестные имена не вызывают внешних HTTP-запросов и не создают выдуманных UUID/профилей.
-Игрок вне кэша имён Paper должен снова зайти; API позволяет получить профиль напрямую по UUID.
+Профиль идентифицируется UUID + scope (`global` по умолчанию). Язык игрока хранится отдельно
+по UUID в выбранном backend. Все storage IO идут через управляемые workers, очередь и кэши
+ограничены. При остановке принятые операции дренируются до закрытия backend.
 
-Необязательная PlaceholderAPI 2.12.3: `%dexturreputation_score%`,
-`%dexturreputation_score_formatted%`, `%dexturreputation_tier%`.
-Она не нужна для загрузки плагина. Пропуск кэша возвращает пустую строку; синхронных
-запросов к БД и подмены неизвестного значения нулём нет. Кэш онлайн-игроков прогревается
-после готовности/входа и обновляется с периодом, зависящим от TTL.
+## Команды и интеграции
 
-## Проверка настоящего сервера
+`/dexturreputation [help|version|status|storage]`, `/rep [игрок]`,
+`/rep language ru_RU|en_US`. Русский язык по умолчанию. Ник используется только для
+кэшированного поиска известного игрока; unknown не создаёт выдуманные UUID и не обращается
+к Mojang. API работает непосредственно с UUID. RU/EN, fallback и защита MiniMessage сохранены.
+
+Необязательная PlaceholderAPI **2.12.3**: `%dexturreputation_score%`,
+`%dexturreputation_score_formatted%`, `%dexturreputation_tier%`. Запрос читает только кэш;
+cache miss возвращает пустую строку, не делает IO и не подменяется выдуманным нулём.
+Для сервера используйте полный [официальный релиз](https://github.com/PlaceholderAPI/PlaceholderAPI/releases/tag/2.12.3),
+а не Maven compile-only JAR.
+
+## Настоящий Paper smoke
 
 ```sh
 ./gradlew build :reputation-paper:runtimeProbeJar
-python3 scripts/paper-smoke.py --accept-eula --directory /tmp/dextur-smoke-new
+python3 scripts/paper-smoke.py --accept-eula --storage-type JSON --directory /tmp/dextur-json-new
+python3 scripts/paper-smoke.py --accept-eula --storage-type SQLITE --directory /tmp/dextur-sqlite-new
+python3 scripts/paper-smoke.py --accept-eula --storage-type MYSQL --directory /tmp/dextur-mysql-new
 ```
 
-Флаг означает явное принятие [Minecraft EULA](https://aka.ms/MinecraftEULA) для теста.
-Без флага сценарий не запускается. Нужна новая пустая директория **вне checkout**.
-Сценарий проверяет SHA-256 Paper 26.2 build 134, поднимает временную MariaDB с временным
-паролем, выполняет два запуска сервера и удаляет только созданный им контейнер.
-Сервер слушает loopback, порт 25566; подключать публичных игроков к этому тесту нельзя.
-Для третьего запуска с PlaceholderAPI передайте `--placeholderapi-jar /path/to/trusted.jar`.
-Нужен полный [официальный релиз PlaceholderAPI 2.12.3](https://github.com/PlaceholderAPI/PlaceholderAPI/releases/tag/2.12.3),
-а не compile-only JAR из Maven: последний не включает runtime-библиотеки PlaceholderAPI.
-QA-плагин проверяет API, значения профиля, сохранение между запусками, команды и очистку
-сервиса. Он не входит в основной JAR. Логи остаются в тестовой директории.
+`--accept-eula` означает явное согласие с [Minecraft EULA](https://aka.ms/MinecraftEULA).
+Директория должна быть новой/пустой и вне checkout. Сценарий проверяет checksum Paper 26.2
+build 134, два запуска с сохранёнными данными и cleanup API. JSON/SQLite запускаются без
+DB credentials/контейнера; MYSQL поднимает и удаляет только собственную тестовую MariaDB.
+`--legacy-mysql` с `--storage-type MYSQL` проверяет конфиг v1.
+`--placeholderapi-jar /path/to/full-release.jar` добавляет третий прогон с PAPI.
+`--mojang-cache /path/to/mojang_26.2.jar` повторно использует проверенный checksum-кэш.
+Сервер слушает только loopback на 25566, offline-mode; это не production deployment.
+QA-плагин не входит в основной JAR. Логи/миры остаются вне checkout.
 
-Документация: [архитектура](docs/ARCHITECTURE.md), [API](docs/API_DOCUMENTATION.md),
-[конфигурация](docs/CONFIGURATION.md), [команды](docs/COMMANDS.md),
+Документация: [хранилища/миграции/backup](docs/STORAGE.md), [конфигурация](docs/CONFIGURATION.md),
+[архитектура](docs/ARCHITECTURE.md), [API](docs/API_DOCUMENTATION.md), [команды](docs/COMMANDS.md),
 [права](docs/PERMISSIONS.md), [совместимость](docs/COMPATIBILITY.md),
-[результаты проверок](docs/TEST_REPORT.md), [изменения](CHANGELOG.md).
+[текущий отчёт](docs/PHASE_1_1_TEST_REPORT.md), [история](CHANGELOG.md).
 
-Phase 2 требует отдельного разрешения; она не реализована.
+**Phase 2 не реализована и требует отдельного разрешения.**

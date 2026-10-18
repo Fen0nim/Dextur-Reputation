@@ -31,3 +31,13 @@ tasks.register<Jar>("runtimeProbeJar") {
     from(runtimeProbe.output)
     archiveFileName.set("DexturReputationProbe.jar")
 }
+tasks.register<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("storageAdminJar") {
+    from(sourceSets.main.get().output)
+    configurations = listOf(project.configurations.runtimeClasspath.get())
+    archiveFileName.set("DexturReputation-StorageAdmin.jar")
+    manifest { attributes["Main-Class"] = "org.dextur.reputation.storage.StorageAdmin" }
+    relocate("com.zaxxer.hikari", "org.dextur.reputation.internal.hikari")
+    relocate("org.yaml.snakeyaml", "org.dextur.reputation.internal.yaml")
+    mergeServiceFiles()
+}
+tasks.build { dependsOn("storageAdminJar") }

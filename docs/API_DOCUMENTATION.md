@@ -8,8 +8,8 @@ public interface ReputationService {
 
 `ReputationSnapshot` содержит UUID, scope, community/system/visible score, tier, revision
 и createdAt/updatedAt в UTC. Это неизменяемый record; Trust, JDBC и внутренние кэши не раскрываются.
-В Phase 1 создаются только нулевые профили с tier `NEUTRAL` и revision 0.
-Имена игроков API не разрешает. Ошибки БД/переполнения очереди/остановки возвращаются через
+В Phase 1/1.1 создаются только нулевые профили с tier `NEUTRAL` и revision 0.
+Имена игроков API не разрешает. Ошибки выбранного storage/переполнения очереди/остановки возвращаются через
 exceptional completion. Snapshot из кэша может быть старше БД не более настроенного TTL.
 
 Для потребителя: добавьте `depend: [DexturReputation]`, API подключите `compileOnly`.
@@ -36,3 +36,5 @@ if (service != null) {
 прекратите использовать сохранённую ссылку. После остановки новые запросы отклоняются.
 Кэш PAPI отдельно не предоставляется публичному API; синхронный доступ не делает IO.
 Операции голосования, Trust и изменения репутации появятся только в соответствующих фазах.
+
+API Phase 1.1 не зависит от backend и не меняет контракты Phase 1. Потребителю не требуется знать JSON/SQLite/MySQL.

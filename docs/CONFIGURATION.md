@@ -1,64 +1,66 @@
-# Конфигурация
+# Конфигурация Phase 1.1
 
-Создаются только `config.yml`, `storage.yml`, `integrations.yml`, `lang/ru_RU.yml`,
-`lang/en_US.yml`. Все YAML имеют `config-version: 1`. Чужие файлы и значения не перезаписываются.
-Неизвестная версия отвергается с требованием использовать подходящий релиз; автоматической
-перезаписи кастомизаций нет. Нулевые/отрицательные лимиты, неверные типы, дубликаты ключей,
-неподдерживаемый язык, небезопасные hostname/database и несовместимые размеры пула отклоняются.
+Создаются `config.yml`, `storage.yml`, `integrations.yml`, `lang/ru_RU.yml`, `lang/en_US.yml`.
+Файлы администратора не переписываются. Неизвестные версии, дубликаты YAML, неверные типы,
+пустые обязательные строки, невалидные границы/разметка/placeholder-наборы отклоняются.
 
-| Поле config.yml | Значение по умолчанию | Допустимые значения |
+## Основные параметры (`config-version: 1`)
+
+| config.yml | Default | Диапазон |
 |---|---|---|
-| scope | global | `[a-z0-9_-]`, 1–32 символа |
+| scope | global | `[a-z0-9_-]`, 1–32 |
 | default-language | ru_RU | ru_RU / en_US |
-| cache-maximum-size | 10000 | 1–100000 на каждый кэш |
+| cache-maximum-size | 10000 | 1–100000 на кэш |
 | cache-ttl-seconds | 60 | 1–3600 |
-| database-workers | 2 | 1–16, не больше размера пула |
+| database-workers | 2 | 1–16; MYSQL не больше pool size |
 | database-queue-size | 256 | 1–10000 |
 | shutdown-timeout-seconds | 15 | 1–60 |
 
-| Поле storage.yml | Значение по умолчанию | Ограничения |
+Названия database-workers/queue сохранены для совместимости; они управляют IO workers
+всех backend. File IO/SQL не выполняются на основном игровом потоке.
+
+## Storage
+
+Полный пример и процедуры — [STORAGE.md](STORAGE.md). Новый `storage.yml` имеет version 2,
+`storage.type: JSON`. Legacy version 1 без selector означает MYSQL и продолжает работать
+без изменения. Единственный selector может быть только JSON, SQLITE, MYSQL.
+
+| Параметр | Default | Диапазон |
 |---|---|---|
-| host / port | localhost / 3306 | DNS/IPv4; порт 1–65535 |
-| database / username | dexturreputation | database: 1–64 буквы, цифры, `_`; username непустой |
-| password-environment | DEXTURREPUTATION_DB_PASSWORD | имя непустой переменной окружения |
-| ssl-mode | verify-full | verify-full / verify-ca / disable |
-| maximum-pool-size | 2 | 1–16 |
-| connection-timeout-ms | 5000 | 250–30000 |
-| max-lifetime-ms | 1800000 | 30000–3600000 |
+| storage.json.directory | storage/json | относительный путь внутри data folder |
+| storage.json.maximum-file-bytes | 67108864 | 1024–268435456 |
+| storage.sqlite.file | storage/reputation.sqlite | относительный путь внутри data folder |
+| storage.sqlite.busy-timeout-ms | 5000 | 250–30000 |
+| storage.mysql.host / port | localhost / 3306 | DNS/IPv4, 1–65535; не JDBC URL |
+| storage.mysql.database / username | dexturreputation | database `[A-Za-z0-9_]`, 1–64; username непустой |
+| storage.mysql.password-environment | DEXTURREPUTATION_DB_PASSWORD | имя переменной; значение нужно только MYSQL |
+| storage.mysql.ssl-mode | verify-full | verify-full / verify-ca / disable |
+| storage.mysql.maximum-pool-size | 2 | 1–16; плюс отдельная ownership-сессия |
+| storage.mysql.connection-timeout-ms | 5000 | 250–30000 |
+| storage.mysql.max-lifetime-ms | 1800000 | 30000–3600000 |
 
-Сетевой connectTimeout равен connection-timeout-ms; socketTimeout ограничен 10000 ms,
-чтобы сломанное соединение не удерживало работника бесконечно. Минимум idle-соединений — 0.
-Драйвер фиксирует UTC. Hikari validationTimeout не больше 1000 ms и connection-timeout-ms.
-SSL `verify-ca` проверяет цепочку, `verify-full` также hostname; для production используйте
-`verify-full`. IPv6/JDBC URL и произвольные JDBC-параметры через YAML не принимаются.
+Все секции в поставляемом полном конфиге валидируются, включая неактивные. Для v1 MYSQL
+параметры находятся в корне файла, как в Phase 1. JSON/SQLITE не требуют DB credentials.
+MYSQL принимает настоящий process password, не HTTPS proxy placeholder. Default SSL проверяет
+цепочку и hostname; настройте Java truststore своего CA. JDBC socketTimeout — 10000 ms, UTC.
 
-`integrations.yml`: `placeholderapi: true`. Отсутствующий PAPI безопасно отключает адаптер.
-Права и канонические команды объявлены в plugin.yml; дополнительные aliases можно настроить
-средствами сервера. Permission nodes — стабильный контракт, не игровой баланс.
+`integrations.yml` version 1: `placeholderapi: true`; отсутствие PAPI безопасно.
+Команды/permissions остаются в plugin.yml. Добавлена диагностическая подкоманда `storage`,
+она не выполняет перенос онлайн и не делает блокирующего healthcheck.
 
-`lang/*.yml`: prefix, сообщения команд, ошибок, диагностики и нейтральный tier.
-Поддерживаются именованные `{player}`, `{reputation}`, `{tier}`, `{language}`, `{version}`,
-`{state}`, `{queue}`, `{integration}` в тех сообщениях, где они требуются.
-Динамика вставляется безопасными текстовыми Component; markup администратора в шаблоне
-считается доверенным. Не передавайте игрокам право редактирования шаблонов.
-Все поставляемые ключи есть в RU/EN, наборы placeholders совпадают; MiniMessage строгий.
-Если отдельного перевода нет, используется default-language. Отсутствие обязательного ключа
-в fallback-каталоге, пустая строка, сломанная разметка или расхождение placeholders — ошибка старта.
-Числа форматируются по ru-RU/en-US. Выбор языка хранится в `dr_player_preferences`.
+## Локализация
 
-## Изменения и persistent state
+Файлы языков остаются version 1. Шаблоны MiniMessage доверены администратору; dynamic значения
+вставляются как plain Components. Действуют prefix, RU/EN, per-player язык, locale number formatting.
+Новые `storage-*` ключи поставляются в обоих языках. Для старых lang-файлов недостающие новые
+ключи берутся из bundled defaults без перезаписи custom messages; отсутствующие обязательные
+старые ключи по-прежнему вызывают ошибку. Offline CLI использует bundled RU/EN.
 
-В Phase 1 reload-команды нет: изменения применяются полным перезапуском после проверки
-целого набора настроек. Частичного переключения конфигурации нет.
+## Изменения persistent state
 
-- Изменение scope создаёт отдельные нулевые профили при следующем обращении; прежний scope
-  остаётся в БД. Автоматического объединения/переноса оценок нет. Язык общий для UUID.
-- Смена default-language влияет только на игроков без сохранённого выбора и fallback.
-- Смена host/database означает работу с другой БД; сначала нужны backup и отдельный
-  проверенный перенос, plugin не мигрирует данные между серверами БД.
-- Лимиты пула/кэша не меняют сохранённые значения; кэши исчезают при остановке.
-- Удаление таблиц/редактирование миграции/ручная правка истории не являются обновлением.
-  Перед будущими миграциями выполняйте резервное копирование и восстановление на staging.
-
-Для MySQL/MariaDB нужны не HTTP-proxy placeholders, а настоящий пароль в окружении
-серверного процесса и доступ по TCP. Никогда не используйте прокси-секрет как raw JDBC-пароль.
+Reload в этой фазе нет. Настройки целиком применяются после restart; backend активируется
+только после успешного открытия/валидации. Смена type/пути/БД вручную **не переносит** данные:
+используйте offline StorageAdmin. Изменение scope создаёт отдельный набор профилей, старый
+сохраняется; выбранный язык общий по UUID. Смена default-language не меняет сохранённый выбор.
+Кэши очищаются при shutdown, их лимиты не меняют persistent values. Не редактируйте version/checksum
+миграций или pending marker вручную. Старые данные после успешного переноса не удаляются.

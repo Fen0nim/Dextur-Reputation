@@ -1,4 +1,4 @@
-# Команды Phase 1
+# Команды Phase 1.1
 
 | Команда | Результат | Доступ |
 |---|---|---|
@@ -6,6 +6,7 @@
 | /dexturreputation help | Справка | Все |
 | /dexturreputation version | Версия, Paper/Java target | Все |
 | /dexturreputation status | Состояние инициализации, очередь, наличие PAPI | dexturreputation.status |
+| /dexturreputation storage | Выбранный backend, без IO/переноса | dexturreputation.status |
 | /rep | Свой профиль | Игрок, dexturreputation.use |
 | /rep &lt;player&gt; | Профиль онлайн/кэшированного известного игрока | dexturreputation.use |
 | /rep language ru_RU | Сохранить русский язык | Игрок, use + language |
@@ -20,3 +21,5 @@ Status показывает инициализацию сервиса, а не �
 
 Voting/Trust/admin reload-команд в этой фазе нет. Tab completion предлагает подкоманды и
 поддерживаемые языки с учётом прав, не раскрывает списки офлайн-игроков.
+
+Перенос и JSON recovery выполняются только offline отдельным StorageAdmin JAR: [STORAGE.md](STORAGE.md).

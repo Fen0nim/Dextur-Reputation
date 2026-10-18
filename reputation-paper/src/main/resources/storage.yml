@@ -1,12 +1,19 @@
-config-version: 1
-host: localhost
-port: 3306
-database: dexturreputation
-username: dexturreputation
-# Supply securely to the server process; never paste the password in this file.
-password-environment: DEXTURREPUTATION_DB_PASSWORD
-# verify-full checks the server certificate and hostname. disable is only for isolated local tests.
-ssl-mode: verify-full
-maximum-pool-size: 2
-connection-timeout-ms: 5000
-max-lifetime-ms: 1800000
+config-version: 2
+storage:
+  type: JSON
+  json:
+    directory: storage/json
+    maximum-file-bytes: 67108864
+  sqlite:
+    file: storage/reputation.sqlite
+    busy-timeout-ms: 5000
+  mysql:
+    host: localhost
+    port: 3306
+    database: dexturreputation
+    username: dexturreputation
+    password-environment: DEXTURREPUTATION_DB_PASSWORD
+    ssl-mode: verify-full
+    maximum-pool-size: 2
+    connection-timeout-ms: 5000
+    max-lifetime-ms: 1800000

@@ -28,6 +28,7 @@ class ConfigurationAndMessagesTest {
         assertEquals("global", settings.scope());
         assertEquals(PlayerLanguage.ru_RU, settings.defaultLanguage());
         assertEquals("verify-full", settings.database().sslMode());
+        assertEquals(StorageType.JSON, settings.storage().type());
         String before = Files.readString(directory.resolve("config.yml"));
         Settings.load(directory);
         assertEquals(before, Files.readString(directory.resolve("config.yml")));
@@ -39,7 +40,7 @@ class ConfigurationAndMessagesTest {
                 original.replace("cache-maximum-size: 10000", "cache-maximum-size: -1"),
                 original.replace("config-version: 1", "config-version: 2"),
                 original.replace("scope: global", "scope: bad/scope"),
-                original.replace("database-workers: 2", "database-workers: 3")}) {
+                original.replace("database-workers: 2", "database-workers: 17")}) {
             Files.writeString(file, changed);
             assertThrows(IllegalArgumentException.class, () -> Settings.load(directory));
         }
@@ -53,7 +54,7 @@ class ConfigurationAndMessagesTest {
     }
     @Test void shippedLocalesAreCompleteConsistentAndStrictlyParseable() throws Exception {
         Messages messages = new Messages(directory.resolve("lang"), PlayerLanguage.ru_RU);
-        for (String key : Messages.REQUIRED) {
+        for (String key : java.util.stream.Stream.concat(Messages.REQUIRED.stream(), Messages.STORAGE_KEYS.stream()).toList()) {
             for (PlayerLanguage language : PlayerLanguage.values()) {
                 assertTrue(YamlFiles.read(directory.resolve("lang/" + language + ".yml")).containsKey(key), key);
                 assertFalse(messages.template(language, key).isBlank());
@@ -63,6 +64,35 @@ class ConfigurationAndMessagesTest {
                 assertNotNull(messages.render(language, key, values));
             }
         }
+    }
+    @Test void legacyStorageStaysMysqlWithoutRewritingAndCanExplicitlySelectJson() throws Exception {
+        Path file=directory.resolve("storage.yml");
+        @SuppressWarnings("unchecked") var storage=(Map<String,Object>)YamlFiles.read(file).get("storage");
+        @SuppressWarnings("unchecked") var mysql=(Map<String,Object>)storage.get("mysql");
+        StringBuilder text=new StringBuilder("config-version: 1\n");
+        mysql.forEach((k,v) -> text.append(k).append(": ").append(v).append('\n'));
+        Files.writeString(file,text);
+        assertEquals(StorageType.MYSQL,Settings.load(directory).storage().type());
+        assertEquals(text.toString(),Files.readString(file));
+        Files.writeString(file,text+"storage:\n  type: JSON\n");
+        assertEquals(StorageType.JSON,Settings.load(directory).storage().type());
+    }
+    @Test void storageSelectionPathsAndTimeoutsAreValidated() throws Exception {
+        Path file=directory.resolve("storage.yml");String original=Files.readString(file);
+        for(String changed:java.util.List.of(original.replace("type: JSON","type: JSON,SQLITE"),
+                original.replace("storage/json","../outside"),original.replace("busy-timeout-ms: 5000","busy-timeout-ms: 0"),
+                original.replace("maximum-file-bytes: 67108864","maximum-file-bytes: -1"),original.replace("config-version: 2","config-version: 3"))) {
+            Files.writeString(file,changed);assertThrows(RuntimeException.class,() -> Settings.load(directory));
+        }
+    }
+    @Test void newStorageMessagesWorkWithUnmodifiedPhaseOneLocales() throws Exception {
+        for(PlayerLanguage language:PlayerLanguage.values()) {
+            Path file=directory.resolve("lang/"+language+".yml");
+            String text=Files.readString(file).lines().filter(l -> !l.startsWith("storage-")).collect(java.util.stream.Collectors.joining("\n"));
+            Files.writeString(file,text);
+        }
+        Messages messages=new Messages(directory.resolve("lang"),PlayerLanguage.ru_RU);
+        for(PlayerLanguage language:PlayerLanguage.values()) assertNotNull(messages.render(language,"storage-status",Map.of("type","JSON")));
     }
     @Test void missingTranslationFallsBackAndMissingDefaultFails() throws Exception {
         Path en = directory.resolve("lang/en_US.yml");

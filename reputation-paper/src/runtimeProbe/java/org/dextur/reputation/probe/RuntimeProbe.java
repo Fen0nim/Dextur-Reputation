@@ -67,8 +67,12 @@ public final class RuntimeProbe extends JavaPlugin {
         getServer().getPluginCommand("dexturreputation").execute(sender, "dexturreputation", new String[]{"version"});
         getServer().getPluginCommand("rep").execute(sender, "rep", new String[0]);
         getServer().getPluginCommand("rep").execute(sender, "rep", new String[]{"zzz_unknown_741"});
+        getServer().getPluginCommand("dexturreputation").execute(sender, "dexturreputation", new String[]{"storage"});
+        Object configured = getServer().getPluginManager().getPlugin("DexturReputation");
+        String storage = (String) configured.getClass().getMethod("storageType").invoke(configured);
+        if (!storage.equals(System.getProperty("dextur.probe.storage", "JSON"))) throw new AssertionError("Wrong active storage: " + storage);
         getServer().dispatchCommand(getServer().getConsoleSender(), "dexturreputation status");
-        if (replies.size() != 4 || replies.stream().noneMatch(s -> s.contains("готов"))
+        if (replies.size() != 5 || replies.stream().noneMatch(s -> s.contains("готов"))
                 || replies.stream().noneMatch(s -> s.contains("только игрокам"))
                 || replies.stream().noneMatch(s -> s.contains("не найден"))) throw new AssertionError("Diagnostic/unknown player commands failed: " + replies);
         Object expansionManager = null;

@@ -18,6 +18,8 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import org.dextur.reputation.domain.PlayerLanguage;
 
 public final class Messages {
+    public static final Set<String> STORAGE_KEYS = Set.of("storage-status", "storage-failed", "storage-config-invalid",
+            "storage-admin-usage", "storage-migrated", "storage-recovered", "storage-admin-failed");
     public static final Set<String> REQUIRED = Set.of("prefix", "help", "version", "status", "profile",
             "language-set", "language-usage", "unknown-player", "players-only", "no-permission",
             "unavailable", "error", "usage", "tier-neutral", "state-ready", "state-starting", "integration-active", "integration-inactive");
@@ -27,10 +29,17 @@ public final class Messages {
     private final MiniMessage mini = MiniMessage.builder().strict(true).build();
 
     public Messages(Path directory, PlayerLanguage fallback) throws IOException {
+        this(directory, fallback, false);
+    }
+    public static Messages bundled(PlayerLanguage language) throws IOException { return new Messages(null, language, true); }
+    private Messages(Path directory, PlayerLanguage fallback, boolean bundled) throws IOException {
         this.fallback = fallback;
         Map<PlayerLanguage, Map<String, String>> loaded = new EnumMap<>(PlayerLanguage.class);
         for (PlayerLanguage language : PlayerLanguage.values()) {
-            Map<String, Object> yaml = YamlFiles.read(directory.resolve(language.name() + ".yml"));
+            Map<String, Object> shipped = YamlFiles.resource("/lang/" + language.name() + ".yml");
+            Map<String, Object> yaml = new HashMap<>(bundled ? shipped : YamlFiles.read(directory.resolve(language.name() + ".yml")));
+            // Additive fallback for new storage keys; never overwrite administrator customizations.
+            for (String key : STORAGE_KEYS) yaml.putIfAbsent(key, shipped.get(key));
             YamlFiles.version(yaml);
             Map<String, String> values = new HashMap<>();
             for (String key : yaml.keySet()) {

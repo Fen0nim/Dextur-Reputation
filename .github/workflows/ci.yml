@@ -1,4 +1,4 @@
-name: Phase 1 verification
+name: Phase 1.1 verification
 on:
   push:
   pull_request:
@@ -17,10 +17,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew clean build --no-build-cache
       - run: sha256sum reputation-paper/build/libs/DexturReputation.jar > reputation-paper/build/libs/DexturReputation.jar.sha256
+      - run: sha256sum reputation-paper/build/libs/DexturReputation-StorageAdmin.jar > reputation-paper/build/libs/DexturReputation-StorageAdmin.jar.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: DexturReputation-phase1
+          name: DexturReputation-phase1.1
           path: |
             reputation-paper/build/libs/DexturReputation.jar
             reputation-paper/build/libs/DexturReputation.jar.sha256
+            reputation-paper/build/libs/DexturReputation-StorageAdmin.jar
+            reputation-paper/build/libs/DexturReputation-StorageAdmin.jar.sha256
             **/build/reports/tests/

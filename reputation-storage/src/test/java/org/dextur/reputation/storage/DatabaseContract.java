@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @Tag("database")
 abstract class DatabaseContract {
+    @org.junit.jupiter.api.io.TempDir java.nio.file.Path directory;
     abstract JdbcDatabaseContainer<?> container();
     Settings.Database configuration() {
         var db = container();
@@ -128,6 +129,76 @@ abstract class DatabaseContract {
                 connection.rollback();
             }
             assertEquals(PlayerLanguage.ru_RU, new JdbcProfiles(database::dataSource).language(id, PlayerLanguage.ru_RU));
+        }
+    }
+    @Test void allSixMigrationDirectionsPreserveEveryField() throws Exception {
+        var types=org.dextur.reputation.application.StorageType.values();
+        for(var from:types) for(var to:types) if(from!=to) {
+            resetPortableTables();
+            java.nio.file.Path work=directory.resolve(from+"-"+to);StorageFixtures.resources(work);
+            java.nio.file.Files.writeString(work.resolve("storage.yml"),portableConfig(from));
+            java.nio.file.Files.writeString(work.resolve("target.yml"),portableConfig(to));
+            Map<String,String> environment=Map.of("DEXTURREPUTATION_DB_PASSWORD",container().getPassword());
+            try(var source=StorageManager.create(work,Settings.load(work),environment,true)) {
+                source.prepareMigration();source.importEmpty(StorageFixtures.sample());source.finishMigration();
+            }
+            new StorageMigration().migrate(work,work.resolve("target.yml"),work.resolve("backups"),environment);
+            assertEquals(to,Settings.load(work).storage().type());
+            try(var target=StorageManager.create(work,Settings.load(work),environment,false)) { assertEquals(StorageFixtures.sample(),target.snapshot()); }
+        }
+    }
+    @Test void mysqlPendingMigrationBlocksStartupAndCorruptedRecordsFailValidation() throws Exception {
+        resetPortableTables();
+        Map<String,String> environment=Map.of("TEST_DB_PASSWORD",container().getPassword());
+        try(var backend=SqlStorage.mysql(configuration(),environment,true)) {
+            backend.prepareMigration();backend.importEmpty(StorageFixtures.sample());
+        }
+        assertThrows(Exception.class,() -> SqlStorage.mysql(configuration(),environment,false));
+        try(var backend=SqlStorage.mysql(configuration(),environment,true)) { backend.finishMigration(); }
+        try(var database=open();var c=database.dataSource().getConnection();var s=c.createStatement()) {
+            s.executeUpdate("UPDATE dr_profiles SET player_uuid='invalid-uuid'");
+        }
+        try { assertThrows(Exception.class,() -> SqlStorage.mysql(configuration(),environment,false)); }
+        finally { resetPortableTables(); }
+    }
+    @Test void mysqlFailedImportRollsBackAndPendingGuardRemains() throws Exception {
+        resetPortableTables();Map<String,String> environment=Map.of("TEST_DB_PASSWORD",container().getPassword());
+        try(var backend=SqlStorage.mysql(configuration(),environment,true);var database=open();var c=database.dataSource().getConnection();var s=c.createStatement()) {
+            backend.prepareMigration();
+            s.execute("ALTER TABLE dr_player_preferences ADD CONSTRAINT dr_test_reject CHECK (language <> 'en_US')");
+            try { assertThrows(SQLException.class,() -> backend.importEmpty(StorageFixtures.sample()));assertTrue(backend.snapshot().isEmpty()); }
+            finally { s.execute("ALTER TABLE dr_player_preferences DROP " + (container() instanceof org.testcontainers.containers.MySQLContainer ? "CHECK" : "CONSTRAINT") + " dr_test_reject"); }
+        }
+        try { assertThrows(Exception.class,() -> SqlStorage.mysql(configuration(),environment,false)); }
+        finally { resetPortableTables(); }
+    }
+    @Test void mysqlOwnershipRejectsSecondOwnerWithoutClosingFirstPool() throws Exception {
+        resetPortableTables();Map<String,String> environment=Map.of("TEST_DB_PASSWORD",container().getPassword());
+        try(var backend=SqlStorage.mysql(configuration(),environment,false)) {
+            assertThrows(Exception.class,() -> SqlStorage.mysql(configuration(),environment,false));
+            assertNotNull(backend.getOrCreate(UUID.randomUUID(),"global"));
+        }
+    }
+    @Test void lostMysqlOwnershipFailsClosedWithoutReacquiring() throws Exception {
+        resetPortableTables();Map<String,String> environment=Map.of("TEST_DB_PASSWORD",container().getPassword());
+        try(var backend=SqlStorage.mysql(configuration(),environment,false);var database=open();var c=database.dataSource().getConnection()) {
+            String key="dr-owner-"+java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(c.getCatalog().getBytes(java.nio.charset.StandardCharsets.UTF_8))).substring(0,48);
+            long connection;
+            try(var s=c.prepareStatement("SELECT IS_USED_LOCK(?)")) { s.setString(1,key);try(var rows=s.executeQuery()) { assertTrue(rows.next());connection=rows.getLong(1);assertTrue(connection>0); } }
+            try(var s=c.createStatement()) { s.execute("KILL CONNECTION "+connection); }
+            assertThrows(SQLException.class,() -> backend.getOrCreate(UUID.randomUUID(),"global"));
+            assertThrows(SQLException.class,backend::snapshot);
+        }
+    }
+    private String portableConfig(org.dextur.reputation.application.StorageType type) throws Exception {
+        var d=configuration();return StorageFixtures.config(type).replace("host: localhost","host: "+d.host()).replace("port: 3306","port: "+d.port()).replace("database: dexturreputation","database: "+d.schema()).replace("username: dexturreputation","username: "+d.username()).replace("ssl-mode: verify-full","ssl-mode: disable");
+    }
+    private void resetPortableTables() throws Exception {
+        try(var database=open();var c=database.dataSource().getConnection();var s=c.createStatement()) {
+            s.executeUpdate("DELETE FROM dr_profiles");s.executeUpdate("DELETE FROM dr_player_preferences");
+            s.execute("CREATE TABLE IF NOT EXISTS dr_storage_control(id INTEGER PRIMARY KEY,pending INTEGER NOT NULL,format_version INTEGER NOT NULL)");
+            s.executeUpdate("DELETE FROM dr_storage_control");
         }
     }
 }

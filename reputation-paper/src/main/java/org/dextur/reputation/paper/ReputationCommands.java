@@ -30,7 +30,10 @@ final class ReputationCommands implements CommandExecutor, TabCompleter {
         if (command.getName().equals("dexturreputation")) {
             String action = args.length == 0 ? "help" : args[0].toLowerCase(Locale.ROOT);
             if (args.length > 1) { send(sender, language, "help", Map.of()); return true; }
-            if (action.equals("status")) {
+            if (action.equals("storage")) {
+                if (!sender.hasPermission("dexturreputation.status")) send(sender, language, "no-permission", Map.of());
+                else send(sender, language, "storage-status", Map.of("type", settings.storage().type().name()));
+            } else if (action.equals("status")) {
                 if (!sender.hasPermission("dexturreputation.status")) send(sender, language, "no-permission", Map.of());
                 else send(sender, language, "status", Map.of("state", messages.template(language, plugin.ready() ? "state-ready" : "state-starting"),
                         "queue", messages.number(language, application.queuedOperations()), "integration", messages.template(language, plugin.hasPlaceholders() ? "integration-active" : "integration-inactive")));
@@ -99,7 +102,7 @@ final class ReputationCommands implements CommandExecutor, TabCompleter {
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         List<String> candidates;
         if (command.getName().equals("dexturreputation")) {
-            candidates = args.length == 1 ? (sender.hasPermission("dexturreputation.status") ? List.of("help", "version", "status") : List.of("help", "version")) : List.of();
+            candidates = args.length == 1 ? (sender.hasPermission("dexturreputation.status") ? List.of("help", "version", "status", "storage") : List.of("help", "version")) : List.of();
         } else if (!sender.hasPermission("dexturreputation.use")) return List.of();
         else if (args.length == 2 && args[0].equalsIgnoreCase("language") && sender.hasPermission("dexturreputation.language")) candidates = Arrays.stream(PlayerLanguage.values()).map(Enum::name).toList();
         else if (args.length == 1) candidates = sender.hasPermission("dexturreputation.language") ? List.of("language") : List.of();
