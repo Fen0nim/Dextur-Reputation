@@ -1,0 +1,26 @@
+name: Phase 1 verification
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew clean build --no-build-cache
+      - run: sha256sum reputation-paper/build/libs/DexturReputation.jar > reputation-paper/build/libs/DexturReputation.jar.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DexturReputation-phase1
+          path: |
+            reputation-paper/build/libs/DexturReputation.jar
+            reputation-paper/build/libs/DexturReputation.jar.sha256
+            **/build/reports/tests/

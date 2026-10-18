@@ -1,0 +1,6 @@
+name: DexturReputationProbe
+version: '1'
+main: org.dextur.reputation.probe.RuntimeProbe
+api-version: '26.2'
+depend: [DexturReputation]
+softdepend: [PlaceholderAPI]

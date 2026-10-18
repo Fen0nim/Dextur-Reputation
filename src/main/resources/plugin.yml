@@ -1,6 +1,0 @@
-name: Dextur-Reputation
-version: '${version}'
-
-main: org.dexturreputation.dexturReputation.DexturReputation
-api-version: '26.3'
-load: POSTWORLD

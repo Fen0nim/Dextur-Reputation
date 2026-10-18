@@ -1,0 +1,8 @@
+config-version: 1
+scope: global
+default-language: ru_RU
+cache-maximum-size: 10000
+cache-ttl-seconds: 60
+database-workers: 2
+database-queue-size: 256
+shutdown-timeout-seconds: 15

@@ -1,0 +1,10 @@
+.gradle/
+**/build/
+run/
+.env
+*.log
+*.hprof
+.idea/workspace.xml
+.idea/shelf/
+__pycache__/
+*.pyc

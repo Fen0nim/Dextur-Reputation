@@ -1,0 +1,19 @@
+name: DexturReputation
+version: '${version}'
+main: org.dextur.reputation.paper.DexturReputationPlugin
+api-version: '26.2'
+description: Asynchronous reputation foundation for Dextur (Phase 1)
+load: POSTWORLD
+softdepend: [PlaceholderAPI]
+commands:
+  dexturreputation:
+    description: Reputation diagnostics and help
+  rep:
+    description: Reputation profile and language selection
+permissions:
+  dexturreputation.use:
+    default: true
+  dexturreputation.language:
+    default: true
+  dexturreputation.status:
+    default: op
