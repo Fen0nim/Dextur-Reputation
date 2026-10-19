@@ -117,3 +117,9 @@ voting.yml, но **не отключает** detection/pending/restriction и с
 даёт initial для будущего Trust и отключает его multiplier; отдельные detection switches
 управляют сигналами. Нельзя использовать изменение конфига для удаления старых данных.
 Подробная политика: [TRUST.md](TRUST.md), [ANTI_ABUSE.md](ANTI_ABUSE.md).
+
+## Phase 4 configuration
+
+See the complete commented shipped examples `tiers.yml`, `display.yml`, `integrations.yml` and `gui.yml`, plus [TIERS.md](TIERS.md), [DISPLAY.md](DISPLAY.md) and [LUCKPERMS.md](LUCKPERMS.md). New files are created only when absent; missing new fields in existing files receive in-memory bundled defaults without rewriting customizations. Configuration version remains 1 for these additive files. Restart applies tier policy changes through controlled reconciliation before API readiness. No historical vote weights/Trust are recalculated by changing display/tier settings.
+
+Safe defaults: configured tiers enabled; nameplates DISABLED; TAB PLACEHOLDER_ONLY; LuckPerms disabled with group auto-creation disabled; chat notifications enabled with ten-second cooldown. New tier/display/GUI references, names/markup, bounds, intervals, visibility/ownership modes and permission group namespace are validated. A configuration error blocks readiness with the existing localized configuration diagnostic. Do not enable DIRECT alongside another list renderer. To render nameplates through an existing TAB owner, consume the PAPI values and keep the internal nameplate adapter disabled.

@@ -136,3 +136,29 @@ TEMPORARILY_RESTRICTED (remainingSeconds) и PROCESSING_BUSY. Формулы и 
 Отмена возвращённого Future не отменяет уже принятую внутреннюю обработку, не освобождает
 её admission slot раньше завершения и не откатывает commit. После неопределённого результата
 проверяйте outcome и повторяйте тот же operation ID, как при разрыве соединения.
+
+## Phase 4: immutable tiers and formatting
+
+All Phase 1–3 public types and method signatures are preserved. `ReputationSnapshot.tier()` now contains the selected stable configured ID, including persistent hysteresis. Score semantics and all voting contracts are unchanged.
+
+A separate Bukkit service `org.dextur.reputation.api.TierService` is registered after storage validation/reconciliation:
+
+```java
+TierService tiers = getServer().getServicesManager().load(TierService.class);
+tiers.getTier(uuid).thenAccept(tier -> {
+    // IO worker callback. Schedule Bukkit/world/entity changes on Paper's thread.
+    String stableId = tier.id();
+});
+Optional<ReputationTierSnapshot> cached = tiers.cachedTier(uuid); // no IO
+String miniMessageScore = tiers.format(uuid, "ru_RU"); // cached; empty on miss
+AutoCloseable subscription = tiers.onTierChanged(change -> {
+    UUID localTransitionId = change.transitionId();
+    // Committed state; callbacks are ordered for each player, not durable delivery.
+});
+```
+
+`ReputationTierSnapshot` contains UUID/scope, stable ID, integral visible score, tier/profile revisions, an immutable localized-name map, hexadecimal color, configured MiniMessage prefix/suffix templates and nullable next-positive entry threshold and configured display priority. Localized names may themselves contain trusted administrator MiniMessage. It contains no Trust, exact factors, mutable policy, permission ownership or confidential evidence. `TierService.format` returns serialized MiniMessage for the configured score, accepts supported language IDs and never warms the cache. `cachedTier` requires a matching fresh profile revision. `getTier` performs asynchronous worker IO when necessary and can warm a known offline UUID (as with the existing profile service, an absent UUID can receive a zero profile).
+
+`TierChanged` contains transition ID, immutable resulting tier snapshot, previous stable ID and `notifyPlayer` hint. Subscriptions should be closed when no longer needed; at most 128 active subscriptions. Read operations, duplicate vote requests and cache refreshes do not emit old transitions. Bootstrap/configuration reconciliation suppresses player notifications. Persisted history and permission intent repair state, not lost public event delivery. This is a local single-owner API, not a cross-server outbox. On shutdown services unregister and asynchronous new requests fail; existing accepted storage work drains according to the existing deadline.
+
+Formatting conventions for every old/new PAPI value are in [DISPLAY.md](DISPLAY.md). Chat integrations should use this API or placeholders without intercepting DexturChat messages.

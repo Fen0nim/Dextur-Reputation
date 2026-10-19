@@ -23,6 +23,7 @@ public final class JsonStorage implements StorageBackend {
     private long generation;
     private boolean poisoned,closed;
     private ProtectionRules protectionRules;
+    private org.dextur.reputation.domain.tier.TierRules tierRules;
     public JsonStorage(Path directory,int maximum,boolean migration) throws Exception { this(directory,maximum,migration,p -> {}); }
     public JsonStorage(Path directory,int maximum,boolean migration,Fault fault) throws Exception {
         this.directory=directory;this.maximum=maximum;this.fault=fault;
@@ -45,7 +46,18 @@ public final class JsonStorage implements StorageBackend {
     @Override public StorageType type() { return StorageType.JSON; }
     private void available() throws IOException { if(closed||poisoned) throw new IOException("JSON storage closed or uncertain write; restart and verify files"); }
     private void commit(StorageSnapshot next) throws Exception {
-        available();byte[] bytes=codec.encode(Math.addExact(generation,1),next);
+        available();
+        if(tierRules!=null) {
+            var previous=next.tiers().isEmpty()?state.tiers():next.tiers();var index=new HashMap<String,org.dextur.reputation.domain.tier.TierState>();
+            for(var row:previous.states())index.put(row.key(),row);
+            var tiers=new ArrayList<org.dextur.reputation.domain.tier.TierState>();var profiles=new ArrayList<ReputationSnapshot>();
+            for(var p:next.profiles()) {var row=TierSnapshot.reconcile(p,index.get(p.playerId()+"/"+p.scopeId()),tierRules);tiers.add(row);profiles.add(TierSnapshot.profile(p,row));}
+            next=new StorageSnapshot(profiles,next.preferences(),next.votes(),next.protection(),new TierSnapshot(tiers));
+        } else if(!state.tiers().isEmpty() && next.tiers().isEmpty()) {
+            // Existing tier data cannot be discarded by a writer without its policy.
+            throw new IOException("Tier configuration required for writes to Phase 4 data");
+        }
+        byte[] bytes=codec.encode(Math.addExact(generation,1),next);
         if(bytes.length>maximum) throw new IOException("JSON size limit reached");
         try {
             fault.at(Point.BEFORE_WRITE);
@@ -64,7 +76,7 @@ public final class JsonStorage implements StorageBackend {
         available();for(var p:state.profiles()) if(p.playerId().equals(id)&&p.scopeId().equals(scope)) return p;
         var now=StorageSnapshot.now(); var profile=new ReputationSnapshot(id,scope,0,0,0,"NEUTRAL",0,now,now);
         var profiles=new ArrayList<>(state.profiles());profiles.add(profile);
-        commit(new StorageSnapshot(profiles,state.preferences(),state.votes(),state.protection()));return profile;
+        commit(new StorageSnapshot(profiles,state.preferences(),state.votes(),state.protection()));return JournalVoting.profile(state,id,scope,now);
     }
     @Override public synchronized PlayerLanguage language(UUID id,PlayerLanguage fallback) throws IOException {
         available();return state.preferences().stream().filter(p -> p.playerId().equals(id)).map(StorageSnapshot.Preference::language).findFirst().orElse(fallback);
@@ -83,11 +95,11 @@ public final class JsonStorage implements StorageBackend {
         available();
         if(protectionRules!=null) {
             var protectedResult=JournalProtection.apply(state,scope,request,facts,rules,protectionRules,now);
-            if(!protectedResult.receipt().duplicate()) commit(protectedResult.state());return protectedResult.receipt();
+            if(!protectedResult.receipt().duplicate()) commit(protectedResult.state());return new VoteReceipt(protectedResult.receipt().entry(),protectedResult.receipt().duplicate(),JournalVoting.view(state,request.targetId(),scope,now));
         }
         if(!state.protection().isEmpty()) throw new IllegalStateException("Protection configuration required for voting");
         var result=JournalVoting.apply(state,scope,request,facts,rules,now);
-        if(!result.receipt().duplicate()) commit(result.state());return result.receipt();
+        if(!result.receipt().duplicate()) commit(result.state());return new VoteReceipt(result.receipt().entry(),result.receipt().duplicate(),JournalVoting.view(state,request.targetId(),scope,now));
     }
     @Override public synchronized org.dextur.reputation.api.ReputationView votingView(UUID player,String scope) throws Exception {
         available();getOrCreate(player,scope);return JournalVoting.view(state,player,scope,StorageSnapshot.now());
@@ -140,6 +152,17 @@ public final class JsonStorage implements StorageBackend {
         long before=view.score()==null?org.dextur.reputation.domain.protection.Fixed.units(JournalVoting.profile(state,latest.targetId(),scope,now).communityScore()):view.score().currentUnits();
         var change=JournalProtection.analysis(view,latest,before,protectionRules,now);if(change==null) return false;
         commit(new StorageSnapshot(state.profiles(),state.preferences(),state.votes(),state.protection().analysis(change.scope(),change.event())));return true;
+    }
+    @Override public synchronized void tiers(org.dextur.reputation.domain.tier.TierRules rules) throws Exception {
+        available();tierRules=Objects.requireNonNull(rules);if(!state.profiles().isEmpty()) commit(state);
+    }
+    @Override public synchronized org.dextur.reputation.domain.tier.TierState tierState(UUID player,String scope) throws Exception {available();return state.tiers().get(player,scope);}
+    @Override public synchronized List<org.dextur.reputation.domain.tier.TierState> pendingTierSyncAfter(String scope,String after,int limit) throws Exception {
+        available();if(limit<1||limit>100) throw new IllegalArgumentException("Tier sync batch bounds");return state.tiers().states().stream().filter(s->s.scope().equals(scope)&&s.player().toString().compareTo(after)>0&&s.appliedRevision()<s.syncRevision()).limit(limit).toList();
+    }
+    @Override public synchronized boolean tierSynced(UUID player,String scope,long expected,List<String> owned) throws Exception {
+        available();var old=state.tiers().get(player,scope);if(old==null||old.syncRevision()!=expected) return false;
+        commit(new StorageSnapshot(state.profiles(),state.preferences(),state.votes(),state.protection(),state.tiers().put(old.synced(expected,owned))));return true;
     }
     @Override public synchronized long storageBytes() throws Exception { available();return Files.size(primary); }
     @Override public synchronized StorageSnapshot snapshot() throws IOException { available();return state; }

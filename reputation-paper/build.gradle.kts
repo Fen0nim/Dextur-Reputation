@@ -6,6 +6,8 @@ dependencies {
     implementation(project(":reputation-storage"))
     compileOnly("io.papermc.paper:paper-api:26.2.build.134-stable")
     compileOnly("me.clip:placeholderapi:2.12.3") { isTransitive = false }
+    compileOnly("net.luckperms:api:5.4") { isTransitive = false }
+    testImplementation("net.luckperms:api:5.4") { isTransitive = false }
     testImplementation("io.papermc.paper:paper-api:26.2.build.134-stable")
     testImplementation("org.mockito:mockito-core:5.20.0")
     testImplementation("me.clip:placeholderapi:2.12.3") { isTransitive = false }

@@ -11,6 +11,9 @@ final class PlaceholderBridge extends PlaceholderExpansion {
     private final DexturReputationPlugin plugin;
     private final ReputationApplication application;
     private final Messages messages;
+    private org.dextur.reputation.api.TierService tiers;
+    private org.dextur.reputation.application.DisplayFormatter formatter;
+    void tiers(org.dextur.reputation.api.TierService tiers,org.dextur.reputation.application.DisplayFormatter formatter) {this.tiers=tiers;this.formatter=formatter;}
     PlaceholderBridge(DexturReputationPlugin plugin, ReputationApplication application, Messages messages) {
         this.plugin = plugin; this.application = application; this.messages = messages;
     }
@@ -24,10 +27,19 @@ final class PlaceholderBridge extends PlaceholderExpansion {
         var cached = application.cachedProfile(id);
         if (cached.isEmpty()) return "";
         var language = application.cachedLanguage(id);
+        var tier=tiers==null?java.util.Optional.<org.dextur.reputation.api.ReputationTierSnapshot>empty():tiers.cachedTier(id);
+        if(tiers!=null&&tier.isEmpty()) return "";
         return switch (parameter) {
             case "score" -> Long.toString(cached.get().visibleScore());
             case "score_formatted" -> messages.number(language, cached.get().visibleScore());
-            case "tier" -> PlainTextComponentSerializer.plainText().serialize(messages.tier(language));
+            case "tier", "tier_name" -> tier.isPresent()?org.dextur.reputation.application.DisplayFormatter.plain(formatter.name(tier.get(),language)):PlainTextComponentSerializer.plainText().serialize(messages.tier(language));
+            case "tier_id" -> tier.map(org.dextur.reputation.api.ReputationTierSnapshot::id).orElse(cached.get().tier());
+            case "prefix" -> tier.map(t->org.dextur.reputation.application.DisplayFormatter.mini(formatter.prefix(t,language))).orElse("");
+            case "suffix" -> tier.map(t->org.dextur.reputation.application.DisplayFormatter.mini(formatter.suffix(t,language))).orElse("");
+            case "color" -> tier.map(t->"<"+t.color()+">").orElse("");
+            case "positive" -> Boolean.toString(cached.get().visibleScore()>0);
+            case "negative" -> Boolean.toString(cached.get().visibleScore()<0);
+            case "reputation_formatted" -> tier.map(t->org.dextur.reputation.application.DisplayFormatter.mini(formatter.score(t,language))).orElse("");
             default -> null;
         };
     }

@@ -4,15 +4,15 @@
 Adventure/MiniMessage **5.2.0**. `plugin.yml` использует `api-version: '26.2'`.
 Автоматические интеграционные тесты: MariaDB **11.4.8**, MySQL **8.4.7**,
 MariaDB Connector/J **3.5.6**, HikariCP **6.3.0**. Сборка: Gradle **9.7.0**.
-PAPI — необязательная интеграция **2.12.3**. Результаты runtime-проверок — [PHASE_2_TEST_REPORT.md](PHASE_2_TEST_REPORT.md).
+PAPI — необязательная интеграция **2.12.3**. Результаты runtime-проверок — [PHASE_4_TEST_REPORT.md](PHASE_4_TEST_REPORT.md).
 
 Paper предоставляет Adventure/SLF4J; они исключены из shaded JAR. HikariCP/SnakeYAML
 перемещены во внутренние packages, MariaDB JDBC включён с service descriptor.
 JDBC-драйвер MySQL используется только readiness-проверками Testcontainers, в основной JAR
 не включается. JDBC-доступ к обеим СУБД выполняется MariaDB-драйвером.
 
-Другие версии Minecraft, Bukkit/Spigot, Folia, Velocity, legacy/1.12.2, DexturChat,
-LuckPerms и Discord не заявлены и не реализованы. API/domain отделены от платформы,
+Другие версии Minecraft, Bukkit/Spigot, Folia, Velocity, legacy/1.12.2, DexturChat
+и Discord не заявлены и не реализованы. LuckPerms поддерживается необязательно для косметических групп. API/domain отделены от платформы,
 чтобы будущие адаптеры не требовали переписывать модель.
 Нет Redis, DexturCore, сетевой синхронизации кэшей и интеграций несуществующих плагинов.
 
@@ -54,3 +54,16 @@ Trust не становится новым PAPI placeholder, TAB/title/LuckPerms
 Runtime `--protection` использует три настоящих local клиента, native commands, .35 weights,
 pending/review/CAS/restart и проверку отсутствия Trust в PAPI. Параметры QA изолированы;
 правила production defaults дополнительно проверяются общими backend/domain suites.
+
+## Phase 4
+
+JSON format 4 / SQLite schema 4 / MySQL-MariaDB V4 сохраняют Phase 1–3 и все старые API-контракты.
+PlaceholderAPI 2.12.3 остаётся необязательной; старый tier placeholder возвращает локализованное имя.
+Полная LuckPerms 5.5.87 (официальный CI build 1674, API compile-only 5.4) проверяется как необязательный
+адаптер контекстных косметических групп. API не упаковывается в основной JAR. Нет смены primary group.
+
+TEAM_IF_FREE работает только на свободных командах scoreboard, DIRECT TAB уступает чужому оформлению.
+Для другого владельца TAB/nameplate используйте PLACEHOLDER_ONLY и внешний PAPI renderer.
+Не заявляется универсальная совместимость с любыми packet-плагинами, ручная проверка пикселей,
+Folia/Velocity, production TPS/TLS/power-loss или гарантированная доставка событий после crash.
+Все ограничения, владельцы и форматы описаны в DISPLAY.md и LUCKPERMS.md.

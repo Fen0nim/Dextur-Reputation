@@ -89,7 +89,10 @@ public final class RuntimeProbe extends JavaPlugin {
             getLogger().info("PROBE_PAPI_PASS: registration and all three cached placeholders");
         }
         Object checkedExpansionManager=expansionManager;
-        if(Boolean.getBoolean("dextur.probe.protection")) new ProtectionRuntimeProbe(this).start(()->{
+        if(Boolean.getBoolean("dextur.probe.tiers")) new TierRuntimeProbe(this).start(()->{
+            try {finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}
+        },this::fail);
+        else if(Boolean.getBoolean("dextur.probe.protection")) new ProtectionRuntimeProbe(this).start(()->{
             try { finish(checkedExpansionManager); } catch(Throwable failure) { fail(failure); }
         },this::fail);
         else if(Boolean.getBoolean("dextur.probe.voting")) new VotingRuntimeProbe(this).start(()->{
@@ -100,12 +103,15 @@ public final class RuntimeProbe extends JavaPlugin {
     private void finish(Object expansionManager) throws Exception {
         // Resolve the dependency class while its plugin classloader is still enabled.
         Class<org.dextur.reputation.api.VotingService> votingApi=org.dextur.reputation.api.VotingService.class;
+        Class<org.dextur.reputation.api.TierService> tierApi=org.dextur.reputation.api.TierService.class;
         var target = getServer().getPluginManager().getPlugin("DexturReputation");
         getServer().getPluginManager().disablePlugin(target);
         for(var player:getServer().getOnlinePlayers()) {
             var holder=player.getOpenInventory().getTopInventory().getHolder();
             if(holder!=null&&holder.getClass().getName().endsWith("VotingGui$Session")) throw new AssertionError("GUI remained open after listener cleanup");
         }
+        if(getServer().getServicesManager().load(tierApi)!=null)throw new AssertionError("Tier API not unregistered");
+        for(var viewer:getServer().getOnlinePlayers())for(var team:viewer.getScoreboard().getTeams())if(team.getName().startsWith("drt_"))throw new AssertionError("Owned display team leaked on disable");
         if (getServer().getServicesManager().load(votingApi) != null) throw new AssertionError("Voting API not unregistered");
         if (getServer().getServicesManager().load(ReputationService.class) != null) throw new AssertionError("API not unregistered on shutdown");
         if (expansionManager != null && expansionManager.getClass().getMethod("getExpansion", String.class).invoke(expansionManager, "dexturreputation") != null) throw new AssertionError("Placeholder expansion not unregistered");

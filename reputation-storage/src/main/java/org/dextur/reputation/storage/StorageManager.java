@@ -9,13 +9,14 @@ import org.dextur.reputation.domain.PlayerLanguage;
 import org.dextur.reputation.domain.ProfileRepository;
 
 /** Owns exactly one selected backend. No fallback or storage-dependent public API. */
-public final class StorageManager implements ProfileRepository, org.dextur.reputation.domain.VotingRepository, org.dextur.reputation.domain.protection.ProtectionRepository, AutoCloseable {
+public final class StorageManager implements org.dextur.reputation.domain.tier.TierRepository, ProfileRepository, org.dextur.reputation.domain.VotingRepository, org.dextur.reputation.domain.protection.ProtectionRepository, AutoCloseable {
     private volatile StorageBackend backend;
     private StorageLease lease;
+    private org.dextur.reputation.domain.tier.TierRules tierRules;
     private org.dextur.reputation.domain.protection.ProtectionRules protectionRules;
     public void open(Path directory,Settings settings,Map<String,String> environment) throws Exception {
         lease=new StorageLease(directory.resolve(".storage.lock"));
-        try { backend=create(directory,settings,environment,false);if(protectionRules!=null) backend.protection(protectionRules); }
+        try { backend=create(directory,settings,environment,false);if(protectionRules!=null) backend.protection(protectionRules);if(tierRules!=null) backend.tiers(tierRules); }
         catch(Exception e) { if(backend!=null) { backend.close();backend=null; }lease.close();lease=null;throw e; }
     }
     public static StorageBackend create(Path directory,Settings settings,Map<String,String> environment,boolean migration) throws Exception {
@@ -50,6 +51,10 @@ public final class StorageManager implements ProfileRepository, org.dextur.reput
     @Override public java.util.List<org.dextur.reputation.domain.protection.ProtectionData.Trust> dueTrust(String scope,java.time.Instant before,int limit) throws Exception { return backend().dueTrust(scope,before,limit); }
     @Override public boolean analyze(String scope,java.time.Instant now) throws Exception { return backend().analyze(scope,now); }
     @Override public long storageBytes() throws Exception { return backend().storageBytes(); }
+    @Override public void tiers(org.dextur.reputation.domain.tier.TierRules rules) throws Exception { tierRules=java.util.Objects.requireNonNull(rules);if(backend!=null) backend.tiers(rules); }
+    @Override public org.dextur.reputation.domain.tier.TierState tierState(UUID id,String scope) throws Exception { return backend().tierState(id,scope); }
+    @Override public java.util.List<org.dextur.reputation.domain.tier.TierState> pendingTierSyncAfter(String scope,String after,int limit) throws Exception {return backend().pendingTierSyncAfter(scope,after,limit);}
+    @Override public boolean tierSynced(UUID id,String scope,long expected,java.util.List<String> owned) throws Exception {return backend().tierSynced(id,scope,expected,owned);}
     @Override public void close() {
         try { if(backend!=null) { backend.close();backend=null; } }
         catch(Exception e) { throw new IllegalStateException("Storage close failed",e); }

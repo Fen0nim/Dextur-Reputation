@@ -7,14 +7,15 @@ import org.dextur.reputation.domain.PlayerLanguage;
 
 /** Canonically ordered portable representation, including all scopes and preference timestamps. */
 public record StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference> preferences,
-        List<org.dextur.reputation.api.VoteEntry> votes, ProtectionSnapshot protection) {
+        List<org.dextur.reputation.api.VoteEntry> votes, ProtectionSnapshot protection, TierSnapshot tiers) {
+    public StorageSnapshot(List<ReputationSnapshot> profiles,List<Preference> preferences,List<org.dextur.reputation.api.VoteEntry> votes,ProtectionSnapshot protection) { this(profiles,preferences,votes,protection,TierSnapshot.empty()); }
     public StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference> preferences, List<org.dextur.reputation.api.VoteEntry> votes) { this(profiles,preferences,votes,ProtectionSnapshot.empty()); }
     public StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference> preferences) { this(profiles, preferences, List.of()); }
     public record Preference(UUID playerId, PlayerLanguage language, Instant updatedAt) {
         public Preference { Objects.requireNonNull(playerId); Objects.requireNonNull(language); Objects.requireNonNull(updatedAt); }
     }
     public StorageSnapshot {
-        Objects.requireNonNull(protection);
+        Objects.requireNonNull(protection);Objects.requireNonNull(tiers);tiers.validate(profiles);
         Set<String> precise = protection.scores().stream().map(org.dextur.reputation.domain.protection.ProtectionData.Score::key).collect(java.util.stream.Collectors.toSet());
         Set<String> ids = new HashSet<>();
         for (var p : profiles) {
@@ -58,6 +59,6 @@ public record StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference
         ProtectionValidation.validate(profiles,votes,protection);
     }
     public static StorageSnapshot empty() { return new StorageSnapshot(List.of(), List.of()); }
-    public boolean isEmpty() { return profiles.isEmpty() && preferences.isEmpty() && votes.isEmpty() && protection.isEmpty(); }
+    public boolean isEmpty() { return profiles.isEmpty() && preferences.isEmpty() && votes.isEmpty() && protection.isEmpty() && tiers.isEmpty(); }
     static Instant now() { return Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); }
 }

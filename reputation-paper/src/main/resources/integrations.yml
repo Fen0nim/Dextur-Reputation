@@ -1,2 +1,10 @@
 config-version: 1
 placeholderapi: true
+
+# Optional, safe namespace only. Groups must exist unless creation is explicitly enabled.
+luckperms:
+  enabled: false
+  create-groups: false
+  retry-seconds: 30
+  batch-size: 16
+  tiers: {} # TIER_ID: reputation_group; overrides tiers.yml mapping

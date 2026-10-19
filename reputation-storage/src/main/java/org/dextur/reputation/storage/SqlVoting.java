@@ -50,7 +50,7 @@ final class SqlVoting {
         }
         try (var s=c.prepareStatement("SELECT * FROM dr_profiles WHERE player_uuid=? AND scope_id=?"+(mysql?" FOR UPDATE":""))) {
             s.setString(1,id.toString());s.setString(2,scope);
-            try (var r=s.executeQuery()) { if(!r.next()) throw new SQLException("Missing profile");return owner.profile(r); }
+            try (var r=s.executeQuery()) { if(!r.next()) throw new SQLException("Missing profile");return owner.reconcileTier(c,owner.profile(r)); }
         }
     }
     ReputationView view(Connection c, UUID id, String scope, Instant now) throws SQLException {

@@ -83,7 +83,7 @@ final class ReputationCommands implements CommandExecutor, TabCompleter {
                     if (error != null) { failed(sender, error); return; }
                     PlayerLanguage locale = result.getKey();
                     send(sender, locale, "profile", Map.of("player", displayName,
-                            "reputation", messages.number(locale, result.getValue().visibleScore()), "tier", messages.template(locale, "tier-neutral")));
+                            "reputation", messages.number(locale, result.getValue().visibleScore()), "tier", java.util.Objects.requireNonNullElse(plugin.tierName(target,locale),messages.plain(locale,"tier-neutral"))));
                 }));
         return true;
     }

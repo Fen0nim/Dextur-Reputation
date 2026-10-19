@@ -1,0 +1,37 @@
+config-version: 1
+reputation:
+  positive-format: '(+{score})'
+  negative-format: '(-{score})'
+  neutral-format: '(0)'
+  positive-color: '#55ff55'
+  negative-color: '#ff5555'
+  neutral-color: '#aaaaaa'
+  tier-colors: false
+  thousands: true
+  compact: false
+nameplate:
+  mode: DISABLED # DISABLED or TEAM_IF_FREE; never edits foreign teams
+  format: ' {reputation}'
+  visibility: ALWAYS # ALWAYS, HIDE_FOR_OTHER_TEAMS, HIDE_FOR_OWN_TEAM, NEVER
+  maximum-length: 80
+tab:
+  mode: PLACEHOLDER_ONLY # DISABLED, DIRECT, PLACEHOLDER_ONLY
+  format: '{prefix}{player} {reputation}'
+  maximum-length: 160
+refresh:
+  interval-ticks: 40
+  batch-size: 32
+  maximum-teams: 4096
+notifications:
+  enabled: true
+  chat: true
+  action-bar: false
+  title: false
+  sound: '' # namespaced Minecraft sound, e.g. minecraft:entity.player.levelup
+  cooldown-seconds: 10
+  gain: true
+  loss: true
+  negative: true
+  severe: true
+  recover: true
+  neutral: true

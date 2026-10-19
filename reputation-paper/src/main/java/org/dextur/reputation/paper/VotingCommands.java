@@ -140,7 +140,7 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
             if(!allowed(sender,"gui")) send(sender,"no-permission",Map.of());else gui.open(p,target,display);
         } else complete(sender,(sender instanceof Player p?application.language(p.getUniqueId()):CompletableFuture.completedFuture(fallback)).thenCombine(voting.view(target),Map::entry),result->{
             var language=result.getKey();var view=result.getValue();
-            sender.sendMessage(messages.render(language,"profile",Map.of("player",display,"reputation",messages.number(language,view.profile().visibleScore()),"tier",messages.plain(language,"tier-neutral"))));
+            sender.sendMessage(messages.render(language,"profile",Map.of("player",display,"reputation",messages.number(language,view.profile().visibleScore()),"tier",java.util.Objects.requireNonNullElse(plugin.tierName(target,language),messages.plain(language,"tier-neutral")))));
             stats(sender,view);
         });
         return true;

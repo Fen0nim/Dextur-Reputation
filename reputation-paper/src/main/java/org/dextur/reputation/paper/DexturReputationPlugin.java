@@ -30,6 +30,13 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     private PlaceholderBridge placeholders;
     private org.dextur.reputation.application.VotingConfiguration votingConfiguration;
     private GuiConfiguration guiConfiguration;
+    private org.dextur.reputation.domain.tier.TierRules tierRules;
+    private org.dextur.reputation.application.DisplayConfiguration displayConfiguration;
+    private org.dextur.reputation.application.DisplayFormatter displayFormatter;
+    private org.dextur.reputation.application.TierApplication tiers;
+    private org.dextur.reputation.application.TierPermissionSync permissionSync;
+    private ReputationDisplay display;
+    private java.util.concurrent.ArrayBlockingQueue<org.dextur.reputation.api.TierService.TierChanged> notificationQueue;
     private VotingGui votingGui;
     private org.dextur.reputation.domain.protection.ProtectionRules protectionRules;
     // Internal capability only: never register it as a public Bukkit service.
@@ -50,7 +57,11 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
             messages = new Messages(getDataFolder().toPath().resolve("lang"), settings.defaultLanguage());
             votingConfiguration=org.dextur.reputation.application.VotingConfiguration.load(getDataFolder().toPath(),messages);
             protectionRules=org.dextur.reputation.application.ProtectionConfiguration.load(getDataFolder().toPath());
+            tierRules=org.dextur.reputation.application.TierConfiguration.load(getDataFolder().toPath());
+            displayConfiguration=org.dextur.reputation.application.DisplayConfiguration.load(getDataFolder().toPath());
+            displayFormatter=new org.dextur.reputation.application.DisplayFormatter(displayConfiguration);
             guiConfiguration=GuiConfiguration.load(getDataFolder().toPath());
+            guiConfiguration.validateTiers(tierRules);
             if(votingConfiguration.pageSize()>guiConfiguration.contentSlots().size()) throw new IllegalArgumentException("History page exceeds GUI content slots");
         } catch (Exception e) {
             try {
@@ -62,12 +73,16 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         }
         StorageManager storage = new StorageManager();
         application = new ReputationApplication(storage, settings, storage::close);
+        tiers=new org.dextur.reputation.application.TierApplication(application,storage,settings,tierRules,displayFormatter,error->logFailure("tier",error));
+        var notifications=new TierNotifications(this,application,tierRules,displayConfiguration,displayFormatter,messages,settings.cacheSize());
+        notificationQueue=new java.util.concurrent.ArrayBlockingQueue<>(settings.queueSize());
+        tiers.onTierChanged(event->notificationQueue.offer(event));
         var voting=new org.dextur.reputation.application.VotingApplication(application,storage,settings,votingConfiguration,
                 this::voterFacts,java.time.Clock.systemUTC(),error->logFailure("vote listener",error));
         protectionAdministration=new org.dextur.reputation.application.ProtectionAdministration(application,voting,storage,settings,protectionRules,java.time.Clock.systemUTC());
         var votingCommands=new VotingCommands(this,application,voting,votingConfiguration,messages,settings.defaultLanguage());
         var gui=new VotingGui(this,voting,votingCommands,votingConfiguration,guiConfiguration,messages);
-        votingGui=gui;
+        votingGui=gui;gui.tiers(tiers,displayFormatter,tierRules);
         votingCommands.gui(gui);
         voting.onCommitted(event->onMain(()->votingCommands.notifyTarget(event)));
         voting.onStatusChanged(event->onMain(()->votingCommands.notifyStatus(event)));
@@ -83,7 +98,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         }
         getServer().getPluginManager().registerEvents(this, this);
         Path dataDirectory = getDataFolder().toPath();
-        application.submit(() -> { storage.protection(protectionRules);storage.open(dataDirectory, settings, System.getenv()); return null; })
+        application.submit(() -> { storage.protection(protectionRules);storage.tiers(tierRules);storage.open(dataDirectory, settings, System.getenv()); return null; })
                 .whenComplete((ignored, error) -> onMain(() -> {
                     if (error != null) {
                         getComponentLogger().error(messages.render(settings.defaultLanguage(), "storage-failed",
@@ -93,9 +108,25 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
                     }
                     getServer().getServicesManager().register(ReputationService.class, application, this, ServicePriority.Normal);
                     getServer().getServicesManager().register(org.dextur.reputation.api.VotingService.class,voting,this,ServicePriority.Normal);
+                    getServer().getServicesManager().register(org.dextur.reputation.api.TierService.class,tiers,this,ServicePriority.Normal);
                     ready = true;
+                    display=new ReputationDisplay(this,application,tiers,displayFormatter,displayConfiguration);
+                    getServer().getScheduler().runTaskTimer(this,()->{
+                        display.tick();
+                        for(int i=0;i<displayConfiguration.batch();i++) {var event=notificationQueue.poll();if(event==null)break;notifications.accept(event);}
+                    },1L,displayConfiguration.interval());
+                    if(displayConfiguration.luckperms().enabled()) {
+                        if(getServer().getPluginManager().isPluginEnabled("LuckPerms")) {
+                            try {
+                                permissionSync=new org.dextur.reputation.application.TierPermissionSync(application,storage,settings.scope(),displayConfiguration.luckperms().batch(),
+                                    new LuckPermsBridge(net.luckperms.api.LuckPermsProvider.get(),settings.scope(),displayConfiguration.luckperms().createGroups()),
+                                    failure->getComponentLogger().warn(messages.render(settings.defaultLanguage(),"tier-sync-failed",Map.of("reason",String.valueOf(root(failure).getMessage())))));
+                                getServer().getScheduler().runTaskTimer(this,()->permissionSync.tick(),20L,20L*displayConfiguration.luckperms().retrySeconds());
+                            }catch(LinkageError|RuntimeException failure){logFailure("LuckPerms",failure);}
+                        }else getComponentLogger().warn(messages.render(settings.defaultLanguage(),"tier-luckperms-missing",Map.of()));
+                    }
                     if (settings.placeholderApi() && getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
-                        try { placeholders = new PlaceholderBridge(this, application, messages); placeholders.register(); }
+                        try { placeholders = new PlaceholderBridge(this, application, messages); placeholders.tiers(tiers,displayFormatter);placeholders.register(); }
                         catch (LinkageError | RuntimeException e) {
                             placeholders = null;
                             getLogger().warning("PlaceholderAPI integration unavailable: " + e.getClass().getSimpleName());
@@ -108,14 +139,18 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
                     getServer().getScheduler().runTaskTimer(this,this::maintenance,1200L,1200L);
                     getServer().getScheduler().runTaskTimer(this,()->protectionAdministration.analyze().exceptionally(analysisError->{logProtectionFailure(analysisError);return false;}),
                             20L*protectionRules.analysis().intervalSeconds(),20L*protectionRules.analysis().intervalSeconds());
-                    getLogger().info("READY: ReputationService registered; VotingService registered; Paper 26.2 Phase 3 enabled.");
+                    getLogger().info("READY: ReputationService registered; VotingService registered; Paper 26.2 Phase 4 enabled.");
                 }));
     }
 
+    org.dextur.reputation.application.TierPermissionSync permissionSynchronizer() {return permissionSync;}
+    String tierName(UUID id,org.dextur.reputation.domain.PlayerLanguage language) {
+        return tiers==null?messages.plain(language,"tier-neutral"):tiers.cachedTier(id).map(t->org.dextur.reputation.application.DisplayFormatter.plain(displayFormatter.name(t,language))).orElse(messages.plain(language,"tier-neutral"));
+    }
     private void defaults() throws IOException {
         Path directory = getDataFolder().toPath();
         Files.createDirectories(directory.resolve("lang"));
-        for (String file : new String[]{"config.yml", "storage.yml", "integrations.yml", "voting.yml", "gui.yml", "trust.yml", "anti-abuse.yml", "lang/ru_RU.yml", "lang/en_US.yml"}) {
+        for (String file : new String[]{"config.yml", "storage.yml", "integrations.yml", "voting.yml", "gui.yml", "trust.yml", "anti-abuse.yml", "tiers.yml", "display.yml", "lang/ru_RU.yml", "lang/en_US.yml"}) {
             if (!Files.exists(directory.resolve(file))) saveResource(file, false);
         }
     }
@@ -185,7 +220,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         getComponentLogger().warn(messages.render(settings.defaultLanguage(),"protection-processing-failed",Map.of("error",root(error).getClass().getSimpleName())));
     }
     @EventHandler public void join(PlayerJoinEvent event) { warm(event.getPlayer().getUniqueId());initializeTrust(event.getPlayer()); }
-    @EventHandler public void quit(PlayerQuitEvent event) { if (application != null) application.forget(event.getPlayer().getUniqueId()); }
+    @EventHandler public void quit(PlayerQuitEvent event) { if(display!=null)display.quit(event.getPlayer());if(tiers!=null)tiers.forget(event.getPlayer().getUniqueId());if(application!=null)application.forget(event.getPlayer().getUniqueId()); }
     public boolean ready() { return ready && !stopping.get(); }
     org.dextur.reputation.application.ProtectionAdministration protectionAdministration() { return protectionAdministration; }
     public String storageType() { return settings.storage().type().name(); }
@@ -201,6 +236,10 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     @Override public void onDisable() {
         stopping.set(true); ready = false;
         if(protectionAdministration!=null) protectionAdministration.stop();
+        if(permissionSync!=null)permissionSync.close();
+        if(display!=null)display.close();
+        if(tiers!=null)tiers.close();
+        if(notificationQueue!=null)notificationQueue.clear();
         if(votingGui!=null) { votingGui.closeAll();votingGui=null; }
         pendingFacts.forEach(future->future.completeExceptionally(new IllegalStateException("Plugin stopping")));
         getServer().getScheduler().cancelTasks(this);

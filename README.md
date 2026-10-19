@@ -1,4 +1,4 @@
-# DexturReputation — Phase 3
+# DexturReputation — Phase 4
 
 Основа репутации Dextur: **Paper 26.2**, **Java 25**, три взаимозаменяемых хранилища.
 Новые установки используют **JSON без БД и пароля**. SQLite и MySQL/MariaDB выбираются
@@ -9,7 +9,7 @@
 лимиты, замена/отзыв, истории, статистика и GUI. Новые профили имеют нулевые оценки,
 tier `NEUTRAL`; прежний API и команды сохранены. Добавлены скрытый Trust, точные дробные веса,
 защита от повторов/взаимных групп и всплесков, pending-review и атомарный аудит решений.
-Trust не показывается игрокам и не зависит от знака публичной репутации. Phase 4 не реализована.
+Trust не показывается игрокам и не зависит от знака публичной репутации. Добавлены настраиваемые уровни, гистерезис, оформление и необязательная LuckPerms. Phase 5 не реализована.
 
 ## Сборка и проверка
 
@@ -27,7 +27,7 @@ Gradle Wrapper 9.7.0, версии/locks зависимостей и SHA-256 ф�
 - `reputation-paper/build/libs/DexturReputation.jar` — устанавливаемый Paper-плагин.
 - `reputation-paper/build/libs/DexturReputation-StorageAdmin.jar` — **отдельный offline CLI**
   для переноса/восстановления. Не помещайте этот JAR в `plugins/`.
-- `reputation-api/build/libs/reputation-api-0.3.0-SNAPSHOT.jar` — API для `compileOnly`;
+- `reputation-api/build/libs/reputation-api-0.4.0-SNAPSHOT.jar` — API для `compileOnly`;
   не упаковывайте повторную копию API в плагины-потребители.
 
 ## Установка и обновление
@@ -90,7 +90,7 @@ QA-плагин не входит в основной JAR. Логи/миры о�
 [права](docs/PERMISSIONS.md), [совместимость](docs/COMPATIBILITY.md),
 [текущий отчёт](docs/PHASE_3_TEST_REPORT.md), [история](CHANGELOG.md).
 
-**Работа ограничена Phase 3. Phase 4 требует отдельного явного разрешения.**
+**Работа ограничена Phase 4. Phase 5 требует отдельного явного разрешения.**
 
 ## Phase 3
 
@@ -118,3 +118,11 @@ GUI и PAPI privacy. Production defaults сценарий не изменяет.
 снимка Phase 2 (format 2, calculationVersion 1). Для SQL он сначала запускает standalone
 StorageAdmin с backup/verification, затем проверяет старую историю и исходный score на Paper.
 Файл-источник не изменяется; используйте копию остановленного QA-сервера, не живые данные.
+
+### Phase 4 — tiers and display
+
+Phase 4 adds configurable reputation tiers with durable hysteresis, immutable asynchronous `TierService`, centralized RU/EN formatting, cache-only tier/PAPI values, configurable notifications and profile GUI tier/progress lore. Optional nameplates use exclusively owned free scoreboard teams; TAB defaults to PLACEHOLDER_ONLY. Optional LuckPerms manages cosmetic reputation memberships with explicit context ownership and durable reconciliation. No DexturChat interception, Discord synchronization, gameplay benefits or Phase 5 features are included.
+
+Read [TIERS](docs/TIERS.md), [DISPLAY](docs/DISPLAY.md), [LUCKPERMS](docs/LUCKPERMS.md), [storage](docs/STORAGE.md), [API](docs/API_DOCUMENTATION.md) and the [Phase 4 verification report](docs/PHASE_4_TEST_REPORT.md). Configuration changes merge defaults in memory and never overwrite administrator files. JSON format 4 / SQL schema 4 preserve all Phase 1–3 data; migrations retain complete tier history and permission intent. The offline StorageAdmin JAR remains an offline utility, not a Paper plugin.
+
+**STOP after Phase 4. Phase 5 requires explicit authorization.**

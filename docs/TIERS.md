@@ -1,0 +1,25 @@
+# Reputation tiers (Phase 4)
+
+Paper 26.2 / Java 25. Public reputation remains the Phase 3 integral visible score; hidden Trust and exact weighting are separate. No voting weights, historical votes or Trust values are rewritten by a tier configuration change.
+
+## Policy and defaults
+
+`tiers.yml` version 1 is the authoritative policy. Positive thresholds: RECOGNIZED 25, RESPECTED 100, HONORED 250, AUTHORITY 500, PROJECT_PRIDE 750, SUPREME_AUTHORITY 1000. Negative thresholds: SUSPICIOUS -25, OFFENDER -100, SERVER_THREAT -250, SABOTEUR -500. NEUTRAL covers -24 through 24 before hysteresis. All thresholds are configuration data.
+
+Each list entry has `id`, `enabled`, `threshold`, `hysteresis`, unique `priority`, `names.ru_RU/en_US`, hexadecimal `color`, MiniMessage `prefix/suffix`, optional `luckperms-group`, optional numeric `discord-role`, `notifications`, and string `metadata`. Discord IDs and metadata are stored in configuration for future adapters; no Discord synchronization or gameplay benefits run. IDs use uppercase letters/underscores, maximum 32 characters; up to 64 definitions. Names, prefix and suffix are trusted administrator MiniMessage. Tier names now come from tiers.yml; copy any legacy custom tier-neutral wording into NEUTRAL.names if you want to retain that wording. Prefix/suffix accept `{tier}` and `{score}`. Color is `#rrggbb`. Group names must use `reputation_` followed by 1–48 lowercase letters/digits/underscores.
+
+Thresholds and priorities must be unique, including disabled definitions. NEUTRAL must remain enabled at zero with no hysteresis. Other thresholds must lie outside the neutral interval; configured positive/negative definitions must border that interval. Disabling the first tier can expand effective neutrality until another enabled threshold qualifies. Priority is presentation metadata; score selection always uses the most extreme qualifying threshold on the score's side of zero. Disabled definitions never qualify. Duplicate YAML fields, invalid markup and contradictory policies reject startup before storage/API activation.
+
+## Hysteresis and reconciliation
+
+Entry is inclusive. RESPECTED at 100 with margin 10 retains its tier at 99 and **90**, exits at 89. OFFENDER at -100 with margin 10 retains at -99 and **-90**, exits at -89. A more extreme eligible tier immediately supersedes retention. Large jumps and sign changes select the qualifying tier directly. Zero always resets to NEUTRAL; retention never crosses zero. Margins must be between zero and the absolute entry threshold. Disabled or removed tiers cannot be retained.
+
+The policy fingerprint uses canonical IDs, enabled flags, thresholds, margins, group mappings and neutral bounds. A fingerprint change at restart recomputes tiers without retaining the old policy's hysteresis. JSON reconciles in one atomic snapshot; SQL uses bounded keyset batches of 100 profiles, each transactional, before readiness. An interrupted startup resumes this procedure. Display text/color changes do not reset hysteresis. There is no live reload command: back up and restart to apply configuration changes. Configuration defaults merge in memory; existing administrator files are never overwritten.
+
+Every affected profile stores its tier, policy fingerprint, profile revision, tier revision, complete transition history, desired permission group and synchronization revision/ownership. Vote, replacement, revoke, pending acceptance and invalidation commit score and tier together. SQL uses the existing connection/transaction; JSON uses the existing checksummed atomic replacement. Events follow commit; duplicates and reads never replay effects. Local callbacks are ordered per player by the application's lock. They are not a durable notification queue, cross-server bus or guaranteed delivery mechanism. Offline notifications are skipped, with transitions retained for inspection/migration. LuckPerms intent is durable and reconciled independently.
+
+## GUI
+
+The existing profile button keeps statistics and navigation. `gui.yml` adds `tier-panel.enabled`, default `material`, per-ID `icons`, ordered `lore-keys` and optional per-ID `benefits: {ru_RU: 'description', en_US: 'description'}`. Icons and referenced IDs are validated. Old gui.yml files without an explicit tier-panel.material retain their configured profile-button material. Lore uses localized `gui-tier`, `gui-tier-progress`, `gui-tier-maximum` and `gui-tier-benefits` messages. Progress is the nonnegative distance from the visible score to the next enabled positive tier above both the visible score and the currently held positive tier. Hysteresis never makes the GUI offer the already held tier as the next one. If no higher positive tier is configured, the GUI says so without claiming an unavailable benefit or an unearned top tier. Benefits are descriptive administrator text; no Phase 6 benefits are implemented. Text substitutions are literal components.
+
+See [DISPLAY.md](DISPLAY.md), [LUCKPERMS.md](LUCKPERMS.md), [STORAGE.md](STORAGE.md) and [API_DOCUMENTATION.md](API_DOCUMENTATION.md).

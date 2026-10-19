@@ -15,3 +15,10 @@ buttons:
   back: {slot: 49, material: ARROW}
   previous: {slot: 45, material: ARROW}
   next: {slot: 51, material: ARROW}
+
+tier-panel:
+  enabled: true
+  material: NAME_TAG
+  icons: {} # TIER_ID: valid item material
+  lore-keys: [gui-tier, gui-tier-progress, gui-tier-benefits]
+  benefits: {} # TIER_ID: {ru_RU: 'Configured description', en_US: 'Configured description'}

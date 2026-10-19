@@ -51,7 +51,7 @@ public final class VotingApplication implements VotingService {
             return facts.facts(request).thenCompose(trusted->application.submit(()->{
                 VoteReceipt receipt=application.withProfiles(request.voterId(),request.targetId(),()->{
                     var result=repository.vote(settings.scope(),request,trusted,configuration.rules(),clock.instant().truncatedTo(ChronoUnit.MICROS));
-                    application.updateProfile(result.currentView().profile());return result;
+                    application.updateProfile(result.currentView().profile(),!result.duplicate());return result;
                 });
                 if(!receipt.duplicate()) {
                     var event=new VoteCommitted(receipt.entry(),receipt.currentView());
@@ -66,7 +66,7 @@ public final class VotingApplication implements VotingService {
     @Override public CompletionStage<ReputationView> view(UUID playerId) {
         Objects.requireNonNull(playerId);
         return application.submit(()->application.withProfiles(playerId,playerId,()->{
-            var view=repository.votingView(playerId,settings.scope());application.updateProfile(view.profile());return view;
+            var view=repository.votingView(playerId,settings.scope());application.updateProfile(view.profile(),false);return view;
         }));
     }
     @Override public CompletionStage<VotePage> history(UUID playerId,VotePage.Direction direction,int page) {

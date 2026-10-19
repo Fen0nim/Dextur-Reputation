@@ -20,6 +20,7 @@ public final class ReputationApplication implements ReputationService, AutoClose
     @FunctionalInterface public interface Operation<T> { T run() throws Exception; }
     private final ProfileRepository repository;
     private final Settings settings;
+    private volatile java.util.function.BiConsumer<ReputationSnapshot,Boolean> profileObserver=(profile,committed)->{};
     private final ThreadPoolExecutor executor;
     private final BoundedCache<UUID, ReputationSnapshot> profiles;
     private final BoundedCache<UUID, PlayerLanguage> languages;
@@ -63,7 +64,7 @@ public final class ReputationApplication implements ReputationService, AutoClose
         if (cached.isPresent()) return CompletableFuture.completedFuture(cached.get());
         return submit(() -> withProfiles(playerId, playerId, () -> {
             ReputationSnapshot profile = repository.getOrCreate(playerId, settings.scope());
-            profiles.put(playerId, profile);
+            updateProfile(profile,false);
             return profile;
         }));
     }
@@ -113,7 +114,9 @@ public final class ReputationApplication implements ReputationService, AutoClose
         int a = Math.floorMod(first.hashCode(), profileLocks.length), b = Math.floorMod(second.hashCode(), profileLocks.length);
         synchronized (profileLocks[Math.min(a,b)]) { synchronized (profileLocks[Math.max(a,b)]) { return operation.run(); } }
     }
-    void updateProfile(ReputationSnapshot profile) { profiles.put(profile.playerId(), profile); }
+    public void observeProfiles(java.util.function.BiConsumer<ReputationSnapshot,Boolean> observer) { profileObserver=Objects.requireNonNull(observer); }
+    void updateProfile(ReputationSnapshot profile) { updateProfile(profile,true); }
+    void updateProfile(ReputationSnapshot profile,boolean committed) { profiles.put(profile.playerId(), profile);profileObserver.accept(profile,committed); }
 
     public boolean terminated() { return executor.isTerminated(); }
 }

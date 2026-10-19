@@ -28,6 +28,12 @@ final class VotingGui implements Listener {
     private final VotingConfiguration votingConfig;
     private final GuiConfiguration config;
     private final Messages messages;
+    private TierService tiers;
+    private DisplayFormatter formatter;
+    void tiers(TierService tiers,DisplayFormatter formatter,org.dextur.reputation.domain.tier.TierRules rules) {
+        this.tiers=tiers;this.formatter=formatter;
+        config.validateTiers(rules);
+    }
     VotingGui(DexturReputationPlugin plugin,VotingService voting,VotingCommands commands,VotingConfiguration votingConfig,GuiConfiguration config,Messages messages) {
         this.plugin=plugin;this.voting=voting;this.commands=commands;this.votingConfig=votingConfig;this.config=config;this.messages=messages;
     }
@@ -56,6 +62,15 @@ final class VotingGui implements Listener {
             var language=commands.language(player);var s=view.statistics();var button=config.buttons().get("profile");
             session.inventory.setItem(button.slot(),item(button.material(),messages.content(language,"gui-profile",Map.of("player",name,"reputation",messages.number(language,view.profile().visibleScore()))),
                     List.of(messages.content(language,"gui-stats",Map.of("positive",Long.toString(s.positive()),"negative",Long.toString(s.negative()),"unique",Long.toString(s.uniqueVoters()))))));
+            if(tiers!=null&&config.tierPanel().enabled()) tiers.cachedTier(target).ifPresent(tier->{
+                var lore=new ArrayList<>(session.inventory.getItem(button.slot()).getItemMeta().lore());
+                for(String key:config.tierPanel().lore()) {
+                    if(key.equals("gui-tier"))lore.add(messages.content(language,key,Map.of("tier",DisplayFormatter.plain(formatter.name(tier,language)))));
+                    else if(key.equals("gui-tier-progress"))lore.add(tier.nextPositiveThreshold()==null?messages.content(language,"gui-tier-maximum",Map.of()):messages.content(language,key,Map.of("threshold",Long.toString(tier.nextPositiveThreshold()),"remaining",java.math.BigInteger.valueOf(tier.nextPositiveThreshold()).subtract(java.math.BigInteger.valueOf(tier.score())).toString())));
+                    else {var description=config.tierPanel().benefits().get(tier.id());if(description!=null&&!description.get(language.name()).isBlank())lore.add(messages.content(language,key,Map.of("benefits",description.get(language.name()))));}
+                }
+                session.inventory.setItem(button.slot(),item(config.tierPanel().icons().getOrDefault(tier.id(),config.tierPanel().material()),messages.content(language,"gui-profile",Map.of("player",name,"reputation",messages.number(language,tier.score()))),lore));
+            });
             if(!player.getUniqueId().equals(target)) {
                 if(commands.allowed(player,"vote")&&commands.allowed(player,"positive")) button(session,player,"like",()->reasons(player,target,name,VoteType.POSITIVE,1));
                 if(commands.allowed(player,"vote")&&commands.allowed(player,"negative")) button(session,player,"dislike",()->reasons(player,target,name,VoteType.NEGATIVE,1));

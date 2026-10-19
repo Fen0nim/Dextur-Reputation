@@ -1,0 +1,172 @@
+# Entry is inclusive; exit is exclusive beyond threshold toward zero by hysteresis.
+# A policy change recomputes tiers without retaining old hysteresis.
+config-version: 1
+neutral:
+  minimum: -24
+  maximum: 24
+tiers:
+  - id: RECOGNIZED
+    enabled: true
+    threshold: 25
+    hysteresis: 0
+    priority: 0
+    names:
+      ru_RU: 'Признанный'
+      en_US: 'Recognized'
+    color: '#55ff55'
+    prefix: '<color:#55ff55>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: RESPECTED
+    enabled: true
+    threshold: 100
+    hysteresis: 10
+    priority: 1
+    names:
+      ru_RU: 'Уважаемый'
+      en_US: 'Respected'
+    color: '#00aa00'
+    prefix: '<color:#00aa00>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: HONORED
+    enabled: true
+    threshold: 250
+    hysteresis: 20
+    priority: 2
+    names:
+      ru_RU: 'Почётный игрок'
+      en_US: 'Honored Player'
+    color: '#55ffff'
+    prefix: '<color:#55ffff>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: AUTHORITY
+    enabled: true
+    threshold: 500
+    hysteresis: 30
+    priority: 3
+    names:
+      ru_RU: 'Авторитет'
+      en_US: 'Authority'
+    color: '#ffaa00'
+    prefix: '<color:#ffaa00>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: PROJECT_PRIDE
+    enabled: true
+    threshold: 750
+    hysteresis: 50
+    priority: 4
+    names:
+      ru_RU: 'Гордость проекта'
+      en_US: 'Pride of the Project'
+    color: '#ff55ff'
+    prefix: '<color:#ff55ff>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: SUPREME_AUTHORITY
+    enabled: true
+    threshold: 1000
+    hysteresis: 75
+    priority: 5
+    names:
+      ru_RU: 'Высший авторитет'
+      en_US: 'Supreme Authority'
+    color: '#ffff55'
+    prefix: '<color:#ffff55>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: NEUTRAL
+    enabled: true
+    threshold: 0
+    hysteresis: 0
+    priority: 6
+    names:
+      ru_RU: 'Нейтральный'
+      en_US: 'Neutral'
+    color: '#aaaaaa'
+    prefix: '<color:#aaaaaa>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: SUSPICIOUS
+    enabled: true
+    threshold: -25
+    hysteresis: 0
+    priority: 7
+    names:
+      ru_RU: 'Подозрительный игрок'
+      en_US: 'Suspicious Player'
+    color: '#ff5555'
+    prefix: '<color:#ff5555>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: OFFENDER
+    enabled: true
+    threshold: -100
+    hysteresis: 10
+    priority: 8
+    names:
+      ru_RU: 'Нарушитель'
+      en_US: 'Offender'
+    color: '#ff5555'
+    prefix: '<color:#ff5555>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: SERVER_THREAT
+    enabled: true
+    threshold: -250
+    hysteresis: 20
+    priority: 9
+    names:
+      ru_RU: 'Угроза серверу'
+      en_US: 'Server Threat'
+    color: '#aa0000'
+    prefix: '<color:#aa0000>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}
+  - id: SABOTEUR
+    enabled: true
+    threshold: -500
+    hysteresis: 30
+    priority: 10
+    names:
+      ru_RU: 'Вредитель'
+      en_US: 'Saboteur'
+    color: '#aa0000'
+    prefix: '<color:#aa0000>[{tier}] </color>'
+    suffix: ''
+    luckperms-group: ''
+    discord-role: ''
+    notifications: true
+    metadata: {}

@@ -21,6 +21,8 @@ public final class SqlStorage implements StorageBackend {
     private final StorageLease lease;
     private boolean closed;
     private boolean privateSchema;
+    private boolean tierSchema;
+    private org.dextur.reputation.domain.tier.TierRules tierRules;
     private ProtectionRules protectionRules;
     private SqlStorage(Database database,Path file,int busy,StorageLease lease) { this.database=database;this.file=file;this.busy=busy;this.lease=lease; }
     public static SqlStorage mysql(Settings.Database settings,Map<String,String> environment,boolean migration) throws Exception {
@@ -43,7 +45,7 @@ public final class SqlStorage implements StorageBackend {
         try(Connection c=connect();Statement s=c.createStatement()) {
             if(database==null) {
                 try(var rows=s.executeQuery("PRAGMA integrity_check")) { if(!rows.next()||!"ok".equals(rows.getString(1))) throw new SQLException("SQLite integrity check failed"); }
-                try(var rows=s.executeQuery("PRAGMA user_version")) { if(!rows.next()||rows.getInt(1)>3) throw new SQLException("Unsupported SQLite schema"); }
+                try(var rows=s.executeQuery("PRAGMA user_version")) { if(!rows.next()||rows.getInt(1)>4) throw new SQLException("Unsupported SQLite schema");tierSchema=rows.getInt(1)>=4; }
                 try(var rows=s.executeQuery("PRAGMA journal_mode=WAL")) { if(!rows.next()||!"wal".equalsIgnoreCase(rows.getString(1))) throw new SQLException("SQLite WAL unavailable"); }
                 c.setAutoCommit(false);
                 try {
@@ -51,7 +53,8 @@ public final class SqlStorage implements StorageBackend {
                     s.execute("CREATE TABLE IF NOT EXISTS dr_player_preferences(player_uuid TEXT PRIMARY KEY NOT NULL,language TEXT NOT NULL CHECK(language IN ('ru_RU','en_US')),updated_at TEXT NOT NULL)");
                     SqlVoting.initializeSQLite(c);
                     try(var version=c.createStatement();var row=version.executeQuery("PRAGMA user_version")) { if(row.next()&&row.getInt(1)>=3) { SqlProtection.sqlite(c);privateSchema=true; } }
-                    s.execute("PRAGMA user_version="+(privateSchema?3:2)); c.commit();
+                    if(tierSchema) SqlTiers.sqlite(c);
+                    s.execute("PRAGMA user_version="+(tierSchema?4:privateSchema?3:2)); c.commit();
                 } catch(Exception e) { c.rollback();throw e; } finally { c.setAutoCommit(true); }
             }
             s.execute("CREATE TABLE IF NOT EXISTS dr_storage_control(id INTEGER PRIMARY KEY,pending INTEGER NOT NULL,format_version INTEGER NOT NULL)");
@@ -62,10 +65,12 @@ public final class SqlStorage implements StorageBackend {
             }
         }
         try(var c=connect();var query=c.prepareStatement(database==null?"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='dr_protection_scope'":"SELECT COUNT(*) FROM dr_schema_history WHERE version=3");var row=query.executeQuery()) { privateSchema=row.next()&&row.getLong(1)>0; }
+        try(var c=connect();var query=c.prepareStatement(database==null?"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='dr_tiers'":"SELECT COUNT(*) FROM dr_schema_history WHERE version=4");var row=query.executeQuery()) { tierSchema=row.next()&&row.getLong(1)>0; }
         snapshot(); // Validate complete stored records before the backend can be activated.
     }
     @Override public StorageType type() { return database==null?StorageType.SQLITE:StorageType.MYSQL; }
     @Override public synchronized ReputationSnapshot getOrCreate(UUID id,String scope) throws Exception {
+        if(tierRules!=null) return new SqlVoting(this).view(id,scope).profile();
         if(database!=null) { database.ensureOwned();return new JdbcProfiles(database::dataSource).getOrCreate(id,scope); }
         if(!scope.matches("[a-z0-9_-]{1,32}")) throw new IllegalArgumentException("Invalid scope");
         try(Connection c=connect()) {
@@ -114,13 +119,14 @@ public final class SqlStorage implements StorageBackend {
                     while(rows.next()) preferences.add(new StorageSnapshot.Preference(UUID.fromString(rows.getString("player_uuid")),PlayerLanguage.parse(rows.getString("language")),instant(rows,"updated_at")));
                 }
                 var voting=new SqlVoting(this);var votes=voting.all(c);var protection=privateSchema?new SqlProtection(this).snapshot(c):ProtectionSnapshot.empty();voting.validateActive(c,votes,protection);
-                var snapshot=new StorageSnapshot(profiles,preferences,votes,protection);c.commit();return snapshot;
+                var snapshot=new StorageSnapshot(profiles,preferences,votes,protection,tierSchema?new SqlTiers(this).snapshot(c):TierSnapshot.empty());c.commit();return snapshot;
             } catch(Exception e) { c.rollback();throw e; }
         }
     }
     @Override public synchronized org.dextur.reputation.api.VoteEntry operation(UUID id) throws Exception { return new SqlVoting(this).operation(id); }
     @Override public synchronized org.dextur.reputation.api.VoteReceipt vote(String scope,org.dextur.reputation.api.VoteRequest request,
             org.dextur.reputation.domain.VoterFacts facts,org.dextur.reputation.domain.VotingRules rules,java.time.Instant now) throws Exception {
+        if(tierSchema&&tierRules==null) throw new IllegalStateException("Tier configuration required for voting");
         if(protectionRules!=null) return new SqlProtection(this).apply(scope,request,facts,rules,protectionRules,now);
         if(privateSchema&&!snapshot().protection().isEmpty()) throw new IllegalStateException("Protection configuration required for voting");
         return new SqlVoting(this).apply(scope,request,facts,rules,now);
@@ -153,6 +159,7 @@ public final class SqlStorage implements StorageBackend {
     }
     @Override public synchronized List<Audit> audit(String scope,long after,int limit) throws Exception { return privateSchema?new SqlProtection(this).audit(scope,after,limit):List.of(); }
     @Override public synchronized ReputationView review(UUID transition,UUID vote,UUID operator,String reason,Review action,long expected,Instant now) throws Exception {
+        if(tierSchema&&tierRules==null) throw new IllegalStateException("Tier configuration required for review");
         return new SqlProtection(this).review(transition,vote,operator,reason,action,expected,Objects.requireNonNull(protectionRules,"Protection not configured"),now);
     }
     @Override public synchronized boolean refreshTrust(UUID player,String scope,long expected,org.dextur.reputation.domain.VoterFacts facts,Instant now) throws Exception {
@@ -166,6 +173,7 @@ public final class SqlStorage implements StorageBackend {
     }
     @Override public synchronized void importEmpty(StorageSnapshot snapshot) throws Exception {
         if(!snapshot.protection().isEmpty()) enableProtectionSchema();
+        if(!snapshot.tiers().isEmpty()) enableTierSchema();
         try(Connection c=connect()) {
             c.setAutoCommit(false);
             try {
@@ -189,9 +197,43 @@ public final class SqlStorage implements StorageBackend {
                     try(var clear=c.createStatement()) { clear.executeUpdate("DELETE FROM dr_active_votes"); }
                     for(var vote:ProtectionValidation.active(snapshot.votes(),snapshot.protection()).values()) voting.active(c,vote);
                 }
+                if(tierSchema) for(var state:snapshot.tiers().states()) new SqlTiers(this).put(c,state);
                 c.commit();
             } catch(Exception e) { c.rollback();throw e; }
         }
+    }
+    private void enableTierSchema() throws Exception {
+        if(tierSchema) return;enableProtectionSchema();
+        if(database!=null) new SchemaMigrator().tiers(database.dataSource());
+        else try(var c=connect()) {c.setAutoCommit(false);try {SqlTiers.sqlite(c);c.commit();}catch(Exception e){c.rollback();throw e;}}
+        tierSchema=true;
+    }
+    ReputationSnapshot reconcileTier(Connection c,ReputationSnapshot profile) throws SQLException {
+        if(tierRules==null) return profile;
+        var repository=new SqlTiers(this);var previous=repository.get(c,profile.playerId(),profile.scopeId());var next=TierSnapshot.reconcile(profile,previous,tierRules);
+        if(!next.equals(previous)) repository.put(c,next);
+        if(!profile.tier().equals(next.tier())) try(var s=c.prepareStatement("UPDATE dr_profiles SET tier=? WHERE player_uuid=? AND scope_id=?")) {s.setString(1,next.tier());s.setString(2,profile.playerId().toString());s.setString(3,profile.scopeId());if(s.executeUpdate()!=1) throw new SQLException("Tier profile missing");}
+        return TierSnapshot.profile(profile,next);
+    }
+    @Override public synchronized void tiers(org.dextur.reputation.domain.tier.TierRules rules) throws Exception {
+        enableTierSchema();tierRules=Objects.requireNonNull(rules);
+        // Bounded keyset batches. Every profile is consistent before readiness; interrupted startup resumes.
+        String afterPlayer="",afterScope="";
+        while(true) {
+            var rows=new ArrayList<ReputationSnapshot>();try(var c=connect()) {c.setAutoCommit(false);try {
+                try(var s=c.prepareStatement("SELECT * FROM dr_profiles WHERE (player_uuid,scope_id)>(?,?) ORDER BY player_uuid,scope_id LIMIT 100")) {s.setString(1,afterPlayer);s.setString(2,afterScope);try(var r=s.executeQuery()){while(r.next()) rows.add(profile(r));}}
+                for(var p:rows) reconcileTier(c,p);c.commit();
+            }catch(Exception e){c.rollback();throw e;}}
+            if(rows.size()<100) break;var last=rows.getLast();afterPlayer=last.playerId().toString();afterScope=last.scopeId();
+        }
+    }
+    @Override public synchronized org.dextur.reputation.domain.tier.TierState tierState(UUID player,String scope) throws Exception {if(!tierSchema)return null;try(var c=connect()){return new SqlTiers(this).get(c,player,scope);}}
+    @Override public synchronized List<org.dextur.reputation.domain.tier.TierState> pendingTierSyncAfter(String scope,String after,int limit) throws Exception {
+        if(limit<1||limit>100) throw new IllegalArgumentException("Tier sync batch bounds");if(!tierSchema)return List.of();var rows=new ArrayList<org.dextur.reputation.domain.tier.TierState>();
+        try(var c=connect();var s=c.prepareStatement("SELECT * FROM dr_tiers WHERE scope_id=? AND player_uuid>? AND applied_revision<sync_revision ORDER BY player_uuid LIMIT ?")) {s.setString(1,scope);s.setString(2,after);s.setInt(3,limit);try(var r=s.executeQuery()){while(r.next())rows.add(new SqlTiers(this).read(r));}}return List.copyOf(rows);
+    }
+    @Override public synchronized boolean tierSynced(UUID player,String scope,long expected,List<String> owned) throws Exception {
+        if(!tierSchema)return false;try(var c=connect()) {c.setAutoCommit(false);try {var repo=new SqlTiers(this);var old=repo.get(c,player,scope);if(old==null||old.syncRevision()!=expected){c.rollback();return false;}repo.put(c,old.synced(expected,owned));c.commit();return true;}catch(Exception e){c.rollback();throw e;}}
     }
     private void timestamp(PreparedStatement s,int index,Instant value) throws SQLException {
         if(database==null) s.setString(index,value.toString());else s.setTimestamp(index,Timestamp.from(value));
