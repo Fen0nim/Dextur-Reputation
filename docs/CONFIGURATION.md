@@ -1,6 +1,6 @@
-# Конфигурация Phase 2
+# Конфигурация Phase 3
 
-Создаются `config.yml`, `storage.yml`, `integrations.yml`, `voting.yml`, `gui.yml`, `lang/ru_RU.yml`, `lang/en_US.yml`.
+Создаются `config.yml`, `storage.yml`, `integrations.yml`, `voting.yml`, `gui.yml`, `trust.yml`, `anti-abuse.yml`, `lang/ru_RU.yml`, `lang/en_US.yml`.
 Файлы администратора не переписываются. Неизвестные версии, дубликаты YAML, неверные типы,
 пустые обязательные строки, невалидные границы/разметка/placeholder-наборы отклоняются.
 
@@ -72,3 +72,48 @@ Reload в этой фазе нет. Настройки целиком приме
 `vote-*`, `gui-*`, `reason-*` ключи подставляются из bundled RU/EN. Custom messages сохраняются.
 Причины пользовательского администратора должны ссылаться на существующие переводы без
 placeholders. Новые настройки валидируются до открытия backend. Нет online reload.
+
+## Phase 3
+
+Полные комментированные defaults — `trust.yml` и `anti-abuse.yml` в ресурсах. Для каждого
+отсутствующего поля берётся bundled default **в памяти**, custom YAML не переписывается.
+Оба файла version 1. Неверный тип/диапазон/комбинация блокирует enable до открытия backend.
+Все изменения требуют restart. Множители действуют только на новые оценки, исторические
+веса не пересчитываются. Периодический Trust refresh меняет только будущую оценку Trust.
+Массовый пересчёт вклада старых голосов в этой фазе не предоставлен.
+
+| Группа | Default / допустимые границы |
+|---|---|
+| trust.enabled / model-version | true / только 1 |
+| trust.score minimum / maximum / initial | 0 / 1 / 0.50; 0 ≤ min ≤ initial ≤ max ≤ 1 |
+| maturity enabled, full age / playtime | true, 90 суток / 200 часов; 1..36500 / 1..1000000 |
+| maturity influence | 0.20; 0..1 |
+| history enabled, invalidated / diversity / repeat penalty | true, 0.30 / 0.05 / 0.10; 0..1 |
+| abuse-penalties enabled, confirmed penalty / restriction | true, 0.25 / 1440 минут; 0..1 / 0..525600 |
+| recalculation enabled / interval / batch | true / 60 минут / 20; 1..10080 / 1..100 |
+| voting-weight enabled, base like/dislike | true, 1.0/1.0; 0.000001..1000000 |
+| effective-weight min/max | 0..1.50; 0 ≤ min ≤ max ≤ 1000000 |
+| trust-multiplier enabled / min/max | true / 0.40..1.25; 0 ≤ min ≤ max ≤ 10 |
+| diversity enabled / min/max / full-credit-voters | true / 0.75..1 / 8; [0,1], min≤max; 1..10000 |
+| account-maturity enabled / min/max | true / 0.50..1; [0,1], min≤max |
+| repeated-target / reciprocity enabled / window | true / 30 суток; 1..3650 |
+| multipliers first,second,third,fourth,subsequent | 1, .70, .35, .10, 0; пять невозрастающих [0,1] |
+| reciprocity minimum-interactions-for-flag | 4; 2..10000 |
+| clusters enabled / window / interval | true / 30 суток / 30 сек; 1..3650 / 1..86400 |
+| clusters maximum-events / nodes / edges | 2048 / 128 / 4096; 16..10000 / 4..256 / 12..65536 |
+| clusters maximum-work / milliseconds | 20000 / 100; 100..1000000 / 1..1000 |
+| clusters minimum-members / density / mutual-density | 4 / .75 / .75; 4..nodes / (0,1] / (0,1] |
+| clusters confidence-multiplier | .50; [0,1] |
+| burst enabled / window / count | true / 30 минут / 10; 1..10080 / 2..maximum-events |
+| burst immature-threshold / weak-voter-fraction | .30 / .50; [0,1] / (0,1] |
+| mark-suspicious / allow-pending / automatic-permanent-punishment | true / true / только false |
+| rapid-change enabled / window / count / weak-voter-fraction | true / 30 минут / 12 / .50; как burst |
+| storage.json-warning-fraction | .75; (0,1], доля maximum-file-bytes для предупреждения |
+
+Десятичные значения допускают до 6 знаков без потери точности; NaN, Infinity, overflow и
+лишняя ненулевая точность отклоняются. Булевы параметры не выбирают backend: единственный
+selector остаётся `storage.type`. `voting-weight.enabled: false` сохраняет номинальные веса
+voting.yml, но **не отключает** detection/pending/restriction и сохранённый lifetime ceiling. Trust.enabled=false
+даёт initial для будущего Trust и отключает его multiplier; отдельные detection switches
+управляют сигналами. Нельзя использовать изменение конфига для удаления старых данных.
+Подробная политика: [TRUST.md](TRUST.md), [ANTI_ABUSE.md](ANTI_ABUSE.md).

@@ -2,6 +2,7 @@
 """Real Paper 26.2 smoke/restart test. Requires Java 25, Docker and explicit EULA acceptance."""
 import argparse
 import hashlib
+import json
 import os
 from pathlib import Path
 import secrets
@@ -32,7 +33,13 @@ def main():
     parser.add_argument("--legacy-mysql", action="store_true", help="Test unchanged Phase 1 storage.yml")
     parser.add_argument("--mojang-cache", type=Path, help="Reuse a cached Mojang server jar after checking Paper's embedded SHA-256")
     parser.add_argument("--voting", action="store_true", help="Exercise Phase 2 with two local protocol 776 clients and relaxed QA eligibility/cooldowns")
+    parser.add_argument("--protection", action="store_true", help="Exercise Phase 3 fractional voting, pending review, private Trust CAS and restart with three real local clients")
+    parser.add_argument("--phase2-json-fixture", type=Path, help="Import a preserved real Phase 2 format-2 snapshot through offline StorageAdmin before Paper startup")
     args = parser.parse_args()
+    if args.voting and args.protection:
+        parser.error("Run --voting and --protection separately")
+    if args.phase2_json_fixture and not args.protection:
+        parser.error("--phase2-json-fixture requires --protection")
     if args.legacy_mysql and args.storage_type != "MYSQL":
         parser.error("--legacy-mysql requires --storage-type MYSQL")
     if not args.accept_eula:
@@ -44,7 +51,7 @@ def main():
         parser.error("--directory must be new or empty; existing server files are never overwritten")
     directory.mkdir(parents=True, exist_ok=True)
     artifacts = args.artifacts_directory.resolve()
-    for name in ("DexturReputation.jar", "DexturReputationProbe.jar"):
+    for name in ("DexturReputation.jar", "DexturReputationProbe.jar") + (("DexturReputation-StorageAdmin.jar",) if args.phase2_json_fixture else ()):
         if not (artifacts / name).is_file():
             parser.error(f"Build {name} first: ./gradlew build :reputation-paper:runtimeProbeJar")
     paper = directory / "paper.jar"
@@ -62,7 +69,7 @@ def main():
         (directory / "cache").mkdir()
         shutil.copyfile(args.mojang_cache, directory / "cache" / filename)
     (directory / "eula.txt").write_text("eula=true\n")
-    (directory / "server.properties").write_text("server-ip=127.0.0.1\nserver-port=25566\nonline-mode=false\nview-distance=2\nsimulation-distance=2\nmax-players=2\nlevel-name=smoke-world\ngenerate-structures=false\n")
+    (directory / "server.properties").write_text("server-ip=127.0.0.1\nserver-port=25566\nonline-mode=false\nview-distance=2\nsimulation-distance=2\nmax-players=3\nlevel-name=smoke-world\ngenerate-structures=false\n")
     plugins = directory / "plugins"
     config = plugins / "DexturReputation"
     config.mkdir(parents=True)
@@ -71,9 +78,14 @@ def main():
     resources = ROOT / "reputation-paper/src/main/resources"
     for name in ("config.yml", "integrations.yml"):
         shutil.copyfile(resources / name, config / name)
-    if args.voting:
+    if args.voting or args.protection:
         voting = (resources / "voting.yml").read_text().replace("minimum-playtime-seconds: 108000", "minimum-playtime-seconds: 0").replace("minimum-account-age-seconds: 604800", "minimum-account-age-seconds: 0").replace("cooldown-seconds: 7200", "cooldown-seconds: 0").replace("base-daily-limit: 3", "base-daily-limit: 1000")
         (config / "voting.yml").write_text(voting)
+        protection = (resources / "anti-abuse.yml").read_text().replace("enabled: true", "enabled: false")
+        if args.protection:
+            protection = protection.replace("voting-weight:\n  enabled: false", "voting-weight:\n  enabled: true").replace("base: {like: 1.0, dislike: 1.0}", "base: {like: 0.35, dislike: 0.35}").replace("burst-protection:\n  enabled: false", "burst-protection:\n  enabled: true").replace("suspicious-count: 10", "suspicious-count: 2")
+        # QA-only policy: legacy workflow keeps unit weights; Phase 3 isolates fractional and pending behavior.
+        (config / "anti-abuse.yml").write_text(protection)
     container = "dextur-smoke-" + secrets.token_hex(6)
     password = secrets.token_urlsafe(32)
     environment = os.environ.copy()
@@ -101,6 +113,22 @@ def main():
             storage = "config-version: 1\n" + "\n".join(line[4:] for line in mysql.splitlines() if line.startswith("    ")) + "\n"
         (config / "storage.yml").write_text(storage)
         java = str(Path(os.environ["JAVA_HOME"]) / "bin/java") if "JAVA_HOME" in os.environ else "java"
+        legacy_fixture = None
+        if args.phase2_json_fixture:
+            legacy_fixture = json.loads(args.phase2_json_fixture.read_text())
+            if legacy_fixture["formatVersion"] != 2 or not legacy_fixture["data"]["votes"] or any(v["calculationVersion"] != 1 for v in legacy_fixture["data"]["votes"]):
+                raise RuntimeError("Expected a genuine Phase 2 fixture with version-1 votes")
+            fixture_dir = config / "storage/json"
+            fixture_dir.mkdir(parents=True)
+            shutil.copyfile(args.phase2_json_fixture, fixture_dir / "state.json")
+            if args.storage_type != "JSON":
+                (config / "upgrade-target.yml").write_text(storage)
+                (config / "storage.yml").write_text(storage.replace("type: " + args.storage_type, "type: JSON"))
+                upgrade_environment = os.environ.copy()
+                if args.storage_type == "MYSQL":
+                    upgrade_environment["DEXTURREPUTATION_DB_PASSWORD"] = password
+                with (directory / "offline-phase2-import.log").open("w") as output:
+                    subprocess.run([java, "-jar", str(artifacts / "DexturReputation-StorageAdmin.jar"), "migrate", "--data-directory", str(config), "--target-config", str(config / "upgrade-target.yml"), "--backups", str(directory / "upgrade-backups"), "--confirm", "STOPPED-ALL-WRITERS", "--language", "en_US"], env=upgrade_environment, stdout=output, stderr=subprocess.STDOUT, check=True)
         launch = [java, "-Xms512m", "-Xmx2g", "-Dterminal.jline=false", "-Dterminal.ansi=false"]
         trust = Path("/etc/ssl/certs/java/cacerts")
         if trust.exists():
@@ -112,6 +140,13 @@ def main():
         launch.append("-Ddextur.probe.storage=" + args.storage_type)
         if args.voting:
             launch.append("-Ddextur.probe.voting=true")
+        if args.protection:
+            launch.append("-Ddextur.probe.protection=true")
+        if legacy_fixture:
+            target = legacy_fixture["data"]["votes"][0]["target"]
+            count = sum(v["target"] == target for v in legacy_fixture["data"]["votes"])
+            score = next(p["visible"] for p in legacy_fixture["data"]["profiles"] if p["playerId"] == target and p["scope"] == "global")
+            launch.extend(["-Ddextur.probe.legacy-target=" + target, "-Ddextur.probe.legacy-count=" + str(count), "-Ddextur.probe.legacy-score=" + str(score)])
         launch += ["-jar", "paper.jar", "--nogui"]
         server_environment = os.environ.copy()
         if args.storage_type == "MYSQL":
@@ -125,9 +160,9 @@ def main():
             log = directory / f"smoke-{run}.log"
             clients = []
             try:
-                if args.voting:
+                if args.voting or args.protection:
                     import sys
-                    for username in ("Phase2Voter", "Phase2Target"):
+                    for username in (("Phase3A", "Phase3B", "Phase3Target") if args.protection else ("Phase2Voter", "Phase2Target")):
                         client_log = (directory / f"client-{username}-{run}.log").open("w")
                         client = subprocess.Popen([sys.executable, str(ROOT / "scripts/paper-test-client.py"), "--username", username], stdout=client_log, stderr=subprocess.STDOUT)
                         clients.append((client, client_log))
@@ -144,9 +179,33 @@ def main():
                 raise RuntimeError(f"Paper run {run} failed; inspect {log}")
             if args.voting and "PROBE_VOTING_PASS:" not in text:
                 raise RuntimeError(f"Voting verification missing; inspect {log}")
+            if args.protection and "PROBE_PROTECTION_PASS:" not in text:
+                raise RuntimeError(f"Protection verification missing; inspect {log}")
+            if legacy_fixture and "PROBE_LEGACY_PHASE2_PASS:" not in text:
+                raise RuntimeError(f"Legacy Phase 2 verification missing; inspect {log}")
             if run == 3 and "PROBE_PAPI_PASS:" not in text:
                 raise RuntimeError(f"PlaceholderAPI verification missing; inspect {log}")
             print(f"Paper 26.2 {args.storage_type} run {run}: PASS ({log})", flush=True)
+        if legacy_fixture:
+            # Paper is stopped: verify the complete old dataset and the new private state through
+            # the real standalone CLI, including a Phase 3 SQL -> JSON migration where applicable.
+            snapshot_path = config / "storage/json/state.json"
+            if args.storage_type != "JSON":
+                exported = storage.replace("type: " + args.storage_type, "type: JSON").replace("directory: storage/json", "directory: storage/phase3-export-json")
+                export_config = config / "phase3-export.yml"
+                export_config.write_text(exported)
+                with (directory / "offline-phase3-export.log").open("w") as output:
+                    subprocess.run([java, "-jar", str(artifacts / "DexturReputation-StorageAdmin.jar"), "migrate", "--data-directory", str(config), "--target-config", str(export_config), "--backups", str(directory / "upgrade-backups"), "--confirm", "STOPPED-ALL-WRITERS", "--language", "en_US"], env=server_environment, stdout=output, stderr=subprocess.STDOUT, check=True)
+                snapshot_path = config / "storage/phase3-export-json/state.json"
+            current = json.loads(snapshot_path.read_text())
+            for collection, key in (("votes", lambda row: row["id"]), ("profiles", lambda row: (row["playerId"], row["scope"])), ("preferences", lambda row: row["playerId"])):
+                actual = {key(row): row for row in current["data"][collection]}
+                if any(actual.get(key(row)) != row for row in legacy_fixture["data"][collection]):
+                    raise RuntimeError("Phase 2 dataset changed: " + collection)
+            private = current["data"]["protection"]
+            if current["formatVersion"] != 3 or not private["trusts"] or not private["audit"] or not any(a["status"] == "PENDING" for a in private["assessments"]):
+                raise RuntimeError("Complete Phase 3 state was not preserved")
+            print("PHASE2_DATA_AND_PHASE3_CLI_PASS: profiles, languages, historical votes, exact weights, Trust, audit and pending", flush=True)
     finally:
         if created:
             subprocess.run(["docker", "rm", "-f", container], stdout=subprocess.DEVNULL, check=True)

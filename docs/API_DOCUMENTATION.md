@@ -35,7 +35,7 @@ if (service != null) {
 Не блокируйте игровой поток ожиданием результата. При `ServiceUnregisterEvent`
 прекратите использовать сохранённую ссылку. После остановки новые запросы отклоняются.
 Кэш PAPI отдельно не предоставляется публичному API; синхронный доступ не делает IO.
-Trust не предоставляется в Phase 2.
+Trust не предоставляется через публичный API.
 
 API Phase 1.1 не зависит от backend и не меняет контракты Phase 1. Потребителю не требуется знать JSON/SQLite/MySQL.
 
@@ -97,3 +97,42 @@ page<=0 отклоняется. Порядок — sequence descending. Snapshot
 Это in-process событие, не durable outbox: авария между commit и dispatch может потерять событие;
 потребители восстанавливают состояние через view/history. Обработчик не должен блокировать IO
 worker или синхронно ждать новых API запросов. При shutdown оба сервиса снимаются.
+
+## Дополнение Phase 3 (совместимое)
+
+Прежние сигнатуры/компоненты records сохранены. Добавлены default-методы:
+
+```java
+CompletionStage<VoteProcessingOutcome> outcome(UUID operationId);
+AutoCloseable onStatusChanged(Consumer<VoteStatusChanged> listener);
+// VoteStatusChanged(transitionId, operationId, status, view)
+```
+
+Старый implementation VotingService продолжает загружаться: default outcome завершается
+UnsupportedOperationException, default subscription ничего не делает. Реализация плагина
+возвращает ACCEPTED / PENDING / SUPERSEDED / REVOKED / INVALIDATED асинхронно; внутренний
+SUSPICIOUS обобщается до ACCEPTED. Trust, severity, признаки, пороги и точные факторы отсутствуют
+в API JAR. Не используйте reflection к implementation в обычных потребителях.
+
+`VoteEntry.calculationVersion=1` сохраняет прежнюю целую арифметику. Версия 2: baseWeight и
+effectiveWeight — целое представление веса (HALF_UP; base минимум 1 для старого контракта),
+contribution() — подписанное представление одного голоса, **не delta общего точного счёта**.
+Оно может быть 0 для законного дробного/ожидающего голоса. Не суммируйте individual display
+weights: получайте актуальный `view.profile.visibleScore`, а изменение исходной операции —
+`communityAfter - communityBefore`. После review исходный entry не переписывается;
+актуальные status и score получайте через outcome/view. Item.active означает применённый
+вклад; при pending-замене прежний entry остаётся active. Глобальная уникальность operation ID,
+правила retry и отсутствие событий на duplicate/reject/IO failure сохранены.
+
+`onCommitted` приходит и для сохранённого pending (успех сохранения, не обещание нового вклада).
+`onStatusChanged` сообщает отдельно о принятом административном решении после COMMIT и cache
+update; duplicate решения события не создаёт. Ошибки callbacks изолированы. Это in-process
+уведомления, не durable outbox; после аварии сверяйте outcome/view/history. Не блокируйте
+callback ожиданием API/IO и не полагайтесь на межпоточный порядок. Новые ошибки:
+TEMPORARILY_RESTRICTED (remainingSeconds) и PROCESSING_BUSY. Формулы и Trust публично не выдаются.
+
+Число незавершённых submit дополнительно ограничено database-queue-size (default 256),
+включая ожидание фактов Paper; переполнение возвращает PROCESSING_BUSY без записи.
+Отмена возвращённого Future не отменяет уже принятую внутреннюю обработку, не освобождает
+её admission slot раньше завершения и не откатывает commit. После неопределённого результата
+проверяйте outcome и повторяйте тот же operation ID, как при разрыве соединения.

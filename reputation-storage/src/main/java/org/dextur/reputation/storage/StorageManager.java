@@ -9,13 +9,14 @@ import org.dextur.reputation.domain.PlayerLanguage;
 import org.dextur.reputation.domain.ProfileRepository;
 
 /** Owns exactly one selected backend. No fallback or storage-dependent public API. */
-public final class StorageManager implements ProfileRepository, org.dextur.reputation.domain.VotingRepository, AutoCloseable {
+public final class StorageManager implements ProfileRepository, org.dextur.reputation.domain.VotingRepository, org.dextur.reputation.domain.protection.ProtectionRepository, AutoCloseable {
     private volatile StorageBackend backend;
     private StorageLease lease;
+    private org.dextur.reputation.domain.protection.ProtectionRules protectionRules;
     public void open(Path directory,Settings settings,Map<String,String> environment) throws Exception {
         lease=new StorageLease(directory.resolve(".storage.lock"));
-        try { backend=create(directory,settings,environment,false); }
-        catch(Exception e) { lease.close();lease=null;throw e; }
+        try { backend=create(directory,settings,environment,false);if(protectionRules!=null) backend.protection(protectionRules); }
+        catch(Exception e) { if(backend!=null) { backend.close();backend=null; }lease.close();lease=null;throw e; }
     }
     public static StorageBackend create(Path directory,Settings settings,Map<String,String> environment,boolean migration) throws Exception {
         var storage=settings.storage();
@@ -38,6 +39,17 @@ public final class StorageManager implements ProfileRepository, org.dextur.reput
     @Override public org.dextur.reputation.api.VotePage votingHistory(UUID id,String scope,org.dextur.reputation.api.VotePage.Direction direction,int page,int size) throws Exception {
         return backend().votingHistory(id,scope,direction,page,size);
     }
+    @Override public void protection(org.dextur.reputation.domain.protection.ProtectionRules rules) throws Exception { protectionRules=java.util.Objects.requireNonNull(rules);if(backend!=null) backend.protection(rules); }
+    @Override public org.dextur.reputation.api.VoteProcessingOutcome outcome(UUID id) throws Exception { return backend().outcome(id); }
+    @Override public org.dextur.reputation.domain.protection.ProtectionData.Trust inspectTrust(UUID id,String scope) throws Exception { return backend().inspectTrust(id,scope); }
+    @Override public org.dextur.reputation.domain.protection.ProtectionData.Audit inspectTransition(UUID id) throws Exception { return backend().inspectTransition(id); }
+    @Override public org.dextur.reputation.domain.protection.ProtectionData.Assessment inspectVote(UUID id) throws Exception { return backend().inspectVote(id); }
+    @Override public java.util.List<org.dextur.reputation.domain.protection.ProtectionData.Audit> audit(String scope,long after,int limit) throws Exception { return backend().audit(scope,after,limit); }
+    @Override public org.dextur.reputation.api.ReputationView review(UUID transition,UUID vote,UUID operator,String reason,org.dextur.reputation.domain.protection.ProtectionData.Review action,long expected,java.time.Instant now) throws Exception { return backend().review(transition,vote,operator,reason,action,expected,now); }
+    @Override public boolean refreshTrust(UUID player,String scope,long expected,org.dextur.reputation.domain.VoterFacts facts,java.time.Instant now) throws Exception { return backend().refreshTrust(player,scope,expected,facts,now); }
+    @Override public java.util.List<org.dextur.reputation.domain.protection.ProtectionData.Trust> dueTrust(String scope,java.time.Instant before,int limit) throws Exception { return backend().dueTrust(scope,before,limit); }
+    @Override public boolean analyze(String scope,java.time.Instant now) throws Exception { return backend().analyze(scope,now); }
+    @Override public long storageBytes() throws Exception { return backend().storageBytes(); }
     @Override public void close() {
         try { if(backend!=null) { backend.close();backend=null; } }
         catch(Exception e) { throw new IllegalStateException("Storage close failed",e); }

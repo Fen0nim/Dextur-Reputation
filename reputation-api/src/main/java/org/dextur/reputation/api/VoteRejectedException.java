@@ -4,7 +4,7 @@ package org.dextur.reputation.api;
 public final class VoteRejectedException extends RuntimeException {
     public enum Code { SELF, UNKNOWN_PLAYER, OFFLINE, PERMISSION, REASON, COMMENT, PLAYTIME,
         ACCOUNT_AGE, DAILY_LIMIT, COOLDOWN, PAIR_COOLDOWN, REPEAT_DISABLED, REVOKE_DISABLED,
-        NO_ACTIVE_VOTE, SAME_VOTE, ID_CONFLICT, INVALID_PAGE }
+        NO_ACTIVE_VOTE, SAME_VOTE, ID_CONFLICT, INVALID_PAGE, TEMPORARILY_RESTRICTED, PROCESSING_BUSY }
     private final Code code;
     private final long remainingSeconds;
     public VoteRejectedException(Code code) { this(code, 0); }

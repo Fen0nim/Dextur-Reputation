@@ -1,0 +1,32 @@
+# Private operator configuration. Restart required; existing vote weights are never recalculated.
+# Exact decimals: up to 6 places. Bounds and formula: docs/TRUST.md, docs/CONFIGURATION.md.
+config-version: 1
+trust:
+  enabled: true
+  model-version: 1
+  # 0 <= minimum <= initial <= maximum <= 1.
+  score:
+    minimum: 0.0
+    maximum: 1.0
+    initial: 0.50
+  # Server first join and verified Paper playtime, not Mojang account age.
+  maturity:
+    enabled: true
+    account-age-days-for-full-credit: 90
+    playtime-hours-for-full-credit: 200
+    influence: 0.20
+  history:
+    enabled: true
+    invalidated-penalty: 0.30
+    outgoing-diversity-influence: 0.05
+    repeat-risk-penalty: 0.10
+  # Applied only after an explicit internal CONFIRM_MANIPULATION decision.
+  abuse-penalties:
+    enabled: true
+    confirmed-penalty: 0.25
+    confirmed-restriction-minutes: 1440
+  # Non-overlapping background batches, maximum 100 records per batch.
+  recalculation:
+    enabled: true
+    interval-minutes: 60
+    batch-size: 20

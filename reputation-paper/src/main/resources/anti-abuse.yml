@@ -1,0 +1,53 @@
+# Private operator configuration. Restart required; preserve this file with backups.
+# Decimals have 6-place precision. Complete ranges: docs/CONFIGURATION.md.
+config-version: 1
+voting-weight:
+  enabled: true
+  base: {like: 1.0, dislike: 1.0}
+  effective-weight: {minimum: 0.0, maximum: 1.50}
+  trust-multiplier: {enabled: true, minimum: 0.40, maximum: 1.25}
+  diversity: {enabled: true, minimum: 0.75, maximum: 1.0, full-credit-voters: 8}
+  account-maturity: {enabled: true, minimum: 0.50, maximum: 1.0}
+# The pair lifetime ceiling never increases after waiting, replacement or revocation.
+repeated-target:
+  enabled: true
+  window-days: 30
+  multipliers: {first: 1.0, second: 0.70, third: 0.35, fourth: 0.10, subsequent: 0.0}
+reciprocity:
+  enabled: true
+  window-days: 30
+  minimum-interactions-for-flag: 4
+  multipliers: {first: 1.0, second: 0.70, third: 0.35, fourth: 0.10, subsequent: 0.0}
+# Local bounded graph analysis on IO workers; density alone never confirms abuse.
+clusters:
+  enabled: true
+  window-days: 30
+  interval-seconds: 30
+  maximum-events: 2048
+  maximum-nodes: 128
+  maximum-edges: 4096
+  maximum-work: 20000
+  maximum-milliseconds: 100
+  minimum-members: 4
+  minimum-density: 0.75
+  minimum-mutual-density: 0.75
+  confidence-multiplier: 0.50
+# Pending adds no new contribution; pending replacement retains the old active vote.
+# Review uses the internal administration capability, not public player commands.
+burst-protection:
+  enabled: true
+  negative-votes: {window-minutes: 30, suspicious-count: 10}
+  immature-threshold: 0.30
+  weak-voter-fraction: 0.50
+  actions:
+    mark-suspicious: true
+    allow-pending: true
+    automatic-permanent-punishment: false
+rapid-change:
+  enabled: true
+  window-minutes: 30
+  suspicious-count: 12
+  weak-voter-fraction: 0.50
+# Warn once per maintenance interval as JSON approaches its configured byte limit.
+storage:
+  json-warning-fraction: 0.75

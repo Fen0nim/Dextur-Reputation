@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0-SNAPSHOT — Phase 3
+
+- Скрытый версионированный Trust: проверенная зрелость, история, CAS refresh и закрытый audit.
+- Фиксированная точность 6 знаков, дробные веса, целый public score и сохранение Phase 2 contributions.
+- Repeat lifetime ceiling, взаимные оценки, ограниченные группы, всплески и pending-review.
+- Атомарные голосования и решения во всех backend; JSON v3, additive SQL V3 без изменения V1/V2.
+- Offline migration переносит весь Trust/pending/audit; исходные данные сохраняются.
+- Новые конфиги, полные RU/EN, совместимые outcome/status API и расширенный Paper QA.
+
 ## 0.2.0-SNAPSHOT — Phase 2
 
 - Голоса +/− с причинами/комментариями, доверенная eligibility Paper, известные offline targets.
@@ -31,4 +40,4 @@
 - Модульные и настоящие SQL-интеграционные тесты, отдельный Paper runtime probe, CI и документация.
 - Удалены из отслеживания случайно закоммиченные кэши Gradle и HTML build reports.
 
-Функции Phase 3–8 не включены. Итоговый стабильный релиз пока не объявлен.
+Функции Phase 4–8 не включены. Итоговый стабильный релиз пока не объявлен.

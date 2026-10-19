@@ -1,4 +1,4 @@
-# DexturReputation — Phase 2
+# DexturReputation — Phase 3
 
 Основа репутации Dextur: **Paper 26.2**, **Java 25**, три взаимозаменяемых хранилища.
 Новые установки используют **JSON без БД и пароля**. SQLite и MySQL/MariaDB выбираются
@@ -7,7 +7,9 @@
 
 Реализованы положительные/отрицательные голоса, обязательные причины, комментарии,
 лимиты, замена/отзыв, истории, статистика и GUI. Новые профили имеют нулевые оценки,
-tier `NEUTRAL`; прежний API и команды сохранены. Trust и Phase 3 не реализованы.
+tier `NEUTRAL`; прежний API и команды сохранены. Добавлены скрытый Trust, точные дробные веса,
+защита от повторов/взаимных групп и всплесков, pending-review и атомарный аудит решений.
+Trust не показывается игрокам и не зависит от знака публичной репутации. Phase 4 не реализована.
 
 ## Сборка и проверка
 
@@ -25,7 +27,7 @@ Gradle Wrapper 9.7.0, версии/locks зависимостей и SHA-256 ф�
 - `reputation-paper/build/libs/DexturReputation.jar` — устанавливаемый Paper-плагин.
 - `reputation-paper/build/libs/DexturReputation-StorageAdmin.jar` — **отдельный offline CLI**
   для переноса/восстановления. Не помещайте этот JAR в `plugins/`.
-- `reputation-api/build/libs/reputation-api-0.2.0-SNAPSHOT.jar` — API для `compileOnly`;
+- `reputation-api/build/libs/reputation-api-0.3.0-SNAPSHOT.jar` — API для `compileOnly`;
   не упаковывайте повторную копию API в плагины-потребители.
 
 ## Установка и обновление
@@ -86,6 +88,33 @@ QA-плагин не входит в основной JAR. Логи/миры о�
 Документация: [хранилища/миграции/backup](docs/STORAGE.md), [конфигурация](docs/CONFIGURATION.md),
 [архитектура](docs/ARCHITECTURE.md), [API](docs/API_DOCUMENTATION.md), [команды](docs/COMMANDS.md),
 [права](docs/PERMISSIONS.md), [совместимость](docs/COMPATIBILITY.md),
-[текущий отчёт](docs/PHASE_2_TEST_REPORT.md), [история](CHANGELOG.md).
+[текущий отчёт](docs/PHASE_3_TEST_REPORT.md), [история](CHANGELOG.md).
 
-**Работа ограничена Phase 2. Phase 3 требует отдельного явного разрешения.**
+**Работа ограничена Phase 3. Phase 4 требует отдельного явного разрешения.**
+
+## Phase 3
+
+При первом запуске добавляются `trust.yml` и `anti-abuse.yml`. Существующие настройки не
+переписываются. Перед обновлением остановите сервер и сохраните полный backup; обратный
+переход требует восстановления backup. Старые голоса сохраняют свои исходные вклады.
+Новые веса накапливаются с шестью знаками внутри; игрок видит округлённую целую сумму.
+Pending-голос не вносит новый вклад, pending-замена сохраняет прежний активный вклад.
+
+- [Trust: модель, приватность и внутреннее администрирование](docs/TRUST.md)
+- [Веса, anti-abuse, pending и ограничения](docs/ANTI_ABUSE.md)
+- [Полный отчёт Phase 3](docs/PHASE_3_TEST_REPORT.md)
+
+Для обслуживания pending используется закрытый асинхронный `ProtectionAdministration`
+в application-модуле. Публичной команды модерации пока нет: она относится к будущей фазе.
+Перед включением pending на действующем сервере обеспечьте доверенный административный
+адаптер либо осознанно настройте `allow-pending: false` (переполнение бюджета отклоняет запрос).
+Автоматических постоянных наказаний нет.
+
+`--protection` запускается отдельно от `--voting`: три native QA-клиента, веса .35, threshold 2
+только в тестовом каталоге, CAS Trust, idempotent review/status events, pending через restart,
+GUI и PAPI privacy. Production defaults сценарий не изменяет.
+
+`--phase2-json-fixture /path/to/old/state.json` с `--protection` проверяет обновление настоящего
+снимка Phase 2 (format 2, calculationVersion 1). Для SQL он сначала запускает standalone
+StorageAdmin с backup/verification, затем проверяет старую историю и исходный score на Paper.
+Файл-источник не изменяется; используйте копию остановленного QA-сервера, не живые данные.

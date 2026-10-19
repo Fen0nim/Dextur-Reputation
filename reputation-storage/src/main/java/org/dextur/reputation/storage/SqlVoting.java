@@ -20,11 +20,11 @@ final class SqlVoting {
                 if (!command.isBlank()) statement.execute(command);
         }
     }
-    private void time(PreparedStatement s, int index, Instant value) throws SQLException {
+    void time(PreparedStatement s, int index, Instant value) throws SQLException {
         if (mysql) s.setTimestamp(index, Timestamp.from(value));
         else s.setString(index, new DateTimeFormatterBuilder().appendInstant(6).toFormatter().format(value));
     }
-    private Instant time(ResultSet r, String column) throws SQLException { return mysql ? r.getTimestamp(column).toInstant() : Instant.parse(r.getString(column)); }
+    Instant time(ResultSet r, String column) throws SQLException { return mysql ? r.getTimestamp(column).toInstant() : Instant.parse(r.getString(column)); }
     VoteEntry read(ResultSet r) throws SQLException {
         String previous = r.getString("previous_id");
         return new VoteEntry(UUID.fromString(r.getString("operation_id")), r.getLong("sequence_no"), r.getString("scope_id"),
@@ -36,12 +36,12 @@ final class SqlVoting {
     VoteEntry operation(UUID id) throws Exception {
         try (var c = owner.connect()) { return operation(c, id); }
     }
-    private VoteEntry operation(Connection c, UUID id) throws SQLException {
+    VoteEntry operation(Connection c, UUID id) throws SQLException {
         try (var s = c.prepareStatement("SELECT * FROM dr_votes WHERE operation_id=?")) {
             s.setString(1,id.toString()); try (var r=s.executeQuery()) { return r.next()?read(r):null; }
         }
     }
-    private ReputationSnapshot ensure(Connection c, UUID id, String scope, Instant now) throws SQLException {
+    ReputationSnapshot ensure(Connection c, UUID id, String scope, Instant now) throws SQLException {
         String sql = mysql ? "INSERT INTO dr_profiles(player_uuid,scope_id) VALUES(?,?) ON DUPLICATE KEY UPDATE player_uuid=VALUES(player_uuid)"
                 : "INSERT INTO dr_profiles VALUES(?,?,0,0,0,'NEUTRAL',0,?,?) ON CONFLICT(player_uuid,scope_id) DO NOTHING";
         try (var s=c.prepareStatement(sql)) {
@@ -53,7 +53,7 @@ final class SqlVoting {
             try (var r=s.executeQuery()) { if(!r.next()) throw new SQLException("Missing profile");return owner.profile(r); }
         }
     }
-    private ReputationView view(Connection c, UUID id, String scope, Instant now) throws SQLException {
+    ReputationView view(Connection c, UUID id, String scope, Instant now) throws SQLException {
         var profile=ensure(c,id,scope,now);
         long positive,negative,unique,total;
         try(var s=c.prepareStatement("SELECT SUM(CASE WHEN vote_type='POSITIVE' THEN 1 ELSE 0 END),SUM(CASE WHEN vote_type='NEGATIVE' THEN 1 ELSE 0 END) FROM dr_active_votes WHERE scope_id=? AND target_uuid=?")) {
@@ -81,6 +81,19 @@ final class SqlVoting {
                     VotingEngine.checkDuplicate(scope,request,existing);
                     var receipt=new VoteReceipt(existing,true,view(c,request.targetId(),scope,now));c.commit();return receipt;
                 }
+                var context=context(c,scope,request,rules,now);
+                var mutation=VotingEngine.evaluate(scope,request,facts,rules,now,context);
+                insert(c,mutation.entry());active(c,mutation.entry());
+                var profile=mutation.profile();
+                try(var s=c.prepareStatement("UPDATE dr_profiles SET community_score=?,visible_score=?,profile_revision=?,updated_at=? WHERE player_uuid=? AND scope_id=?")) {
+                    s.setLong(1,profile.communityScore());s.setLong(2,profile.visibleScore());s.setLong(3,profile.revision());time(s,4,profile.updatedAt());
+                    s.setString(5,request.targetId().toString());s.setString(6,scope);if(s.executeUpdate()!=1) throw new SQLException("Profile update failed");
+                }
+                var result=new VoteReceipt(mutation.entry(),false,view(c,request.targetId(),scope,now));c.commit();return result;
+            } catch(Exception e) { c.rollback();throw e; }
+        }
+    }
+    VotingEngine.Context context(Connection c,String scope,VoteRequest request,VotingRules rules,Instant now) throws Exception {
                 // Fixed row order also protects future adapters which permit more than one transaction at a time.
                 UUID first=request.voterId().compareTo(request.targetId())<=0?request.voterId():request.targetId();
                 UUID second=first.equals(request.voterId())?request.targetId():request.voterId();
@@ -97,16 +110,7 @@ final class SqlVoting {
                 }
                 long sequence;
                 try(var s=c.createStatement();var r=s.executeQuery("SELECT COALESCE(MAX(sequence_no),0) FROM dr_votes")) { r.next();sequence=Math.incrementExact(r.getLong(1)); }
-                var mutation=VotingEngine.evaluate(scope,request,facts,rules,now,new VotingEngine.Context(voter,target,pair,last,used,sequence));
-                insert(c,mutation.entry());active(c,mutation.entry());
-                var profile=mutation.profile();
-                try(var s=c.prepareStatement("UPDATE dr_profiles SET community_score=?,visible_score=?,profile_revision=?,updated_at=? WHERE player_uuid=? AND scope_id=?")) {
-                    s.setLong(1,profile.communityScore());s.setLong(2,profile.visibleScore());s.setLong(3,profile.revision());time(s,4,profile.updatedAt());
-                    s.setString(5,request.targetId().toString());s.setString(6,scope);if(s.executeUpdate()!=1) throw new SQLException("Profile update failed");
-                }
-                var result=new VoteReceipt(mutation.entry(),false,view(c,request.targetId(),scope,now));c.commit();return result;
-            } catch(Exception e) { c.rollback();throw e; }
-        }
+        return new VotingEngine.Context(voter,target,pair,last,used,sequence);
     }
     void insert(Connection c,VoteEntry entry) throws SQLException {
         try(var s=c.prepareStatement("INSERT INTO dr_votes(operation_id,sequence_no,scope_id,voter_uuid,target_uuid,action,vote_type,reason_id,comment_text,created_at,previous_id,base_weight,effective_weight,calculation_version,request_hash,community_before,community_after) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
@@ -129,8 +133,8 @@ final class SqlVoting {
         try(var s=c.createStatement();var r=s.executeQuery("SELECT * FROM dr_votes ORDER BY sequence_no")) { while(r.next()) entries.add(read(r)); }
         return entries;
     }
-    void validateActive(Connection c,List<VoteEntry> entries) throws SQLException {
-        Map<String,VoteEntry> latest=new HashMap<>();for(var v:entries) latest.put(v.pairKey(),v);
+    void validateActive(Connection c,List<VoteEntry> entries,ProtectionSnapshot protection) throws SQLException {
+        Map<String,VoteEntry> latest=ProtectionValidation.active(entries,protection);
         Set<String> expected=new HashSet<>();for(var v:latest.values()) if(v.action()!=VoteEntry.Action.REVOKE) expected.add(v.pairKey()+"/"+v.operationId()+"/"+v.type());
         Set<String> actual=new HashSet<>();
         try(var s=c.createStatement();var r=s.executeQuery("SELECT * FROM dr_active_votes")) {

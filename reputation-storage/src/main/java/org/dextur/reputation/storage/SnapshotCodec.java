@@ -15,7 +15,7 @@ import org.dextur.reputation.domain.PlayerLanguage;
 public final class SnapshotCodec {
     public record Document(long generation, StorageSnapshot snapshot) { }
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-    public byte[] encode(long generation, StorageSnapshot snapshot) { return encode(2, generation, snapshot); }
+    public byte[] encode(long generation, StorageSnapshot snapshot) { return encode(snapshot.protection().isEmpty()?2:3, generation, snapshot); }
     private byte[] encode(int version, long generation, StorageSnapshot snapshot) {
         JsonObject data = new JsonObject();
         JsonArray profiles = new JsonArray(), preferences = new JsonArray();
@@ -37,6 +37,7 @@ public final class SnapshotCodec {
             for (var vote : snapshot.votes()) votes.add(voteJson(vote));
             data.add("votes", votes);
         }
+        if(version>=3) data.add("protection",ProtectionCodec.tree(snapshot.protection()));
         JsonObject document = new JsonObject(); document.addProperty("formatVersion", version); document.addProperty("generation", generation);
         document.add("data", data); document.addProperty("sha256", digest(version + "\n" + generation + "\n" + GSON.toJson(data)));
         return GSON.toJson(document).getBytes(StandardCharsets.UTF_8);
@@ -48,11 +49,11 @@ public final class SnapshotCodec {
             if (reader.peek() != JsonToken.END_DOCUMENT) throw new IOException("Trailing JSON data");
             keys(doc, "formatVersion", "generation", "data", "sha256");
             int version = Math.toIntExact(number(doc, "formatVersion"));
-            if (version != 1 && version != 2) throw new IOException("Unsupported JSON format");
+            if (version != 1 && version != 2 && version != 3) throw new IOException("Unsupported JSON format");
             long generation = number(doc, "generation");
             if (generation < 0) throw new IOException("Invalid generation");
             JsonObject data = doc.getAsJsonObject("data");
-            if (version == 1) keys(data, "profiles", "preferences"); else keys(data, "profiles", "preferences", "votes");
+            if (version == 1) keys(data, "profiles", "preferences"); else if(version==2) keys(data, "profiles", "preferences", "votes"); else keys(data,"profiles","preferences","votes","protection");
             List<ReputationSnapshot> profiles = new ArrayList<>(); List<StorageSnapshot.Preference> preferences = new ArrayList<>();
             for (var item : data.getAsJsonArray("profiles")) {
                 JsonObject p = item.getAsJsonObject();
@@ -66,7 +67,7 @@ public final class SnapshotCodec {
             }
             List<org.dextur.reputation.api.VoteEntry> votes = new ArrayList<>();
             if (version >= 2) for (var item : data.getAsJsonArray("votes")) votes.add(vote(item.getAsJsonObject()));
-            StorageSnapshot snapshot = new StorageSnapshot(profiles, preferences, votes);
+            StorageSnapshot snapshot = new StorageSnapshot(profiles, preferences, votes,version>=3?ProtectionCodec.decode(data.get("protection"),ProtectionSnapshot.class):ProtectionSnapshot.empty());
             // Verify canonical logical content; JSON field/row order is not significant.
             JsonObject canonical = JsonParser.parseString(new String(encode(version, generation, snapshot), StandardCharsets.UTF_8)).getAsJsonObject();
             if (!MessageDigest.isEqual(text(doc,"sha256").getBytes(StandardCharsets.US_ASCII), text(canonical,"sha256").getBytes(StandardCharsets.US_ASCII))) throw new IOException("JSON checksum mismatch");
@@ -122,6 +123,7 @@ public final class SnapshotCodec {
                 reader.beginArray(); JsonArray array=new JsonArray(); while(reader.hasNext()) array.add(read(reader,depth+1)); reader.endArray(); yield array;
             }
             case STRING -> new JsonPrimitive(reader.nextString());
+            case BOOLEAN -> new JsonPrimitive(reader.nextBoolean());
             case NUMBER -> new JsonPrimitive(new java.math.BigDecimal(reader.nextString()));
             default -> throw new IOException("Unexpected JSON value");
         };

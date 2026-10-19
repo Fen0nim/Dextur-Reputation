@@ -89,7 +89,10 @@ public final class RuntimeProbe extends JavaPlugin {
             getLogger().info("PROBE_PAPI_PASS: registration and all three cached placeholders");
         }
         Object checkedExpansionManager=expansionManager;
-        if(Boolean.getBoolean("dextur.probe.voting")) new VotingRuntimeProbe(this).start(()->{
+        if(Boolean.getBoolean("dextur.probe.protection")) new ProtectionRuntimeProbe(this).start(()->{
+            try { finish(checkedExpansionManager); } catch(Throwable failure) { fail(failure); }
+        },this::fail);
+        else if(Boolean.getBoolean("dextur.probe.voting")) new VotingRuntimeProbe(this).start(()->{
             try { finish(checkedExpansionManager); } catch(Throwable failure) { fail(failure); }
         },this::fail);
         else finish(expansionManager);

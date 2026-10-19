@@ -43,4 +43,14 @@ Runtime --voting использует реальных offline-mode клиент
 GUI events и cache checks на Paper 26.2. Это автоматизация серверного поведения; пиксельный
 вид интерфейса/ручной клиент Minecraft не проверялся. Default eligibility/cooldowns/quota в этом
 сценарии ослаблены только в изолированных QA-конфигах; границы production defaults тестируются
-модульно. Phase 3 не начата.
+модульно.
+
+## Phase 3
+
+Target остаётся Paper 26.2 build 134 / Java 25. Публичные record-компоненты Phase 1/2 и
+прежние методы сохранены; расширения VotingService — default. JSON v1/v2 читаются, V3
+сохраняет private state; SQL V1/V2 неизменны, V3 additive. Переход назад требует backup.
+Trust не становится новым PAPI placeholder, TAB/title/LuckPerms интеграции отсутствуют.
+Runtime `--protection` использует три настоящих local клиента, native commands, .35 weights,
+pending/review/CAS/restart и проверку отсутствия Trust в PAPI. Параметры QA изолированы;
+правила production defaults дополнительно проверяются общими backend/domain suites.

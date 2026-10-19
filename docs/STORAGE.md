@@ -173,7 +173,7 @@ java -jar DexturReputation-StorageAdmin.jar recover-json \
   использовать официальный SQLite backup API. Не удалять WAL вручную.
 - MYSQL: согласованный дамп/backup средствами СУБД с безопасными client credentials;
   `--single-transaction` для InnoDB, без concurrent DDL. Дополнительно сохранить конфиги/lang.
-- Portable snapshots миграции содержат все данные Phase 1/1.1/2, но не произвольные таблицы других
+- Portable snapshots миграции содержат все данные Phase 1/1.1/2/3, но не произвольные таблицы других
   плагинов и не являются заменой полного DBA backup. Храните внешние копии и проверяйте restore.
 
 ## Журнал Phase 2
@@ -186,3 +186,33 @@ Backup и recovery всегда охватывают их вместе. Все �
 Downgrade требует полного согласованного pre-upgrade backup; старый плагин не понимает новую
 схему. После JSON ошибки сначала проверьте состояние, не повторяйте команды с новым намерением
 вслепую: commit мог успеть завершиться. API предоставляет явный idempotent retry.
+
+## Trust и защита Phase 3
+
+MySQL/MariaDB применяют additive checksummed V3, не меняя V1/V2; SQLite — transactional
+user_version=3 при включении защиты. Новые таблицы: dr_trust, dr_vote_pairs, dr_precision,
+dr_vote_assessments, dr_protection_audit, dr_protection_scope. Они содержат канонический
+private payload и проверяемые индексные колонки. Индексы scope/actor, target/sequence,
+due/status и participant/time позволяют bounded context, CAS и постраничный аудит.
+Незавершённая V3 DDL MySQL повторяется с проверкой уже созданных индексов; неизвестный
+checksum/version блокирует старт. Для уже защищённого состояния запись без конфигурации
+pipeline отклоняется; offline CLI читает/переносит его без отключения защиты данных.
+
+JSON читает v1/v2/v3 и пишет v3, как только появляются private данные; единый checksum
+охватывает profile/preferences/votes/**весь private state**. Проверяются audit sequences,
+точные delta/score chains, active/latest pointers, факторы расчёта, Trust и публичный итог.
+Checksum не является цифровой подписью и не защищает от DBA, согласованно переписавшего всё.
+
+StorageAdmin сохраняет точные baseline/current units, lifetime ceiling, Trust/его коэффициенты,
+assessment versions/status, pending/suspicious/audit/graph metadata и языки во всех шести
+направлениях JSON↔SQLite↔MYSQL. Полное сравнение исходного snapshot, backup и результата
+перед activation включает эти записи. Действующие configs остаются в том же data folder;
+инструмент заменяет только storage.yml. Не забудьте отдельный backup **всех** настроек/lang.
+Pending target при ошибке не запускается, source не удаляется. Новых CLI-команд не требуется.
+
+Default JSON limit 64 MiB остаётся прежним. При `storage.json-warning-fraction: .75` из
+anti-abuse.yml раз в минуту выводится RU/EN предупреждение о приближении к configured limit.
+Достижение limit отклоняет запись до rename и не включает другой backend. На большом
+журнале выбирайте SQL; backup/restore всегда включает Trust вместе с голосами и профилями.
+Downgrade после записи v3 требует полного согласованного backup старой версии; удаление
+private таблиц или ручной сброс version не является допустимым downgrade.

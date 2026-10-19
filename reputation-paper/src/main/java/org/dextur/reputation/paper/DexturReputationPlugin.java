@@ -31,6 +31,11 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     private org.dextur.reputation.application.VotingConfiguration votingConfiguration;
     private GuiConfiguration guiConfiguration;
     private VotingGui votingGui;
+    private org.dextur.reputation.domain.protection.ProtectionRules protectionRules;
+    // Internal capability only: never register it as a public Bukkit service.
+    private org.dextur.reputation.application.ProtectionAdministration protectionAdministration;
+    private final AtomicBoolean maintenance=new AtomicBoolean();
+    private int onlineCursor;
     private final java.util.Set<java.util.concurrent.CompletableFuture<org.dextur.reputation.domain.VoterFacts>> pendingFacts=java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     @Override public void onEnable() {
@@ -44,6 +49,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
             settings = Settings.load(getDataFolder().toPath());
             messages = new Messages(getDataFolder().toPath().resolve("lang"), settings.defaultLanguage());
             votingConfiguration=org.dextur.reputation.application.VotingConfiguration.load(getDataFolder().toPath(),messages);
+            protectionRules=org.dextur.reputation.application.ProtectionConfiguration.load(getDataFolder().toPath());
             guiConfiguration=GuiConfiguration.load(getDataFolder().toPath());
             if(votingConfiguration.pageSize()>guiConfiguration.contentSlots().size()) throw new IllegalArgumentException("History page exceeds GUI content slots");
         } catch (Exception e) {
@@ -58,11 +64,13 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         application = new ReputationApplication(storage, settings, storage::close);
         var voting=new org.dextur.reputation.application.VotingApplication(application,storage,settings,votingConfiguration,
                 this::voterFacts,java.time.Clock.systemUTC(),error->logFailure("vote listener",error));
+        protectionAdministration=new org.dextur.reputation.application.ProtectionAdministration(application,voting,storage,settings,protectionRules,java.time.Clock.systemUTC());
         var votingCommands=new VotingCommands(this,application,voting,votingConfiguration,messages,settings.defaultLanguage());
         var gui=new VotingGui(this,voting,votingCommands,votingConfiguration,guiConfiguration,messages);
         votingGui=gui;
         votingCommands.gui(gui);
         voting.onCommitted(event->onMain(()->votingCommands.notifyTarget(event)));
+        voting.onStatusChanged(event->onMain(()->votingCommands.notifyStatus(event)));
         getServer().getPluginManager().registerEvents(gui,this);
         for(String name:new String[]{"like","dislike"}) {
             var command=Objects.requireNonNull(getCommand(name));command.setExecutor(votingCommands);command.setTabCompleter(votingCommands);
@@ -75,7 +83,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         }
         getServer().getPluginManager().registerEvents(this, this);
         Path dataDirectory = getDataFolder().toPath();
-        application.submit(() -> { storage.open(dataDirectory, settings, System.getenv()); return null; })
+        application.submit(() -> { storage.protection(protectionRules);storage.open(dataDirectory, settings, System.getenv()); return null; })
                 .whenComplete((ignored, error) -> onMain(() -> {
                     if (error != null) {
                         getComponentLogger().error(messages.render(settings.defaultLanguage(), "storage-failed",
@@ -93,18 +101,21 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
                             getLogger().warning("PlaceholderAPI integration unavailable: " + e.getClass().getSimpleName());
                         }
                     }
-                    getServer().getOnlinePlayers().forEach(p -> warm(p.getUniqueId()));
+                    getServer().getOnlinePlayers().forEach(p -> {warm(p.getUniqueId());initializeTrust(p);});
                     getServer().getScheduler().runTaskTimer(this, () ->
                             getServer().getOnlinePlayers().forEach(p -> warm(p.getUniqueId())),
                             20L, Math.max(20L, settings.cacheSeconds() * 10L));
-                    getLogger().info("READY: ReputationService registered; VotingService registered; Paper 26.2 Phase 2 enabled.");
+                    getServer().getScheduler().runTaskTimer(this,this::maintenance,1200L,1200L);
+                    getServer().getScheduler().runTaskTimer(this,()->protectionAdministration.analyze().exceptionally(analysisError->{logProtectionFailure(analysisError);return false;}),
+                            20L*protectionRules.analysis().intervalSeconds(),20L*protectionRules.analysis().intervalSeconds());
+                    getLogger().info("READY: ReputationService registered; VotingService registered; Paper 26.2 Phase 3 enabled.");
                 }));
     }
 
     private void defaults() throws IOException {
         Path directory = getDataFolder().toPath();
         Files.createDirectories(directory.resolve("lang"));
-        for (String file : new String[]{"config.yml", "storage.yml", "integrations.yml", "voting.yml", "gui.yml", "lang/ru_RU.yml", "lang/en_US.yml"}) {
+        for (String file : new String[]{"config.yml", "storage.yml", "integrations.yml", "voting.yml", "gui.yml", "trust.yml", "anti-abuse.yml", "lang/ru_RU.yml", "lang/en_US.yml"}) {
             if (!Files.exists(directory.resolve(file))) saveResource(file, false);
         }
     }
@@ -141,9 +152,42 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         application.getProfile(playerId).exceptionally(error -> { logFailure("profile warmup", error); return null; });
         application.language(playerId).exceptionally(error -> { logFailure("language warmup", error); return null; });
     }
-    @EventHandler public void join(PlayerJoinEvent event) { warm(event.getPlayer().getUniqueId()); }
+    private org.dextur.reputation.domain.VoterFacts verifiedFacts(org.bukkit.entity.Player player) {
+        return new org.dextur.reputation.domain.VoterFacts(true,true,player.getStatistic(org.bukkit.Statistic.PLAY_ONE_MINUTE)/20L,
+                java.time.Instant.ofEpochMilli(player.getFirstPlayed()),true,true,true);
+    }
+    private void initializeTrust(org.bukkit.entity.Player player) {
+        if(ready) protectionAdministration.initialize(player.getUniqueId(),verifiedFacts(player)).exceptionally(error->{logProtectionFailure(error);return false;});
+    }
+    private void maintenance() {
+        if(!ready||!maintenance.compareAndSet(false,true)) return;
+        var online=getServer().getOnlinePlayers().stream().sorted(java.util.Comparator.comparing(org.bukkit.entity.Player::getUniqueId)).toList();
+        var jobs=new java.util.ArrayList<java.util.concurrent.CompletableFuture<?>>();
+        if(protectionRules.trust().recalculate()&&!online.isEmpty()) {
+            int count=Math.min(online.size(),protectionRules.trust().batchSize());
+            for(int i=0;i<count;i++) {
+                var player=online.get(Math.floorMod(onlineCursor++,online.size()));var id=player.getUniqueId();var facts=verifiedFacts(player);
+                jobs.add(protectionAdministration.trust(id).thenCompose(record->record==null?protectionAdministration.initialize(id,facts):
+                        java.time.Instant.now().isBefore(record.calculatedAt().plusSeconds(protectionRules.trust().intervalMinutes()*60L))?
+                                java.util.concurrent.CompletableFuture.completedFuture(false):protectionAdministration.refresh(id,record.revision(),facts)).toCompletableFuture());
+            }
+        }
+        jobs.add(protectionAdministration.recalculateDue().toCompletableFuture());
+        if(settings.storage().type()==org.dextur.reputation.application.StorageType.JSON) jobs.add(protectionAdministration.storageBytes().thenAccept(bytes->{
+            if(bytes>=settings.storage().maximumJsonBytes()*protectionRules.jsonWarningFraction()/1_000_000L)
+                getComponentLogger().warn(messages.render(settings.defaultLanguage(),"protection-storage-growth",Map.of("bytes",Long.toString(bytes),"limit",Integer.toString(settings.storage().maximumJsonBytes()))));
+        }).toCompletableFuture());
+        java.util.concurrent.CompletableFuture.allOf(jobs.toArray(java.util.concurrent.CompletableFuture[]::new)).whenComplete((ignored,error)->{
+            maintenance.set(false);if(error!=null) logProtectionFailure(error);
+        });
+    }
+    private void logProtectionFailure(Throwable error) {
+        getComponentLogger().warn(messages.render(settings.defaultLanguage(),"protection-processing-failed",Map.of("error",root(error).getClass().getSimpleName())));
+    }
+    @EventHandler public void join(PlayerJoinEvent event) { warm(event.getPlayer().getUniqueId());initializeTrust(event.getPlayer()); }
     @EventHandler public void quit(PlayerQuitEvent event) { if (application != null) application.forget(event.getPlayer().getUniqueId()); }
     public boolean ready() { return ready && !stopping.get(); }
+    org.dextur.reputation.application.ProtectionAdministration protectionAdministration() { return protectionAdministration; }
     public String storageType() { return settings.storage().type().name(); }
     public boolean hasPlaceholders() { return placeholders != null && placeholders.isRegistered(); }
     public void logFailure(String operation, Throwable error) {
@@ -156,6 +200,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     }
     @Override public void onDisable() {
         stopping.set(true); ready = false;
+        if(protectionAdministration!=null) protectionAdministration.stop();
         if(votingGui!=null) { votingGui.closeAll();votingGui=null; }
         pendingFacts.forEach(future->future.completeExceptionally(new IllegalStateException("Plugin stopping")));
         getServer().getScheduler().cancelTasks(this);

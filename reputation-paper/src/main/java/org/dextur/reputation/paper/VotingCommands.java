@@ -56,14 +56,17 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
         submit(voter,new VoteRequest(UUID.randomUUID(),voter.getUniqueId(),target,VoteRequest.Action.REVOKE,null,"",comment),after);
     }
     private void submit(Player voter,VoteRequest request,Runnable after) {
-        voting.submit(request).whenComplete((receipt,error)->plugin.onMain(()->{
+        voting.submit(request).thenCompose(receipt->voting.outcome(receipt.entry().operationId()).thenApply(outcome->Map.entry(receipt,outcome))).whenComplete((result,error)->plugin.onMain(()->{
             if(!voter.isOnline()) return;
             if(error!=null) failed(voter,error);
-            else if(receipt.duplicate()) send(voter,"vote-duplicate",Map.of());
             else {
+                var receipt=result.getKey();var outcome=result.getValue();
+                if(receipt.duplicate()) {send(voter,"vote-duplicate",Map.of());after.run();return;}
                 var language=language(voter);var entry=receipt.entry();
-                send(voter,"vote-success",Map.of("player",name(entry.targetId()),"action",action(language,entry.action()),
+                if(outcome.status()==VoteProcessingOutcome.Status.PENDING) send(voter,"protection-pending",Map.of("player",name(entry.targetId())));
+                else send(voter,"vote-success",Map.of("player",name(entry.targetId()),"action",action(language,entry.action()),
                         "type",type(language,entry.type()),"reputation",messages.number(language,receipt.currentView().profile().visibleScore())));
+                if(entry.calculationVersion()>=2&&entry.action()!=VoteEntry.Action.REVOKE&&outcome.status()==VoteProcessingOutcome.Status.ACCEPTED) send(voter,"protection-adjusted",Map.of());
             }
             after.run();
         }));
@@ -71,9 +74,17 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
     void notifyTarget(VotingService.VoteCommitted event) {
         if(!config.notifyTarget()) return;
         var target=plugin.getServer().getPlayer(event.entry().targetId());if(target==null) return;
-        var language=language(target);var entry=event.entry();
+        var entry=event.entry();
+        complete(target,voting.outcome(entry.operationId()),outcome->{
+        if(outcome.status()==VoteProcessingOutcome.Status.PENDING) {send(target,"protection-pending-received",Map.of());return;}
+        var language=language(target);
         send(target,"vote-notification",Map.of("player",name(entry.voterId()),"action",action(language,entry.action()),"type",type(language,entry.type()),
                 "reason",reason(language,entry.reason()),"comment",entry.comment(),"reputation",messages.number(language,event.view().profile().visibleScore())));
+        });
+    }
+    void notifyStatus(VotingService.VoteStatusChanged event) {
+        var target=plugin.getServer().getPlayer(event.view().profile().playerId());
+        if(target!=null&&config.notifyTarget()) send(target,"protection-status-changed",Map.of("status",messages.plain(language(target),"protection-status-"+event.status().name().toLowerCase(Locale.ROOT))));
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
         if(!plugin.ready()) { send(sender,"unavailable",Map.of());return true; }

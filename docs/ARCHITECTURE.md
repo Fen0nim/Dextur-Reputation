@@ -1,4 +1,4 @@
-# Архитектура Phase 2
+# Архитектура Phase 3
 
 | Модуль | Ответственность | Зависимости проекта |
 |---|---|---|
@@ -85,4 +85,43 @@ Paper: отдельные VotingCommands/VotingGui, immutable config и native P
 holder служит токеном сессии, busy блокирует повторный click; async callbacks сверяют identity.
 Перед снятием listeners при disable закрываются все GUI плагина, чтобы их предметы не остались доступны.
 Подробные ограничения масштабирования, неопределённого commit и event delivery — VOTING.md.
-Никаких Trust/Phase 3 компонентов не добавлено.
+
+
+## Trust и защита Phase 3
+
+Domain `protection`: фиксированная точность, валидированные правила, TrustModel,
+AbuseAnalysis и чистый планировщик ProtectionEngine. Application: загрузка defaults без
+перезаписи, закрытый ProtectionAdministration, единая bounded очередь. Paper считывает
+достоверные возраст/статистику на main thread, передаёт immutable факты работникам;
+Trust и граф не вычисляются на main thread. Внутренний capability не регистрируется в Bukkit
+ServicesManager и не входит в API JAR. Сторонний доверенный код сервера не является sandbox:
+оператор отвечает за установленные плагины и доступ к файлам БД.
+
+Pipeline: durable duplicate lookup → Paper facts → eligibility → Trust → bounded evidence →
+calculation v2 → единая транзакция/JSON rename → cache → события. Отдельный scope revision
+связывает входы Trust и частные audit transitions, а CAS revision предотвращает потерю
+нового результата при фоне. Повтор transition ID проверяет весь payload и не меняет состояние.
+
+Общий private portable state: Trust, pair active/latest pointers и lifetime ceiling, baseline/exact
+score, assessment с факторами/статусом, append-only audit, ограниченный graph memo по scope.
+Pending/latest и active — разные указатели. Публичная история остаётся immutable; изменение
+статуса находится в частном аудите и доступно публично только как обобщённый outcome.
+Фоновые графовые результаты имеют отдельный ANALYSIS audit, не переписывают старые веса.
+
+SQL: V3 с шестью индексированными private tables; новые данные и active index/profile
+фиксируются одним COMMIT. Бounded контекст берётся четырьмя index ranges по участникам,
+с LIMIT и JOIN сохранённых факторов, не полным сканированием графа. Один backend owner
+сериализует writes; MySQL voting/review используют SERIALIZABLE и Hikari. JSON сохраняет
+единую v3 snapshot. Полная integrity-проверка происходит при старте/переносе; private audit
+сверяется с profile total, pair projection, sequence и воспроизводимыми факторами веса.
+
+Background: один non-overlapping Trust job (до 100, default 20), один graph job; cadence и
+работа ограничены конфигурацией, отмена кооперативная. Online refresh берёт не более batch
+аккаунтов за минуту с ротацией. Offline refresh сохраняет прежний timestamp проверки playtime.
+Основная очередь по умолчанию 256, workers 2; отдельный admission limit равен queue-size
+и охватывает всё незавершённое голосование, включая ожидание Paper facts. Отмена caller future
+не освобождает слот до фактического завершения внутреннего запроса. CallerRunsPolicy не используется. Stop прекращает
+новую работу, отменяет Paper tasks и дренирует уже принятую очередь. Внутренние metrics:
+batches/refreshed/stale/failed/reviewed/elapsedNanos/running; отдельный флаг исключает overlap графа.
+
+Подробные формулы и эксплуатационные границы: [TRUST.md](TRUST.md), [ANTI_ABUSE.md](ANTI_ABUSE.md).

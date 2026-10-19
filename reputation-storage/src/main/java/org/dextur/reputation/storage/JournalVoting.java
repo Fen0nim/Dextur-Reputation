@@ -14,7 +14,12 @@ final class JournalVoting {
                 .orElseGet(() -> new ReputationSnapshot(player, scope, 0, 0, 0, "NEUTRAL", 0, now, now));
     }
     static ReputationView view(StorageSnapshot state, UUID player, String scope, Instant now) {
-        return new ReputationView(profile(state, player, scope, now), VotingEngine.statistics(state.votes(), player, scope));
+        var stats=VotingEngine.statistics(state.votes(), player, scope);
+        if(!state.protection().isEmpty()) {
+            var active=ProtectionValidation.active(state.votes(),state.protection()).values().stream().filter(v->v.scope().equals(scope)&&v.targetId().equals(player)).toList();
+            stats=new VoteStatistics(active.stream().filter(v->v.type()==VoteType.POSITIVE).count(),active.stream().filter(v->v.type()==VoteType.NEGATIVE).count(),stats.uniqueVoters(),stats.historyEntries());
+        }
+        return new ReputationView(profile(state, player, scope, now),stats);
     }
     static Result apply(StorageSnapshot state, String scope, VoteRequest request, VoterFacts facts, VotingRules rules, Instant now) {
         var existing = state.votes().stream().filter(v -> v.operationId().equals(request.operationId())).findFirst().orElse(null);
@@ -42,10 +47,10 @@ final class JournalVoting {
     }
     static VotePage history(StorageSnapshot state, UUID player, String scope, VotePage.Direction direction, int page, int size) {
         if (page < 1 || size < 1 || size > 50) throw new VoteRejectedException(VoteRejectedException.Code.INVALID_PAGE);
-        Map<String, VoteEntry> latest = new HashMap<>(); for (var vote : state.votes()) latest.put(vote.pairKey(), vote);
+        Map<String, VoteEntry> latest = ProtectionValidation.active(state.votes(),state.protection());
         var filtered = state.votes().reversed().stream().filter(v -> v.scope().equals(scope)
                 && (direction == VotePage.Direction.RECEIVED ? v.targetId() : v.voterId()).equals(player)).toList();
         return new VotePage(filtered.stream().skip(Math.multiplyExact((long) page - 1, size)).limit(size)
-                .map(v -> new VotePage.Item(v, latest.get(v.pairKey()).operationId().equals(v.operationId()) && v.action() != VoteEntry.Action.REVOKE)).toList(), page, size, filtered.size());
+                .map(v -> new VotePage.Item(v, latest.containsKey(v.pairKey()) && latest.get(v.pairKey()).operationId().equals(v.operationId()) && v.action() != VoteEntry.Action.REVOKE)).toList(), page, size, filtered.size());
     }
 }
