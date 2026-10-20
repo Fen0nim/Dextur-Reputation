@@ -1,0 +1,35 @@
+config-version: 1
+pagination:
+  size: 14
+bulk:
+  maximum-records: 200
+  batch-size: 10
+  confirmation-threshold: 10
+confirmation:
+  expiration-seconds: 60
+  maximum-tokens: 256
+relations:
+  maximum-events: 1000
+  maximum-neighbors: 20
+  graph-budget: 10000
+recalculation:
+  maximum-events: 10000
+audit:
+  diagnostic-retention-days: 30
+  maximum-records: 100000
+  json-warning-percent: 75
+require-reason: true
+console-allowed: true
+gui:
+  size: 54
+  material: BOOK
+  confirmation-material: RED_CONCRETE
+  content-slots: [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+  section-slots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+  recalculate-slots: [36, 37, 38, 39]
+  previous-slot: 45
+  next-slot: 53
+  refresh-slot: 49
+  close-slot: 50
+  confirm-slot: 40
+  cancel-slot: 42

@@ -77,3 +77,7 @@ Phase 5 сохраняет старые API signatures/commands/placeholders/con
 ## Phase 6
 
 Phase 6 сохраняет Phase 1–5 API/commands/config/data; policy definitions не объявляют чужие функции работающими. DexturChat repository недоступен, реализован только Reputation-side contract без hard dependency/interception. Health adapter disabled by default, foreign modifiers сохраняются; композиционные ограничения — [HEALTH](HEALTH.md). Проверки — [PHASE_6_TEST_REPORT](PHASE_6_TEST_REPORT.md).
+
+## Phase 7
+
+Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.

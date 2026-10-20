@@ -1,3 +1,11 @@
+# 0.7.0-SNAPSHOT — Phase 7
+
+- Private investigation commands/GUI and separate permissions, RU/EN.
+- Exact reversible moderation, pending review, Trust/reputation/tier/full recalculation.
+- Bounded relations/search, dry-run and actor-bound confirmations, resumable transactional bulk batches.
+- Append-only unified audit, flag resolution, schema/JSON 7 and complete StorageAdmin migration.
+- Phase 8 is deferred.
+
 # Phase 6 — 0.6.0-SNAPSHOT
 
 - Configurable public policy engine and lifecycle API; no future plugin business logic.

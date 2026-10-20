@@ -133,3 +133,7 @@ Safe defaults: configured tiers enabled; nameplates DISABLED; TAB PLACEHOLDER_ON
 ## Phase 6
 
 features.yml version1, administration bounds/reason, ordered policies и optional health: [POLICIES](POLICIES.md), [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md), [HEALTH](HEALTH.md). gui.yml.policy-panel и integrations.yml.policy-placeholders имеют additive defaults без перезаписи файлов. /repadmin reload применяет только полный валидный features candidate; при ошибке остаётся прежний. Остальные файлы требуют restart.
+
+## Phase 7
+
+Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.

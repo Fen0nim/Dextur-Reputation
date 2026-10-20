@@ -1,6 +1,6 @@
 # Recovery API — Phase 5
 
-API artifact: `reputation-api-0.6.0-SNAPSHOT.jar`, compileOnly. Все ранее опубликованные типы/сигнатуры Phase 1–5 сохранены; `ReputationSnapshot` и существующие API records не изменены. API не импортирует Paper, Adventure, storage и скрытый Trust.
+API artifact: `reputation-api-0.7.0-SNAPSHOT.jar`, compileOnly. Все ранее опубликованные типы/сигнатуры Phase 1–5 сохранены; `ReputationSnapshot` и существующие API records не изменены. API не импортирует Paper, Adventure, storage и скрытый Trust.
 
 После проверки storage плагин регистрирует отдельный сервис:
 

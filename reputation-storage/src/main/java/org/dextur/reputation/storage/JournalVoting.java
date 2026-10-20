@@ -42,7 +42,7 @@ final class JournalVoting {
         profiles.removeIf(p -> p.scopeId().equals(scope) && (p.playerId().equals(request.voterId()) || p.playerId().equals(request.targetId())));
         profiles.add(voter); profiles.add(mutation.profile());
         var votes = new ArrayList<>(state.votes()); votes.add(mutation.entry());
-        var next = new StorageSnapshot(profiles, state.preferences(), votes,state.protection(),TierSnapshot.empty(),state.recovery(),state.administration());
+        var next = new StorageSnapshot(profiles, state.preferences(), votes,state.protection(),TierSnapshot.empty(),state.recovery(),state.administration(),state.investigation());
         return new Result(next, new VoteReceipt(mutation.entry(), false, view(next, request.targetId(), scope, now)));
     }
     static VotePage history(StorageSnapshot state, UUID player, String scope, VotePage.Direction direction, int page, int size) {

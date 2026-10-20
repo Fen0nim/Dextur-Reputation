@@ -1,6 +1,9 @@
 package org.dextur.reputation.storage;
 
 import java.io.IOException;
+import org.dextur.reputation.domain.investigation.InvestigationData.*;
+import org.dextur.reputation.domain.investigation.InvestigationData.Record;
+
 import java.nio.file.*;
 import java.util.*;
 import org.dextur.reputation.api.ReputationSnapshot;
@@ -47,19 +50,22 @@ public final class JsonStorage implements StorageBackend {
     }
     @Override public StorageType type() { return StorageType.JSON; }
     private void available() throws IOException { if(closed||poisoned) throw new IOException("JSON storage closed or uncertain write; restart and verify files"); }
+    private Rules investigationRules;
     private void commit(StorageSnapshot next) throws Exception {
+        if(investigationRules!=null)next=indexFlags(next);
         available();
         if(tierRules!=null) {
             var previous=next.tiers().isEmpty()?state.tiers():next.tiers();var index=new HashMap<String,org.dextur.reputation.domain.tier.TierState>();
             for(var row:previous.states())index.put(row.key(),row);
             var tiers=new ArrayList<org.dextur.reputation.domain.tier.TierState>();var profiles=new ArrayList<ReputationSnapshot>();
             for(var p:next.profiles()) {var row=TierSnapshot.reconcile(p,index.get(p.playerId()+"/"+p.scopeId()),tierRules);tiers.add(row);profiles.add(TierSnapshot.profile(p,row));}
-            next=new StorageSnapshot(profiles,next.preferences(),next.votes(),next.protection(),new TierSnapshot(tiers),next.recovery().isEmpty()?state.recovery():next.recovery(),next.administration());
+            next=new StorageSnapshot(profiles,next.preferences(),next.votes(),next.protection(),new TierSnapshot(tiers),next.recovery().isEmpty()?state.recovery():next.recovery(),next.administration(),next.investigation());
         } else if(!state.tiers().isEmpty() && next.tiers().isEmpty()) {
             // Existing tier data cannot be discarded by a writer without its policy.
             throw new IOException("Tier configuration required for writes to Phase 4 data");
         }
-        if(next.recovery().isEmpty()&&!state.recovery().isEmpty())next=new StorageSnapshot(next.profiles(),next.preferences(),next.votes(),next.protection(),next.tiers(),state.recovery(),next.administration());
+        if(next.recovery().isEmpty()&&!state.recovery().isEmpty())next=new StorageSnapshot(next.profiles(),next.preferences(),next.votes(),next.protection(),next.tiers(),state.recovery(),next.administration(),next.investigation());
+        if(next.investigation().isEmpty()&&!state.investigation().isEmpty())throw new IOException("Investigation ledger cannot be discarded");
         if(next.administration().isEmpty()&&!state.administration().isEmpty())throw new IOException("Administration ledger cannot be discarded");
         byte[] bytes=codec.encode(Math.addExact(generation,1),next);
         if(bytes.length>maximum) throw new IOException("JSON size limit reached");
@@ -80,7 +86,7 @@ public final class JsonStorage implements StorageBackend {
         available();for(var p:state.profiles()) if(p.playerId().equals(id)&&p.scopeId().equals(scope)) return p;
         var now=StorageSnapshot.now(); var profile=new ReputationSnapshot(id,scope,0,0,0,"NEUTRAL",0,now,now);
         var profiles=new ArrayList<>(state.profiles());profiles.add(profile);
-        commit(new StorageSnapshot(profiles,state.preferences(),state.votes(),state.protection(),TierSnapshot.empty(),state.recovery(),state.administration()));return JournalVoting.profile(state,id,scope,now);
+        commit(new StorageSnapshot(profiles,state.preferences(),state.votes(),state.protection(),TierSnapshot.empty(),state.recovery(),state.administration(),state.investigation()));return JournalVoting.profile(state,id,scope,now);
     }
     @Override public synchronized PlayerLanguage language(UUID id,PlayerLanguage fallback) throws IOException {
         available();return state.preferences().stream().filter(p -> p.playerId().equals(id)).map(StorageSnapshot.Preference::language).findFirst().orElse(fallback);
@@ -89,7 +95,7 @@ public final class JsonStorage implements StorageBackend {
         available();Objects.requireNonNull(language);
         for(var p:state.preferences()) if(p.playerId().equals(id)&&p.language()==language) return;
         var preferences=new ArrayList<>(state.preferences());preferences.removeIf(p -> p.playerId().equals(id));
-        preferences.add(new StorageSnapshot.Preference(id,language,StorageSnapshot.now()));commit(new StorageSnapshot(state.profiles(),preferences,state.votes(),state.protection(),TierSnapshot.empty(),state.recovery(),state.administration()));
+        preferences.add(new StorageSnapshot.Preference(id,language,StorageSnapshot.now()));commit(new StorageSnapshot(state.profiles(),preferences,state.votes(),state.protection(),TierSnapshot.empty(),state.recovery(),state.administration(),state.investigation()));
     }
     @Override public synchronized org.dextur.reputation.api.VoteEntry operation(UUID id) throws IOException {
         available();return state.votes().stream().filter(v -> v.operationId().equals(id)).findFirst().orElse(null);
@@ -113,7 +119,7 @@ public final class JsonStorage implements StorageBackend {
         available();return JournalVoting.history(state,player,scope,direction,page,size);
     }
     @Override public synchronized void protection(ProtectionRules rules) throws Exception { available();protectionRules=Objects.requireNonNull(rules); }
-    @Override public synchronized VoteProcessingOutcome outcome(UUID id) throws Exception { available();return JournalProtection.outcome(state,id); }
+    @Override public synchronized VoteProcessingOutcome outcome(UUID id) throws Exception { available();var record=state.investigation().get(Kind.MODERATION,id);if(record!=null&&record.status().equals("INVALIDATED"))return new VoteProcessingOutcome(id,VoteProcessingOutcome.Status.INVALIDATED);return JournalProtection.outcome(state,id); }
     @Override public synchronized Trust inspectTrust(UUID id,String scope) throws Exception { available();return state.protection().trusts().stream().filter(t->t.player().equals(id)&&t.scope().equals(scope)).findFirst().orElse(null); }
     @Override public synchronized Audit inspectTransition(UUID id) throws Exception { available();return state.protection().audit().stream().filter(a->a.id().equals(id)).findFirst().orElse(null); }
     @Override public synchronized Assessment inspectVote(UUID id) throws Exception { available();return state.protection().assessments().stream().filter(t->t.voteId().equals(id)).findFirst().orElse(null); }
@@ -129,7 +135,13 @@ public final class JsonStorage implements StorageBackend {
         if(state.votes().stream().anyMatch(v->v.operationId().equals(transition))) throw new VoteRejectedException(VoteRejectedException.Code.ID_CONFLICT);
         var context=JournalProtection.context(state,event.voterId(),event.targetId(),event.scope(),protectionRules,now);
         var change=ProtectionEngine.review(transition,operator,reason,action,revision,event,JournalVoting.profile(state,event.targetId(),event.scope(),now),protectionRules,context,now);
-        commit(JournalProtection.change(state,change,null));return JournalVoting.view(state,event.targetId(),event.scope(),now);
+        var next=JournalProtection.change(state,change,null);
+        if(investigationRules!=null){
+            var previous=state.investigation().get(Kind.MODERATION,id);
+            var indexed=next.investigation().put(InvestigationLegacy.protection(change.audit())).put(InvestigationLegacy.marker(change.audit(),context.latest().status(),previous==null?1:previous.revision()+1));
+            next=new StorageSnapshot(next.profiles(),next.preferences(),next.votes(),next.protection(),next.tiers(),next.recovery(),next.administration(),indexed);
+        }
+        commit(next);return JournalVoting.view(state,event.targetId(),event.scope(),now);
     }
     @Override public synchronized boolean refreshTrust(UUID player,String scope,long expected,org.dextur.reputation.domain.VoterFacts facts,Instant now) throws Exception {
         available();Objects.requireNonNull(protectionRules,"Protection not configured");var prior=inspectTrust(player,scope);
@@ -138,12 +150,12 @@ public final class JsonStorage implements StorageBackend {
             if(rows.stream().noneMatch(p->p.playerId().equals(player)&&p.scopeId().equals(scope))) rows.add(profile);
             var scopeState=state.protection().scopes().stream().filter(s->s.scope().equals(scope)).findFirst().orElse(ScopeState.empty(scope));
             var initial=TrustModel.initial(player,scope,facts,protectionRules,now,scopeState.revision());
-            commit(new StorageSnapshot(rows,state.preferences(),state.votes(),state.protection().trust(initial),TierSnapshot.empty(),state.recovery(),state.administration()));return true;
+            commit(new StorageSnapshot(rows,state.preferences(),state.votes(),state.protection().trust(initial),TierSnapshot.empty(),state.recovery(),state.administration(),state.investigation()));return true;
         }
         if(prior==null||prior.revision()!=expected||now.isBefore(prior.calculatedAt())) return false;
         var context=JournalProtection.context(state,player,player,scope,protectionRules,now);
         var next=TrustModel.calculate(player,scope,facts,protectionRules,now,prior,context.scope().revision(),context.recent(),false);
-        commit(new StorageSnapshot(state.profiles(),state.preferences(),state.votes(),state.protection().trust(next),TierSnapshot.empty(),state.recovery(),state.administration()));return true;
+        commit(new StorageSnapshot(state.profiles(),state.preferences(),state.votes(),state.protection().trust(next),TierSnapshot.empty(),state.recovery(),state.administration(),state.investigation()));return true;
     }
     @Override public synchronized List<Trust> dueTrust(String scope,Instant before,int limit) throws Exception {
         available();if(limit<1||limit>100) throw new IllegalArgumentException("Trust batch bounds");
@@ -156,7 +168,7 @@ public final class JsonStorage implements StorageBackend {
         var view=JournalProtection.context(state,latest.voterId(),latest.targetId(),scope,protectionRules,now);
         long before=view.score()==null?org.dextur.reputation.domain.protection.Fixed.units(JournalVoting.profile(state,latest.targetId(),scope,now).communityScore()):view.score().currentUnits();
         var change=JournalProtection.analysis(view,latest,before,protectionRules,now);if(change==null) return false;
-        commit(new StorageSnapshot(state.profiles(),state.preferences(),state.votes(),state.protection().analysis(change.scope(),change.event()),TierSnapshot.empty(),state.recovery(),state.administration()));return true;
+        commit(new StorageSnapshot(state.profiles(),state.preferences(),state.votes(),state.protection().analysis(change.scope(),change.event()),TierSnapshot.empty(),state.recovery(),state.administration(),state.investigation()));return true;
     }
     @Override public synchronized void tiers(org.dextur.reputation.domain.tier.TierRules rules) throws Exception {
         available();tierRules=Objects.requireNonNull(rules);if(!state.profiles().isEmpty()) commit(state);
@@ -167,7 +179,7 @@ public final class JsonStorage implements StorageBackend {
     }
     @Override public synchronized boolean tierSynced(UUID player,String scope,long expected,List<String> owned) throws Exception {
         available();var old=state.tiers().get(player,scope);if(old==null||old.syncRevision()!=expected) return false;
-        commit(new StorageSnapshot(state.profiles(),state.preferences(),state.votes(),state.protection(),state.tiers().put(old.synced(expected,owned)),state.recovery(),state.administration()));return true;
+        commit(new StorageSnapshot(state.profiles(),state.preferences(),state.votes(),state.protection(),state.tiers().put(old.synced(expected,owned)),state.recovery(),state.administration(),state.investigation()));return true;
     }
     @Override public synchronized void recovery(org.dextur.reputation.domain.recovery.RecoveryRules rules) throws Exception{available();recoveryRules=Objects.requireNonNull(rules);if(!rules.enabled())for(var row:List.copyOf(state.recovery().states()))if(row.current()!=null&&row.current().status()==org.dextur.reputation.api.RecoverySnapshot.Status.ACTIVE)recover(org.dextur.reputation.domain.recovery.RecoveryData.disabled(row,StorageSnapshot.now()));}
     @Override public synchronized org.dextur.reputation.domain.recovery.RecoveryRules recoveryDefinition(UUID player,String scope)throws Exception{return state.recovery().get(player,scope)==null||state.recovery().get(player,scope).current()==null?recoveryRules:state.recovery().get(player,scope).current().definition();}
@@ -177,7 +189,7 @@ public final class JsonStorage implements StorageBackend {
         var change=org.dextur.reputation.domain.recovery.RecoveryEngine.evaluate(state.recovery().get(request.player(),request.scope()),profile,inspectTrust(request.player(),request.scope()),recoveryRules,request,state.administration().contribution(request.player(),request.scope()));
         if(!change.state().equals(state.recovery().get(request.player(),request.scope()))) {
             var profiles=new ArrayList<>(state.profiles());profiles.removeIf(p->p.playerId().equals(request.player())&&p.scopeId().equals(request.scope()));profiles.add(change.profile());
-            commit(new StorageSnapshot(profiles,state.preferences(),state.votes(),change.trust()==null?state.protection():state.protection().trust(change.trust()),TierSnapshot.empty(),state.recovery().put(change.state()),state.administration()));
+            commit(new StorageSnapshot(profiles,state.preferences(),state.votes(),change.trust()==null?state.protection():state.protection().trust(change.trust()),TierSnapshot.empty(),state.recovery().put(change.state()),state.administration(),state.investigation()));
         }
         return new org.dextur.reputation.domain.recovery.RecoveryData.Change(change.state(),JournalVoting.profile(state,request.player(),request.scope(),request.now()),change.trust(),change.snapshot(),change.events());
     }
@@ -194,9 +206,27 @@ public final class JsonStorage implements StorageBackend {
     @Override public synchronized org.dextur.reputation.domain.policy.AdministrationData.Change administer(org.dextur.reputation.domain.policy.AdministrationData.Request request)throws Exception{
         available();Objects.requireNonNull(featuresRules,"Features not configured");if(request.type()==org.dextur.reputation.domain.policy.AdministrationData.Type.OVERRIDE&&!featuresRules.policies().containsKey(request.policy()))throw new IllegalArgumentException("ADMIN_POLICY");Objects.requireNonNull(tierRules,"Tiers not configured");
         var change=org.dextur.reputation.domain.policy.AdministrationData.apply(state.administration().get(request.player(),request.scope()),JournalVoting.profile(state,request.player(),request.scope(),request.at()),request,featuresRules.administration());
-        if(!change.duplicate()){var profiles=new ArrayList<>(state.profiles());profiles.removeIf(p->p.playerId().equals(request.player())&&p.scopeId().equals(request.scope()));profiles.add(change.profile());commit(new StorageSnapshot(profiles,state.preferences(),state.votes(),state.protection(),TierSnapshot.empty(),state.recovery(),state.administration().put(change.state())));}
+        if(!change.duplicate()){var profiles=new ArrayList<>(state.profiles());profiles.removeIf(p->p.playerId().equals(request.player())&&p.scopeId().equals(request.scope()));profiles.add(change.profile());commit(new StorageSnapshot(profiles,state.preferences(),state.votes(),state.protection(),TierSnapshot.empty(),state.recovery(),state.administration().put(change.state()),state.investigation()));}
         return new org.dextur.reputation.domain.policy.AdministrationData.Change(change.state(),JournalVoting.profile(state,request.player(),request.scope(),request.at()),change.audit(),change.duplicate());
     }
+
+    private StorageSnapshot indexFlags(StorageSnapshot next){
+        var index=new TreeMap<String,Record>();for(var row:next.investigation().records())if(row.kind()!=Kind.DIAGNOSTIC||row.at().isAfter(StorageSnapshot.now().minusSeconds(investigationRules.diagnosticRetentionDays()*86400L)))index.put(row.kind()+"/"+row.id(),row);
+        for(var a:next.protection().assessments())for(String source:a.signals()){var flag=InvestigationReports.flag(a,source);index.putIfAbsent(flag.kind()+"/"+flag.id(),flag);}
+        for(var audit:InvestigationLegacy.all(next))index.putIfAbsent(audit.kind()+"/"+audit.id(),audit);
+        for(var marker:InvestigationLegacy.markers(next))index.putIfAbsent(marker.kind()+"/"+marker.id(),marker);
+        if(index.size()>investigationRules.maximumRecords())throw new IllegalStateException("INV_CAPACITY");
+        var data=new InvestigationSnapshotData(List.copyOf(index.values()));
+        return new StorageSnapshot(next.profiles(),next.preferences(),next.votes(),next.protection(),next.tiers(),next.recovery(),next.administration(),data);
+    }
+    @Override public synchronized void investigation(Rules rules)throws Exception{available();investigationRules=rules;var indexed=indexFlags(state);if(!indexed.equals(state))commit(indexed);}
+    private JsonInvestigation investigationSession()throws Exception{available();return new JsonInvestigation(state,investigationRules,protectionRules,tierRules);}
+    @Override public synchronized Report investigate(Query query)throws Exception{return new InvestigationReports(investigationSession()).read(query);}
+    @Override public synchronized Mutation moderate(Request request)throws Exception{var session=investigationSession();var result=new InvestigationEngine(session).mutate(request);if(!result.duplicate())commit(session.state);return result;}
+    @Override public synchronized Plan plan(Action action,String scope,Filter filter,String actor,String reason,Instant now)throws Exception{return new InvestigationBulk(investigationSession()).plan(action,scope,filter,actor,reason,now);}
+    @Override public synchronized Record begin(UUID operation,Plan plan,Instant now)throws Exception{var session=investigationSession();var result=new InvestigationBulk(session).begin(operation,plan,now);if(!session.state.equals(state))commit(session.state);return result;}
+    @Override public synchronized Batch advance(UUID operation,String actor,boolean cancel,Instant now)throws Exception{try{var session=investigationSession();var result=new InvestigationBulk(session).advance(operation,actor,cancel,now);if(!session.state.equals(state))commit(session.state);return result;}catch(Exception error){try{var failed=investigationSession();InvestigationFailures.pause(failed,operation,actor,error,now);if(!failed.state.equals(state))commit(failed.state);}catch(Exception logging){error.addSuppressed(logging);}throw error;}}
+
     @Override public synchronized long storageBytes() throws Exception { available();return Files.size(primary); }
     @Override public synchronized StorageSnapshot snapshot() throws IOException { available();return state; }
     @Override public synchronized void prepareMigration() throws IOException { available();AtomicFiles.replace(pending,new byte[]{1}); }

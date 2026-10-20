@@ -40,7 +40,7 @@ public final class Messages {
             Map<String, Object> yaml = new HashMap<>(bundled ? shipped : YamlFiles.read(directory.resolve(language.name() + ".yml")));
             // Additive fallback for new storage keys; never overwrite administrator customizations.
             for (String key : STORAGE_KEYS) yaml.putIfAbsent(key, shipped.get(key));
-            for (String key : shipped.keySet()) if (!REQUIRED.contains(key) && (key.startsWith("vote-") || key.startsWith("gui-") || key.startsWith("reason-") || key.startsWith("protection-") || key.startsWith("tier-") || key.startsWith("display-") || key.startsWith("recovery-") || key.startsWith("policy-") || key.startsWith("admin-"))) yaml.putIfAbsent(key, shipped.get(key));
+            for (String key : shipped.keySet()) if (!REQUIRED.contains(key) && (key.startsWith("vote-") || key.startsWith("gui-") || key.startsWith("reason-") || key.startsWith("protection-") || key.startsWith("tier-") || key.startsWith("display-") || key.startsWith("recovery-") || key.startsWith("policy-") || key.startsWith("admin-") || key.startsWith("admin7-"))) yaml.putIfAbsent(key, shipped.get(key));
             YamlFiles.version(yaml);
             Map<String, String> values = new HashMap<>();
             for (String key : yaml.keySet()) {

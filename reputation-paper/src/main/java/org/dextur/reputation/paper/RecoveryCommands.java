@@ -26,7 +26,7 @@ final class RecoveryCommands {
             if(args.length<4){send(sender,"recovery-admin-help",Map.of());return true;}
             UUID id;try{id=UUID.fromString(args[2]);var known=plugin.getServer().getOfflinePlayer(id);if(!known.hasPlayedBefore()&&!known.isOnline())throw new IllegalArgumentException();}catch(IllegalArgumentException ex){var known=plugin.getServer().getPlayerExact(args[2]);var cached=known==null?plugin.getServer().getOfflinePlayerIfCached(args[2]):known;if(cached==null||!cached.hasPlayedBefore()&&!cached.isOnline()){send(sender,"unknown-player",Map.of("player",args[2]));return true;}id=cached.getUniqueId();}
             Command command;try{command=args[3].equalsIgnoreCase("status")?Command.READ:Command.valueOf(args[3].toUpperCase(Locale.ROOT));}catch(IllegalArgumentException e){send(sender,"recovery-admin-help",Map.of());return true;}
-            var action=service.administer(id,command,"ADMIN:"+sender.getName(),String.join(" ",Arrays.copyOfRange(args,4,args.length)));complete(sender,action,"status");return true;
+            var action=service.administer(id,command,sender instanceof Player moderator?moderator.getUniqueId().toString():"CONSOLE",String.join(" ",Arrays.copyOfRange(args,4,args.length)));complete(sender,action,"status");return true;
         }
         String action=args.length==1?"gui":args[1].toLowerCase(Locale.ROOT);if(args.length>2||!List.of("gui","status","start","tasks","progress","rewards","help","cancel").contains(action)){send(sender,"recovery-help",Map.of());return true;}
         if(!allowed(sender,action.equals("start")?"start":action.equals("cancel")?"cancel":"status")){send(sender,"no-permission",Map.of());return true;}

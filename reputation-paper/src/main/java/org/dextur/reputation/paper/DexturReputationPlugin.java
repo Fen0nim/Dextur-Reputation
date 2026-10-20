@@ -40,6 +40,10 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     private VotingGui votingGui;
     private org.dextur.reputation.domain.policy.PolicyRules featureRules;
     private org.dextur.reputation.application.PolicyApplication policies;
+    private org.dextur.reputation.domain.investigation.InvestigationData.Rules administrationRules;
+    private org.dextur.reputation.application.InvestigationApplication investigation;
+    private InvestigationGui investigationGui;
+    private InvestigationGui.Layout administrationLayout;
     private PolicyEffects policyEffects;
     private PolicyEffects.Layout policyLayout;
     private boolean policyPlaceholders;
@@ -75,6 +79,8 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
             displayFormatter=new org.dextur.reputation.application.DisplayFormatter(displayConfiguration);
             recoveryRules=org.dextur.reputation.application.RecoveryConfiguration.load(getDataFolder().toPath());
             featureRules=org.dextur.reputation.application.PolicyConfiguration.load(getDataFolder().toPath());
+            administrationRules=org.dextur.reputation.application.AdministrationConfiguration.load(getDataFolder().toPath());
+            administrationLayout=InvestigationGui.Layout.load(getDataFolder().toPath(),administrationRules.pageSize());
             policyLayout=PolicyEffects.Layout.load(getDataFolder().toPath());
             policyPlaceholders=org.dextur.reputation.application.YamlFiles.flag(org.dextur.reputation.application.TierConfiguration.configuration(getDataFolder().toPath(),"integrations.yml"),"policy-placeholders");
             recoveryLayout=RecoveryGui.Layout.load(getDataFolder().toPath());
@@ -113,6 +119,12 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         var voting=new org.dextur.reputation.application.VotingApplication(application,storage,settings,votingConfiguration,
                 this::voterFacts,java.time.Clock.systemUTC(),error->logFailure("vote listener",error));
         protectionAdministration=new org.dextur.reputation.application.ProtectionAdministration(application,voting,storage,settings,protectionRules,java.time.Clock.systemUTC());
+        investigation=new org.dextur.reputation.application.InvestigationApplication(application,storage,voting,administrationRules,settings.scope(),java.time.Clock.systemUTC(),error->logFailure("investigation event",error));
+        var investigationCommands=new InvestigationCommands(this,application,investigation,settings,messages,policyCommands);
+        investigationGui=new InvestigationGui(this,investigation,investigationCommands,messages,administrationLayout);investigationCommands.gui=investigationGui;
+        adminCommand.setExecutor(investigationCommands);adminCommand.setTabCompleter(investigationCommands);
+        getServer().getPluginManager().registerEvents(investigationGui,this);
+        investigation.onCommitted(event->onMain(()->{var player=getServer().getPlayer(event.target());if(player!=null)policyEffects.request(player);}));
         var votingCommands=new VotingCommands(this,application,voting,votingConfiguration,messages,settings.defaultLanguage());
         var gui=new VotingGui(this,voting,votingCommands,votingConfiguration,guiConfiguration,messages);
         votingGui=gui;gui.policies(policyEffects);gui.recovery(recoveryGui);recoveryGui.voting(gui);gui.tiers(tiers,displayFormatter,tierRules);
@@ -131,7 +143,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         }
         getServer().getPluginManager().registerEvents(this, this);
         Path dataDirectory = getDataFolder().toPath();
-        application.submit(() -> { storage.protection(protectionRules);storage.tiers(tierRules);storage.recovery(recoveryRules);storage.features(featureRules);storage.open(dataDirectory, settings, System.getenv()); return null; })
+        application.submit(() -> { storage.protection(protectionRules);storage.tiers(tierRules);storage.recovery(recoveryRules);storage.features(featureRules);storage.investigation(administrationRules);storage.open(dataDirectory, settings, System.getenv()); return null; })
                 .whenComplete((ignored, error) -> onMain(() -> {
                     if (error != null) {
                         getComponentLogger().error(messages.render(settings.defaultLanguage(), "storage-failed",
@@ -177,7 +189,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
                     getServer().getScheduler().runTaskTimer(this,this::maintenance,1200L,1200L);
                     getServer().getScheduler().runTaskTimer(this,()->protectionAdministration.analyze().exceptionally(analysisError->{logProtectionFailure(analysisError);return false;}),
                             20L*protectionRules.analysis().intervalSeconds(),20L*protectionRules.analysis().intervalSeconds());
-                    getLogger().info("READY: ReputationService registered; VotingService registered; Paper 26.2 Phase 6 enabled.");
+                    getLogger().info("READY: ReputationService registered; VotingService registered; Paper 26.2 Phase 7 enabled.");
                 }));
     }
 
@@ -188,7 +200,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     private void defaults() throws IOException {
         Path directory = getDataFolder().toPath();
         Files.createDirectories(directory.resolve("lang"));
-        for (String file : new String[]{"config.yml", "storage.yml", "integrations.yml", "voting.yml", "gui.yml", "trust.yml", "anti-abuse.yml", "tiers.yml", "display.yml", "recovery.yml", "features.yml", "lang/ru_RU.yml", "lang/en_US.yml"}) {
+        for (String file : new String[]{"config.yml", "storage.yml", "integrations.yml", "voting.yml", "gui.yml", "trust.yml", "anti-abuse.yml", "tiers.yml", "display.yml", "recovery.yml", "features.yml", "administration.yml", "lang/ru_RU.yml", "lang/en_US.yml"}) {
             if (!Files.exists(directory.resolve(file))) saveResource(file, false);
         }
     }
@@ -254,7 +266,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         }
         jobs.add(protectionAdministration.recalculateDue().toCompletableFuture());
         if(settings.storage().type()==org.dextur.reputation.application.StorageType.JSON) jobs.add(protectionAdministration.storageBytes().thenAccept(bytes->{
-            if(bytes>=settings.storage().maximumJsonBytes()*protectionRules.jsonWarningFraction()/1_000_000L)
+            if(bytes>=settings.storage().maximumJsonBytes()*Math.min(protectionRules.jsonWarningFraction(),administrationRules.jsonWarningPercent()*10000L)/1_000_000L)
                 getComponentLogger().warn(messages.render(settings.defaultLanguage(),"protection-storage-growth",Map.of("bytes",Long.toString(bytes),"limit",Integer.toString(settings.storage().maximumJsonBytes()))));
         }).toCompletableFuture());
         java.util.concurrent.CompletableFuture.allOf(jobs.toArray(java.util.concurrent.CompletableFuture[]::new)).whenComplete((ignored,error)->{
@@ -267,6 +279,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     @EventHandler public void join(PlayerJoinEvent event) { warm(event.getPlayer().getUniqueId());initializeTrust(event.getPlayer());if(ready()&&recoveryActivity!=null)recoveryActivity.join(event.getPlayer());if(ready()&&policyEffects!=null)policyEffects.request(event.getPlayer()); }
     @EventHandler public void quit(PlayerQuitEvent event) { if(policyEffects!=null)policyEffects.quit(event.getPlayer());if(recoveryActivity!=null)recoveryActivity.quit(event.getPlayer()); if(display!=null)display.quit(event.getPlayer());if(tiers!=null)tiers.forget(event.getPlayer().getUniqueId());if(application!=null)application.forget(event.getPlayer().getUniqueId()); }
     public boolean ready() { return ready && !stopping.get(); }
+    org.dextur.reputation.application.InvestigationApplication investigationAdministration(){return investigation;}
     org.dextur.reputation.application.PolicyApplication policyAdministration(){return policies;}
     org.dextur.reputation.application.ProtectionAdministration protectionAdministration() { return protectionAdministration; }
     public String storageType() { return settings.storage().type().name(); }
@@ -280,6 +293,8 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         return error;
     }
     @Override public void onDisable() {
+        if(investigation!=null)investigation.close();
+        if(investigationGui!=null)investigationGui.closeAll();
         if(policyEffects!=null)policyEffects.close();
         if(recoveryActivity!=null)recoveryActivity.close();
         stopping.set(true); ready = false;

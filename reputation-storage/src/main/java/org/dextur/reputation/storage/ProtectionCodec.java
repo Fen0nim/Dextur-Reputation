@@ -9,7 +9,7 @@ final class ProtectionCodec {
     private static final Gson GSON=new GsonBuilder().disableHtmlEscaping().registerTypeAdapter(Instant.class,new TypeAdapter<Instant>() {
         @Override public void write(com.google.gson.stream.JsonWriter writer,Instant value) throws java.io.IOException { writer.value(value.toString()); }
         @Override public Instant read(com.google.gson.stream.JsonReader reader) throws java.io.IOException { return Instant.parse(reader.nextString()); }
-    }).registerTypeAdapter(long.class,new ExactLong()).registerTypeAdapter(Long.class,new ExactLong())
+    }.nullSafe()).registerTypeAdapter(long.class,new ExactLong()).registerTypeAdapter(Long.class,new ExactLong())
       .registerTypeAdapter(int.class,new ExactInt()).registerTypeAdapter(Integer.class,new ExactInt()).create();
     private static String integer(com.google.gson.stream.JsonReader reader) throws java.io.IOException {
         if(reader.peek()!=com.google.gson.stream.JsonToken.NUMBER) throw new JsonParseException("Expected integer");

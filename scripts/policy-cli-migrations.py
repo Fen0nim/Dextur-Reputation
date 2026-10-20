@@ -6,7 +6,7 @@ import sqlite3
 import subprocess
 
 
-def verify(directory, storage, java, artifacts, environment, container, engine, snapshot_path, resources):
+def verify(directory, storage, java, artifacts, environment, container, engine, snapshot_path, resources, phase_number=6):
     original = json.loads(snapshot_path.read_text())["data"]
     base = storage.replace("type: MYSQL", "type: JSON")
     executable = "mariadb" if engine == "MARIADB" else "mysql"
@@ -28,7 +28,7 @@ def verify(directory, storage, java, artifacts, environment, container, engine, 
                 shutil.copyfile(resources / name, work / name)
 
             def config(backend, phase):
-                schema = "phase6_" + source.lower() + "_" + target.lower() + "_" + phase
+                schema = "phase" + str(phase_number) + "_" + source.lower() + "_" + target.lower() + "_" + phase
                 if backend == "MYSQL":
                     sql("CREATE DATABASE " + schema + "; GRANT ALL ON " + schema + ".* TO 'reputation'@'%';")
                 return (base.replace("type: JSON", "type: " + backend)
@@ -69,10 +69,10 @@ def verify(directory, storage, java, artifacts, environment, container, engine, 
                     if db.execute("SELECT COUNT(*) FROM dr_profiles").fetchone()[0] != len(original["profiles"]):
                         raise RuntimeError("CLI removed SQLite source rows")
             if source == "MYSQL":
-                schema = "phase6_" + source.lower() + "_" + target.lower() + "_source"
+                schema = "phase" + str(phase_number) + "_" + source.lower() + "_" + target.lower() + "_source"
                 count = int(sql("SELECT COUNT(*) FROM " + schema + ".dr_profiles"))
                 if count != len(original["profiles"]):
                     raise RuntimeError("CLI removed SQL source rows")
             evidence.append({"from": source, "to": target, "status": "PASS", "directory": str(work)})
-    (directory / "phase6-six-cli-directions.json").write_text(json.dumps(evidence, indent=2))
-    print("PHASE6_SIX_CLI_DIRECTIONS_PASS: six standalone migrations, fresh-JVM verification and source retention on " + engine, flush=True)
+    (directory / ("phase" + str(phase_number) + "-six-cli-directions.json")).write_text(json.dumps(evidence, indent=2))
+    print("PHASE" + str(phase_number) + "_SIX_CLI_DIRECTIONS_PASS: six standalone migrations, fresh-JVM verification and source retention on " + engine, flush=True)

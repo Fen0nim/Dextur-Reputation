@@ -135,3 +135,7 @@ RecoveryRepository/RecoveryEngine отделены от Paper. RecoveryApplicati
 ## Phase 6
 
 PolicyEngine — pure evaluator; PolicyApplication использует общий bounded executor/profile locks и immutable cache. AdministrationData хранит auditable admin contribution/lock/overrides; backend COMMIT/JSON replacement объединяет profile/admin/tier/hysteresis/LP intent. Старый systemScore остаётся совместимым total non-community, recovery ledger независим от admin. [POLICIES](POLICIES.md), [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md).
+
+## Phase 7
+
+Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.

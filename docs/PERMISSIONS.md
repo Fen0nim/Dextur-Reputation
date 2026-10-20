@@ -38,3 +38,7 @@ dexturreputation.recovery, .recovery.start, .recovery.status, .recovery.cancel �
 ## Phase 6
 
 Отдельные default op nodes: dexturreputation.admin.set/add/remove, .admin.voting.lock/unlock/status, .admin.policy, .admin.reload. dexturreputation.policies default true вместе с .use для /rep policies. Никаких автоматически выдаваемых staff permissions. [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md).
+
+## Phase 7
+
+Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.

@@ -89,7 +89,8 @@ public final class RuntimeProbe extends JavaPlugin {
             getLogger().info("PROBE_PAPI_PASS: registration and all three cached placeholders");
         }
         Object checkedExpansionManager=expansionManager;
-        if(Boolean.getBoolean("dextur.probe.policies"))new PolicyRuntimeProbe(this).start(()->{try{finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}},this::fail);
+        if(Boolean.getBoolean("dextur.probe.administration"))new AdministrationRuntimeProbe(this).start(()->{try{finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}},this::fail);
+        else if(Boolean.getBoolean("dextur.probe.policies"))new PolicyRuntimeProbe(this).start(()->{try{finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}},this::fail);
         else if(Boolean.getBoolean("dextur.probe.recovery"))new RecoveryRuntimeProbe(this).start(()->{try{finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}},this::fail);
         else if(Boolean.getBoolean("dextur.probe.tiers")) new TierRuntimeProbe(this).start(()->{
             try {finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}
@@ -112,7 +113,7 @@ public final class RuntimeProbe extends JavaPlugin {
         getServer().getPluginManager().disablePlugin(target);
         for(var player:getServer().getOnlinePlayers()) {
             var holder=player.getOpenInventory().getTopInventory().getHolder();
-            if(holder!=null&&(holder.getClass().getName().endsWith("VotingGui$Session")||holder.getClass().getName().endsWith("RecoveryGui$Session")||holder.getClass().getName().endsWith("PolicyEffects$Panel"))) throw new AssertionError("GUI remained open after listener cleanup");
+            if(holder!=null&&(holder.getClass().getName().endsWith("VotingGui$Session")||holder.getClass().getName().endsWith("RecoveryGui$Session")||holder.getClass().getName().endsWith("PolicyEffects$Panel")||holder.getClass().getName().endsWith("InvestigationGui$Session"))) throw new AssertionError("GUI remained open after listener cleanup");
         }
         if(getServer().getServicesManager().load(policyApi)!=null)throw new AssertionError("Policy API leaked on shutdown");
         for(var player:getServer().getOnlinePlayers()){var health=player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);if(health!=null&&health.getModifiers().stream().anyMatch(m->m.getKey().equals(new org.bukkit.NamespacedKey("dexturreputation","reputation-health"))))throw new AssertionError("Owned health modifier leaked on shutdown");}

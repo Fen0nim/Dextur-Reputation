@@ -1,6 +1,9 @@
 package org.dextur.reputation.storage;
 
 import java.io.IOException;
+import org.dextur.reputation.domain.investigation.InvestigationData.*;
+import org.dextur.reputation.domain.investigation.InvestigationData.Record;
+
 import java.nio.file.*;
 import java.sql.*;
 import java.time.Instant;
@@ -24,6 +27,8 @@ public final class SqlStorage implements StorageBackend {
     private boolean tierSchema;
     private boolean recoverySchema;
     private boolean administrationSchema;
+    private boolean investigationSchema;
+    private Rules investigationRules;
     private org.dextur.reputation.domain.policy.PolicyRules featuresRules;
     private org.dextur.reputation.domain.recovery.RecoveryRules recoveryRules;
     private org.dextur.reputation.domain.tier.TierRules tierRules;
@@ -49,7 +54,7 @@ public final class SqlStorage implements StorageBackend {
         try(Connection c=connect();Statement s=c.createStatement()) {
             if(database==null) {
                 try(var rows=s.executeQuery("PRAGMA integrity_check")) { if(!rows.next()||!"ok".equals(rows.getString(1))) throw new SQLException("SQLite integrity check failed"); }
-                try(var rows=s.executeQuery("PRAGMA user_version")) { if(!rows.next()||rows.getInt(1)>6) throw new SQLException("Unsupported SQLite schema");tierSchema=rows.getInt(1)>=4;recoverySchema=rows.getInt(1)>=5;administrationSchema=rows.getInt(1)>=6; }
+                try(var rows=s.executeQuery("PRAGMA user_version")) { if(!rows.next()||rows.getInt(1)>7) throw new SQLException("Unsupported SQLite schema");tierSchema=rows.getInt(1)>=4;recoverySchema=rows.getInt(1)>=5;administrationSchema=rows.getInt(1)>=6;investigationSchema=rows.getInt(1)>=7; }
                 try(var rows=s.executeQuery("PRAGMA journal_mode=WAL")) { if(!rows.next()||!"wal".equalsIgnoreCase(rows.getString(1))) throw new SQLException("SQLite WAL unavailable"); }
                 c.setAutoCommit(false);
                 try {
@@ -57,8 +62,8 @@ public final class SqlStorage implements StorageBackend {
                     s.execute("CREATE TABLE IF NOT EXISTS dr_player_preferences(player_uuid TEXT PRIMARY KEY NOT NULL,language TEXT NOT NULL CHECK(language IN ('ru_RU','en_US')),updated_at TEXT NOT NULL)");
                     SqlVoting.initializeSQLite(c);
                     try(var version=c.createStatement();var row=version.executeQuery("PRAGMA user_version")) { if(row.next()&&row.getInt(1)>=3) { SqlProtection.sqlite(c);privateSchema=true; } }
-                    if(tierSchema) SqlTiers.sqlite(c);if(recoverySchema)SqlRecovery.sqlite(c);if(administrationSchema)SqlAdministration.sqlite(c);
-                    s.execute("PRAGMA user_version="+(administrationSchema?6:recoverySchema?5:tierSchema?4:privateSchema?3:2)); c.commit();
+                    if(tierSchema) SqlTiers.sqlite(c);if(recoverySchema)SqlRecovery.sqlite(c);if(administrationSchema)SqlAdministration.sqlite(c);if(investigationSchema)SqlInvestigation.sqlite(c);
+                    s.execute("PRAGMA user_version="+(investigationSchema?7:administrationSchema?6:recoverySchema?5:tierSchema?4:privateSchema?3:2)); c.commit();
                 } catch(Exception e) { c.rollback();throw e; } finally { c.setAutoCommit(true); }
             }
             s.execute("CREATE TABLE IF NOT EXISTS dr_storage_control(id INTEGER PRIMARY KEY,pending INTEGER NOT NULL,format_version INTEGER NOT NULL)");
@@ -72,6 +77,7 @@ public final class SqlStorage implements StorageBackend {
         try(var c=connect();var query=c.prepareStatement(database==null?"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='dr_tiers'":"SELECT COUNT(*) FROM dr_schema_history WHERE version=4");var row=query.executeQuery()) { tierSchema=row.next()&&row.getLong(1)>0; }
         try(var c=connect();var query=c.prepareStatement(database==null?"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='dr_recovery'":"SELECT COUNT(*) FROM dr_schema_history WHERE version=5");var row=query.executeQuery()){recoverySchema=row.next()&&row.getLong(1)>0;}
         try(var c=connect();var query=c.prepareStatement(database==null?"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='dr_administration'":"SELECT COUNT(*) FROM dr_schema_history WHERE version=6");var row=query.executeQuery()){administrationSchema=row.next()&&row.getLong(1)>0;}
+        try(var c=connect();var query=c.prepareStatement(database==null?"SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='dr_investigation'":"SELECT COUNT(*) FROM dr_schema_history WHERE version=7");var row=query.executeQuery()){investigationSchema=row.next()&&row.getLong(1)>0;}
         snapshot(); // Validate complete stored records before the backend can be activated.
     }
     @Override public StorageType type() { return database==null?StorageType.SQLITE:StorageType.MYSQL; }
@@ -125,7 +131,7 @@ public final class SqlStorage implements StorageBackend {
                     while(rows.next()) preferences.add(new StorageSnapshot.Preference(UUID.fromString(rows.getString("player_uuid")),PlayerLanguage.parse(rows.getString("language")),instant(rows,"updated_at")));
                 }
                 var voting=new SqlVoting(this);var votes=voting.all(c);var protection=privateSchema?new SqlProtection(this).snapshot(c):ProtectionSnapshot.empty();voting.validateActive(c,votes,protection);
-                var snapshot=new StorageSnapshot(profiles,preferences,votes,protection,tierSchema?new SqlTiers(this).snapshot(c):TierSnapshot.empty(),recoverySchema?new SqlRecovery(this).snapshot(c):RecoverySnapshotData.empty(),administrationSchema?new SqlAdministration(this).snapshot(c):AdministrationSnapshotData.empty());c.commit();return snapshot;
+                var snapshot=new StorageSnapshot(profiles,preferences,votes,protection,tierSchema?new SqlTiers(this).snapshot(c):TierSnapshot.empty(),recoverySchema?new SqlRecovery(this).snapshot(c):RecoverySnapshotData.empty(),administrationSchema?new SqlAdministration(this).snapshot(c):AdministrationSnapshotData.empty(),investigationSchema?new SqlInvestigation(this).snapshot(c):InvestigationSnapshotData.empty());c.commit();return snapshot;
             } catch(Exception e) { c.rollback();throw e; }
         }
     }
@@ -159,6 +165,7 @@ public final class SqlStorage implements StorageBackend {
         if(!privateSchema) return null;try(var c=connect()) { return new SqlProtection(this).get(c,"dr_vote_assessments",id.toString(),Assessment.class); }
     }
     @Override public synchronized VoteProcessingOutcome outcome(UUID id) throws Exception {
+        if(investigationSchema)try(var c=connect()){var record=new SqlInvestigation(this).get(c,Kind.MODERATION,id);if(record!=null&&record.status().equals("INVALIDATED"))return new VoteProcessingOutcome(id,VoteProcessingOutcome.Status.INVALIDATED);}
         var assessment=inspectVote(id);if(assessment!=null) return new VoteProcessingOutcome(id,JournalProtection.publicStatus(assessment.status()));
         var vote=operation(id);if(vote==null) throw new IllegalArgumentException("Unknown vote");boolean active;
         try(var c=connect();var s=c.prepareStatement("SELECT COUNT(*) FROM dr_active_votes WHERE operation_id=?")) { s.setString(1,id.toString());try(var r=s.executeQuery()) { r.next();active=r.getLong(1)>0; } }
@@ -183,6 +190,7 @@ public final class SqlStorage implements StorageBackend {
         if(!snapshot.tiers().isEmpty()) enableTierSchema();
         if(!snapshot.recovery().isEmpty())enableRecoverySchema();
         if(!snapshot.administration().isEmpty())enableAdministrationSchema();
+        if(!snapshot.investigation().isEmpty())enableInvestigationSchema();
         try(Connection c=connect()) {
             c.setAutoCommit(false);
             try {
@@ -191,7 +199,7 @@ public final class SqlStorage implements StorageBackend {
                     try(var s=c.createStatement();var rows=s.executeQuery("SELECT COUNT(*) FROM "+table)) { if(!rows.next()||rows.getLong(1)!=0) throw new SQLException("Migration target is not empty"); }
                 }
                 if(privateSchema) for(String table:SqlProtection.TABLES) try(var query=c.createStatement();var rows=query.executeQuery("SELECT COUNT(*) FROM "+table)) { if(!rows.next()||rows.getLong(1)!=0) throw new SQLException("Private migration target is not empty"); }
-                for(String table:List.of("dr_tiers","dr_recovery","dr_administration")){if(table.equals("dr_tiers")&&!tierSchema||table.equals("dr_recovery")&&!recoverySchema||table.equals("dr_administration")&&!administrationSchema)continue;try(var query=c.createStatement();var rows=query.executeQuery("SELECT COUNT(*) FROM "+table)){if(!rows.next()||rows.getLong(1)!=0)throw new SQLException("Nonempty migration target");}}
+                for(String table:List.of("dr_tiers","dr_recovery","dr_administration","dr_investigation")){if(table.equals("dr_tiers")&&!tierSchema||table.equals("dr_recovery")&&!recoverySchema||table.equals("dr_administration")&&!administrationSchema||table.equals("dr_investigation")&&!investigationSchema)continue;try(var query=c.createStatement();var rows=query.executeQuery("SELECT COUNT(*) FROM "+table)){if(!rows.next()||rows.getLong(1)!=0)throw new SQLException("Nonempty migration target");}}
                 try(var s=c.prepareStatement("INSERT INTO dr_profiles(player_uuid,scope_id,community_score,system_score,visible_score,tier,profile_revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)")) {
                     for(var p:snapshot.profiles()) {
                         s.setString(1,p.playerId().toString());s.setString(2,p.scopeId());s.setLong(3,p.communityScore());s.setLong(4,p.systemScore());s.setLong(5,p.visibleScore());s.setString(6,p.tier());s.setLong(7,p.revision());timestamp(s,8,p.createdAt());timestamp(s,9,p.updatedAt());s.addBatch();
@@ -210,6 +218,7 @@ public final class SqlStorage implements StorageBackend {
                 if(tierSchema) for(var state:snapshot.tiers().states()) new SqlTiers(this).put(c,state);
                 if(recoverySchema)for(var row:snapshot.recovery().states())new SqlRecovery(this).put(c,row);
                 if(administrationSchema)for(var row:snapshot.administration().states())new SqlAdministration(this).put(c,row);
+                if(investigationSchema)for(var row:snapshot.investigation().records())new SqlInvestigation(this).put(c,row);
                 c.commit();
             } catch(Exception e) { c.rollback();throw e; }
         }
@@ -259,7 +268,7 @@ public final class SqlStorage implements StorageBackend {
             var change=org.dextur.reputation.domain.recovery.RecoveryEngine.evaluate(old,profile,trust,recoveryRules,request,administrationSchema?java.util.Optional.ofNullable(new SqlAdministration(this).get(c,request.player(),request.scope())).map(org.dextur.reputation.domain.policy.AdministrationData.State::contribution).orElse(0L):0L);
             if(!change.state().equals(old)){
                 var p=change.profile();try(var s=c.prepareStatement("UPDATE dr_profiles SET system_score=?,visible_score=?,profile_revision=?,updated_at=? WHERE player_uuid=? AND scope_id=?")){s.setLong(1,p.systemScore());s.setLong(2,p.visibleScore());s.setLong(3,p.revision());timestamp(s,4,p.updatedAt());s.setString(5,p.playerId().toString());s.setString(6,p.scopeId());if(s.executeUpdate()!=1)throw new SQLException("Missing recovery profile");}
-                if(change.trust()!=null&&!change.trust().equals(trust))protection.put(c,"dr_trust",change.trust(),false);repo.put(c,change.state());
+                if(change.trust()!=null&&!change.trust().equals(trust))protection.put(c,"dr_trust",change.trust(),false);repo.put(c,change.state());for(var event:change.state().audit())if(!Set.of("PROGRESS_CHANGED","OBJECTIVE_COMPLETED").contains(event.kind()))captureLegacy(c,InvestigationLegacy.recovery(event,request.player(),request.scope()));
             }
             var projected=reconcileTier(c,change.profile());c.commit();return new org.dextur.reputation.domain.recovery.RecoveryData.Change(change.state(),projected,change.trust(),change.snapshot(),change.events());
         }catch(Exception e){c.rollback();throw e;}}
@@ -286,10 +295,30 @@ public final class SqlStorage implements StorageBackend {
     @Override public synchronized org.dextur.reputation.domain.policy.AdministrationData.Change administer(org.dextur.reputation.domain.policy.AdministrationData.Request request)throws Exception{
         Objects.requireNonNull(featuresRules,"Features not configured");if(request.type()==org.dextur.reputation.domain.policy.AdministrationData.Type.OVERRIDE&&!featuresRules.policies().containsKey(request.policy()))throw new IllegalArgumentException("ADMIN_POLICY");Objects.requireNonNull(tierRules,"Tiers not configured");
         try(var c=connect()){c.setAutoCommit(false);try{var old=new SqlVoting(this).ensure(c,request.player(),request.scope(),request.at());var repo=new SqlAdministration(this);var change=org.dextur.reputation.domain.policy.AdministrationData.apply(repo.get(c,request.player(),request.scope()),old,request,featuresRules.administration());
-            if(!change.duplicate()){var p=change.profile();try(var s=c.prepareStatement("UPDATE dr_profiles SET system_score=?,visible_score=?,profile_revision=?,updated_at=? WHERE player_uuid=? AND scope_id=?")){s.setLong(1,p.systemScore());s.setLong(2,p.visibleScore());s.setLong(3,p.revision());timestamp(s,4,p.updatedAt());s.setString(5,p.playerId().toString());s.setString(6,p.scopeId());if(s.executeUpdate()!=1)throw new SQLException("Administration profile missing");}repo.put(c,change.state());}
+            if(!change.duplicate()){var p=change.profile();try(var s=c.prepareStatement("UPDATE dr_profiles SET system_score=?,visible_score=?,profile_revision=?,updated_at=? WHERE player_uuid=? AND scope_id=?")){s.setLong(1,p.systemScore());s.setLong(2,p.visibleScore());s.setLong(3,p.revision());timestamp(s,4,p.updatedAt());s.setString(5,p.playerId().toString());s.setString(6,p.scopeId());if(s.executeUpdate()!=1)throw new SQLException("Administration profile missing");}repo.put(c,change.state());captureLegacy(c,InvestigationLegacy.administration(change.audit()));}
             var result=reconcileTier(c,change.profile());c.commit();return new org.dextur.reputation.domain.policy.AdministrationData.Change(change.state(),result,change.audit(),change.duplicate());
         }catch(Exception error){c.rollback();throw error;}}
     }
+
+    private void enableInvestigationSchema()throws Exception{if(investigationSchema)return;enableAdministrationSchema();if(database!=null)new SchemaMigrator().investigation(database.dataSource());else try(var c=connect()){c.setAutoCommit(false);try{SqlInvestigation.sqlite(c);c.commit();}catch(Exception e){c.rollback();throw e;}}investigationSchema=true;}
+    void captureFlag(Connection c,Assessment a)throws Exception{if(!investigationSchema)return;var repo=new SqlInvestigation(this);for(String source:a.signals())if(repo.get(c,Kind.FLAG,InvestigationEngine.flagId(a.voteId(),source))==null){checkInvestigationCapacity(c);repo.put(c,InvestigationReports.flag(a,source));}}
+    @Override public synchronized void investigation(Rules rules)throws Exception{enableInvestigationSchema();investigationRules=rules;
+        try(var c=connect();var q=c.prepareStatement("DELETE FROM dr_investigation WHERE kind='DIAGNOSTIC' AND created_at<?")){new SqlVoting(this).time(q,1,StorageSnapshot.now().minusSeconds(rules.diagnosticRetentionDays()*86400L));q.executeUpdate();}
+        try(var c=connect()){c.setAutoCommit(false);try{var assessments=new SqlProtection(this).snapshot(c).assessments();for(var a:assessments)captureFlag(c,a);c.commit();}catch(Exception e){c.rollback();throw e;}}
+        var complete=snapshot();try(var c=connect()){c.setAutoCommit(false);try{for(var audit:InvestigationLegacy.all(complete))captureLegacy(c,audit);for(var marker:InvestigationLegacy.markers(complete))new SqlInvestigation(this).put(c,marker);c.commit();}catch(Exception e){c.rollback();throw e;}}
+    }
+    void captureLegacy(Connection c,Record record)throws Exception{if(investigationRules==null)return;var repository=new SqlInvestigation(this);if(repository.get(c,Kind.AUDIT,record.id())==null){checkInvestigationCapacity(c);repository.put(c,record);}}
+    void captureReview(Connection c,Audit audit,Assessment previous)throws Exception{if(investigationRules==null||previous==null)return;var repository=new SqlInvestigation(this);var old=repository.get(c,Kind.MODERATION,audit.voteId());if(old==null)checkInvestigationCapacity(c);repository.put(c,InvestigationLegacy.marker(audit,previous.status(),old==null?1:old.revision()+1));}
+    private void checkInvestigationCapacity(Connection c)throws Exception{if(investigationRules==null)return;try(var q=c.createStatement();var rows=q.executeQuery("SELECT COUNT(*) FROM dr_investigation")){rows.next();if(rows.getLong(1)>=investigationRules.maximumRecords())throw new IllegalStateException("INV_CAPACITY");}}
+    @FunctionalInterface private interface InvestigationWork<T>{T run(JdbcInvestigation session)throws Exception;}
+    private <T>T investigationTransaction(InvestigationWork<T> work)throws Exception{try(var c=connect()){if(database!=null)c.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);c.setAutoCommit(false);try{T result=work.run(new JdbcInvestigation(this,c,investigationRules,protectionRules,tierRules));c.commit();return result;}catch(Exception e){c.rollback();throw e;}}}
+    private <T>T investigationWrite(InvestigationWork<T> work)throws Exception{return investigationTransaction(session->{try(var q=session.c.prepareStatement("DELETE FROM dr_investigation WHERE kind='DIAGNOSTIC' AND created_at<?")){new SqlVoting(this).time(q,1,StorageSnapshot.now().minusSeconds(investigationRules.diagnosticRetentionDays()*86400L));q.executeUpdate();}return work.run(session);});}
+    @Override public synchronized Report investigate(Query query)throws Exception{return investigationTransaction(session->new InvestigationReports(session).read(query));}
+    @Override public synchronized Mutation moderate(Request request)throws Exception{return investigationWrite(session->new InvestigationEngine(session).mutate(request));}
+    @Override public synchronized Plan plan(Action action,String scope,Filter filter,String actor,String reason,Instant now)throws Exception{return investigationTransaction(session->new InvestigationBulk(session).plan(action,scope,filter,actor,reason,now));}
+    @Override public synchronized Record begin(UUID operation,Plan plan,Instant now)throws Exception{return investigationWrite(session->new InvestigationBulk(session).begin(operation,plan,now));}
+    @Override public synchronized Batch advance(UUID operation,String actor,boolean cancel,Instant now)throws Exception{try{return investigationWrite(session->new InvestigationBulk(session).advance(operation,actor,cancel,now));}catch(Exception error){try{investigationWrite(session->{InvestigationFailures.pause(session,operation,actor,error,now);return null;});}catch(Exception logging){error.addSuppressed(logging);}throw error;}}
+
     private void timestamp(PreparedStatement s,int index,Instant value) throws SQLException {
         if(database==null) s.setString(index,value.toString());else s.setTimestamp(index,Timestamp.from(value));
     }

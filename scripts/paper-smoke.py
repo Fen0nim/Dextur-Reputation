@@ -29,6 +29,8 @@ def main():
     parser.add_argument("--artifacts-directory", type=Path, default=ROOT / "reputation-paper/build/libs")
     parser.add_argument("--paper-jar", type=Path)
     parser.add_argument("--placeholderapi-jar", type=Path, help="Optional trusted PlaceholderAPI 2.12.3 jar")
+    parser.add_argument("--administration",action="store_true",help="Phase 7: real moderation, investigation, bulk confirmations, GUI and restart")
+    parser.add_argument("--phase6-json-fixture",type=Path,help="Complete genuine Phase 6 snapshot and original configuration")
     parser.add_argument("--policies",action="store_true",help="Phase 6: native administration, policy, locks, health, migration and restart")
     parser.add_argument("--phase5-json-fixture",type=Path,help="Genuine complete Phase 5 format-5 snapshot with original configuration beside it")
     parser.add_argument("--recovery",action="store_true",help="Phase 5: enrollment, native active time, login days, rewards, GUI, providers and restart")
@@ -45,7 +47,7 @@ def main():
     parser.add_argument("--phase3-json-fixture", type=Path, help="Preserved real Phase 3 format-3 snapshot, upgraded with --tiers")
     parser.add_argument("--phase2-json-fixture", type=Path, help="Import a preserved real Phase 2 format-2 snapshot through offline StorageAdmin before Paper startup")
     args = parser.parse_args()
-    if sum((args.voting,args.protection,args.tiers,args.recovery,args.policies))>1:
+    if sum((args.voting,args.protection,args.tiers,args.recovery,args.policies,args.administration))>1:
         parser.error("Run --voting, --protection, --tiers --recovery and --policies separately")
     if args.phase5_json_fixture and not args.policies:parser.error("--phase5-json-fixture requires --policies")
     if (args.phase4_json_fixture or args.recovery_disabled) and not args.recovery:parser.error("Phase 5 options require --recovery")
@@ -64,7 +66,7 @@ def main():
         parser.error("--directory must be new or empty; existing server files are never overwritten")
     directory.mkdir(parents=True, exist_ok=True)
     artifacts = args.artifacts_directory.resolve()
-    for name in ("DexturReputation.jar", "DexturReputationProbe.jar") + (("DexturReputation-StorageAdmin.jar",) if args.phase2_json_fixture or args.tiers or args.recovery or args.policies else ()):
+    for name in ("DexturReputation.jar", "DexturReputationProbe.jar") + (("DexturReputation-StorageAdmin.jar",) if args.phase2_json_fixture or args.tiers or args.recovery or args.policies or args.administration else ()):
         if not (artifacts / name).is_file():
             parser.error(f"Build {name} first: ./gradlew build :reputation-paper:runtimeProbeJar")
     paper = directory / "paper.jar"
@@ -91,7 +93,7 @@ def main():
     resources = ROOT / "reputation-paper/src/main/resources"
     for name in ("config.yml", "integrations.yml"):
         shutil.copyfile(resources / name, config / name)
-    if args.voting or args.protection or args.tiers or args.recovery or args.policies:
+    if args.voting or args.protection or args.tiers or args.recovery or args.policies or args.administration:
         voting = (resources / "voting.yml").read_text().replace("minimum-playtime-seconds: 108000", "minimum-playtime-seconds: 0").replace("minimum-account-age-seconds: 604800", "minimum-account-age-seconds: 0").replace("cooldown-seconds: 7200", "cooldown-seconds: 0").replace("base-daily-limit: 3", "base-daily-limit: 1000")
         (config / "voting.yml").write_text(voting)
         protection = (resources / "anti-abuse.yml").read_text().replace("enabled: true", "enabled: false")
@@ -129,7 +131,7 @@ def main():
         (config / "storage.yml").write_text(storage)
         java = str(Path(os.environ["JAVA_HOME"]) / "bin/java") if "JAVA_HOME" in os.environ else "java"
         if args.luckperms_jar:
-            if not (args.tiers or args.recovery or args.policies):
+            if not (args.tiers or args.recovery or args.policies or args.administration):
                 parser.error("--luckperms-jar requires --tiers, --recovery or --policies")
             shutil.copyfile(args.luckperms_jar,plugins / "LuckPerms.jar")
         phase3_fixture=None
@@ -182,7 +184,7 @@ def main():
             if args.recovery_disabled:recovery=recovery.replace("enabled: true","enabled: false",1)
             (config / "recovery.yml").write_text(recovery)
         phase5_fixture=None
-        if args.policies:
+        if args.policies or args.administration:
             import uuid
             def offline_id(name):
                 raw=bytearray(hashlib.md5(("OfflinePlayer:"+name).encode()).digest());raw[6]=(raw[6]&15)|48;raw[8]=(raw[8]&63)|128;return str(uuid.UUID(bytes=bytes(raw)))
@@ -193,6 +195,13 @@ def main():
                 data=json.loads(json.dumps(phase5_fixture["data"]));version=5
                 old_config=args.phase5_json_fixture.parent.parent.parent
                 for name in ("tiers.yml","recovery.yml","trust.yml","anti-abuse.yml","display.yml","gui.yml","integrations.yml"):
+                    if (old_config/name).is_file():shutil.copyfile(old_config/name,config/name)
+            if args.administration and args.phase6_json_fixture:
+                fixture=json.loads(args.phase6_json_fixture.read_text())
+                if fixture["formatVersion"]!=6:raise RuntimeError("Expected complete Phase 6 format 6")
+                data=json.loads(json.dumps(fixture["data"]));version=6
+                old_config=args.phase6_json_fixture.parent.parent.parent
+                for name in ("tiers.yml","recovery.yml","trust.yml","display.yml","gui.yml","integrations.yml"):
                     if (old_config/name).is_file():shutil.copyfile(old_config/name,config/name)
             data["profiles"].sort(key=lambda row:row["playerId"]+"/"+row["scope"])
             canonical=json.dumps(data,ensure_ascii=False,separators=(",",":"));snapshot={"formatVersion":version,"generation":0,"data":data,"sha256":hashlib.sha256((str(version)+"\n0\n"+canonical).encode()).hexdigest()}
@@ -205,6 +214,15 @@ def main():
             if args.luckperms_jar:
                 integration=(config/"integrations.yml").read_text().replace("  enabled: false","  enabled: true").replace("  tiers: {}","  tiers: {RECOGNIZED: reputation_recognized, RESPECTED: reputation_respected, SUSPICIOUS: reputation_suspicious}")
                 (config/"integrations.yml").write_text(integration)
+        phase6_fixture=None
+        if args.administration:
+            if args.phase6_json_fixture:
+                phase6_fixture=json.loads(args.phase6_json_fixture.read_text())
+                if phase6_fixture["formatVersion"]!=6:raise RuntimeError("Expected genuine Phase 6 format 6")
+                # The preceding optional Phase 5 seed is empty in this workflow. Replace that seed before import.
+            protection=(resources/"anti-abuse.yml").read_text().replace("enabled: true","enabled: false").replace("voting-weight:\n  enabled: false","voting-weight:\n  enabled: true").replace("base: {like: 1.0, dislike: 1.0}","base: {like: 0.35, dislike: 0.35}").replace("burst-protection:\n  enabled: false","burst-protection:\n  enabled: true").replace("suspicious-count: 10","suspicious-count: 2")
+            (config/"anti-abuse.yml").write_text(protection)
+            (config/"administration.yml").write_text((resources/"administration.yml").read_text().replace("confirmation-threshold: 10","confirmation-threshold: 1").replace("batch-size: 10","batch-size: 1"))
         legacy_fixture = None
         if args.phase2_json_fixture:
             legacy_fixture = json.loads(args.phase2_json_fixture.read_text())
@@ -230,6 +248,7 @@ def main():
             for protocol in ("http", "https"):
                 launch.extend([f"-D{protocol}.proxyHost={proxy.hostname}", f"-D{protocol}.proxyPort={proxy.port or 80}"])
         launch.append("-Ddextur.probe.storage=" + args.storage_type)
+        if args.administration:launch.append("-Ddextur.probe.administration=true")
         if args.policies:launch.append("-Ddextur.probe.policies=true")
         if args.recovery:
             launch.append("-Ddextur.probe.recovery=true")
@@ -258,9 +277,9 @@ def main():
             log = directory / f"smoke-{run}.log"
             clients = []
             try:
-                if args.voting or args.protection or args.tiers or args.recovery or args.policies:
+                if args.voting or args.protection or args.tiers or args.recovery or args.policies or args.administration:
                     import sys
-                    for username in (("Phase6Admin","Phase6Voter","Phase6Target") if args.policies else ("Phase5Target", "Phase5Other", "Phase5Provider") if args.recovery else ("Phase4A", "Phase4B", "Phase4Target") if args.tiers else ("Phase3A", "Phase3B", "Phase3Target") if args.protection else ("Phase2Voter", "Phase2Target")):
+                    for username in (("Phase7Admin","Phase7Voter","Phase7Target") if args.administration else ("Phase6Admin","Phase6Voter","Phase6Target") if args.policies else ("Phase5Target", "Phase5Other", "Phase5Provider") if args.recovery else ("Phase4A", "Phase4B", "Phase4Target") if args.tiers else ("Phase3A", "Phase3B", "Phase3Target") if args.protection else ("Phase2Voter", "Phase2Target")):
                         client_log = (directory / f"client-{username}-{run}.log").open("w")
                         client = subprocess.Popen([sys.executable, str(ROOT / "scripts/paper-test-client.py"), "--username", username]+(["--walk"] if args.recovery and username=="Phase5Target" else []), stdout=client_log, stderr=subprocess.STDOUT)
                         clients.append((client, client_log))
@@ -275,6 +294,7 @@ def main():
             text = log.read_text()
             if result.returncode != 0 or "PROBE_PASS:" not in text or "PROBE_FAIL:" in text:
                 raise RuntimeError(f"Paper run {run} failed; inspect {log}")
+            if args.administration and "PROBE_ADMINISTRATION_PASS:" not in text:raise RuntimeError(f"Administration verification missing; inspect {log}")
             if args.policies and "PROBE_POLICIES_PASS:" not in text:raise RuntimeError(f"Policy verification missing; inspect {log}")
             if args.policies and run==3 and "PROBE_POLICY_PAPI_PASS:" not in text:raise RuntimeError(f"Policy PAPI verification missing; inspect {log}")
             if args.recovery and "PROBE_RECOVERY_PASS:" not in text:raise RuntimeError(f"Recovery verification missing; inspect {log}")
@@ -301,7 +321,7 @@ def main():
                 with (directory / "offline-phase4-export.log").open("w") as output:subprocess.run([java,"-jar",str(artifacts / "DexturReputation-StorageAdmin.jar"),"migrate","--data-directory",str(config),"--target-config",str(export_config),"--backups",str(directory / "tier-backups"),"--confirm","STOPPED-ALL-WRITERS","--language","en_US"],env=server_environment,stdout=output,stderr=subprocess.STDOUT,check=True)
                 snapshot_path=config / "storage/phase4-export-json/state.json"
             current=json.loads(snapshot_path.read_text())
-            if current["formatVersion"] not in (4,5) or not current["data"]["tiers"]["states"]:raise RuntimeError("Phase 4 portable state missing")
+            if current["formatVersion"] not in (4,5,6,7) or not current["data"]["tiers"]["states"]:raise RuntimeError("Phase 4 portable state missing")
             target_id=offline_id("Phase4Target");state=next(row for row in current["data"]["tiers"]["states"] if row["player"]==target_id)
             if state["tier"]!="RESPECTED" or not state["history"]:raise RuntimeError("Durable hysteresis/history missing")
             if args.luckperms_jar and (state["ownedGroups"]!=["reputation_respected"] or state["appliedRevision"]!=state["syncRevision"]):raise RuntimeError("Durable LuckPerms ownership/reconciliation missing")
@@ -325,7 +345,7 @@ def main():
                 with (directory / "offline-phase5-export.log").open("w") as output:subprocess.run([java,"-jar",str(artifacts / "DexturReputation-StorageAdmin.jar"),"migrate","--data-directory",str(config),"--target-config",str(export_config),"--backups",str(directory / "recovery-backups"),"--confirm","STOPPED-ALL-WRITERS","--language","en_US"],env=server_environment,stdout=output,stderr=subprocess.STDOUT,check=True)
                 snapshot_path=config / "storage/phase5-export-json/state.json"
             current=json.loads(snapshot_path.read_text())
-            if current["formatVersion"]!=5 or not current["data"]["recovery"]["states"]:raise RuntimeError("Phase 5 portable state missing")
+            if current["formatVersion"] not in (5,6,7) or not current["data"]["recovery"]["states"]:raise RuntimeError("Phase 5 portable state missing")
             state=next(row for row in current["data"]["recovery"]["states"] if row["player"]==offline_id("Phase5Target"))
             if not args.recovery_disabled and (len(state["rewards"])!=3 or state["lifetimeReward"]!=30 or state["enrollments"][-1]["status"]!="COMPLETED"):raise RuntimeError("Recovery rewards/progress not preserved")
             if phase4_fixture:
@@ -346,7 +366,7 @@ def main():
                 with (directory/"offline-phase6-export.log").open("w") as output:subprocess.run([java,"-jar",str(artifacts/"DexturReputation-StorageAdmin.jar"),"migrate","--data-directory",str(config),"--target-config",str(target),"--backups",str(directory/"policy-backups"),"--confirm","STOPPED-ALL-WRITERS"],env=server_environment,stdout=output,stderr=subprocess.STDOUT,check=True)
                 snapshot_path=config/"storage/phase6-export-json/state.json"
             current=json.loads(snapshot_path.read_text())
-            if current["formatVersion"]!=6:raise RuntimeError("Phase 6 portable state missing")
+            if current["formatVersion"] not in (6,7):raise RuntimeError("Phase 6 portable state missing")
             rows={row["player"]+"/"+row["scope"]:row for row in current["data"]["administration"]["states"]}
             target=rows[offline_id("Phase6Target")+"/global"];voter=rows[offline_id("Phase6Voter")+"/global"]
             if target["contribution"]!=100 or not voter["votingLocked"] or len(target["audit"])<9:raise RuntimeError("Admin ledger/lock missing")
@@ -370,6 +390,35 @@ def main():
                 import runpy
                 cli=runpy.run_path(str(ROOT/"scripts/policy-cli-migrations.py"))
                 cli["verify"](directory,storage,java,artifacts,server_environment,container,args.database_engine,snapshot_path,resources)
+        if args.administration:
+            snapshot_path=config/"storage/json/state.json"
+            if args.storage_type!="JSON":
+                exported=storage.replace("type: "+args.storage_type,"type: JSON").replace("directory: storage/json","directory: storage/phase7-export-json")
+                target=config/"phase7-export.yml";target.write_text(exported)
+                with (directory/"offline-phase7-export.log").open("w") as output:subprocess.run([java,"-jar",str(artifacts/"DexturReputation-StorageAdmin.jar"),"migrate","--data-directory",str(config),"--target-config",str(target),"--backups",str(directory/"administration-backups"),"--confirm","STOPPED-ALL-WRITERS"],env=server_environment,stdout=output,stderr=subprocess.STDOUT,check=True)
+                snapshot_path=config/"storage/phase7-export-json/state.json"
+            current=json.loads(snapshot_path.read_text())
+            if current["formatVersion"]!=7 or not current["data"]["investigation"]["records"]:raise RuntimeError("Phase 7 state missing")
+            if phase6_fixture:
+                for collection,key in (("profiles",lambda row:row["playerId"]+"/"+row["scope"]),("preferences",lambda row:row["playerId"]),("votes",lambda row:row["id"])):
+                    actual={key(row):row for row in current["data"][collection]}
+                    if any(actual.get(key(row))!=row for row in phase6_fixture["data"][collection]):raise RuntimeError("Phase 6 collection changed: "+collection)
+                for name,key in (("trusts",lambda row:row["player"]+"/"+row["scope"]),("pairs",lambda row:row["scope"]+"/"+row["voter"]+"/"+row["target"]),("scores",lambda row:row["player"]+"/"+row["scope"]),("assessments",lambda row:row["voteId"]),("audit",lambda row:row["id"])):
+                    actual={key(row):row for row in current["data"]["protection"][name]}
+                    if any(actual.get(key(row))!=row for row in phase6_fixture["data"]["protection"][name]):raise RuntimeError("Phase 6 protection changed: "+name)
+                for name in ("administration","recovery","tiers"):
+                    actual={row["player"]+"/"+row["scope"]:row for row in current["data"][name]["states"]}
+                    for old in phase6_fixture["data"][name]["states"]:
+                        found=actual.get(old["player"]+"/"+old["scope"]);expected=dict(old)
+                        if name=="tiers" and args.luckperms_jar and found:
+                            for field in ("appliedRevision","ownedGroups"):expected[field]=found[field]
+                        if found!=expected:raise RuntimeError("Phase 6 ledger changed: "+name)
+                print("PHASE6_UPGRADE_PASS: complete original public/private/vote/recovery/policy/admin dataset preserved",flush=True)
+            print("PHASE7_CLI_PASS: complete moderation, audit, flag resolution and bulk metadata verified",flush=True)
+            if args.storage_type=="MYSQL":
+                import runpy
+                cli=runpy.run_path(str(ROOT/"scripts/policy-cli-migrations.py"))
+                cli["verify"](directory,storage,java,artifacts,server_environment,container,args.database_engine,snapshot_path,resources,phase_number=7)
         if legacy_fixture:
             # Paper is stopped: verify the complete old dataset and the new private state through
             # the real standalone CLI, including a Phase 3 SQL -> JSON migration where applicable.
@@ -387,7 +436,7 @@ def main():
                 if any(actual.get(key(row)) != row for row in legacy_fixture["data"][collection]):
                     raise RuntimeError("Phase 2 dataset changed: " + collection)
             private = current["data"]["protection"]
-            if current["formatVersion"] not in (3,4,5) or not private["trusts"] or not private["audit"] or not any(a["status"] == "PENDING" for a in private["assessments"]):
+            if current["formatVersion"] not in (3,4,5,6,7) or not private["trusts"] or not private["audit"] or not any(a["status"] == "PENDING" for a in private["assessments"]):
                 raise RuntimeError("Complete Phase 3 state was not preserved")
             print("PHASE2_DATA_AND_PHASE3_CLI_PASS: profiles, languages, historical votes, exact weights, Trust, audit and pending", flush=True)
     finally:

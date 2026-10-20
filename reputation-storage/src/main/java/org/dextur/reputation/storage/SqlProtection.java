@@ -81,9 +81,10 @@ final class SqlProtection {
                 sample.stream().limit(rules.analysis().maxEvents()).toList(),sample.size()<=rules.analysis().maxEvents());
     }
     void persist(Connection c,Change change) throws Exception {
+        var previousReview=!Set.of("VOTE","ANALYSIS").contains(change.audit().kind())&&!change.audit().evidence().containsKey("moderation_model")?get(c,"dr_vote_assessments",change.audit().voteId().toString(),Assessment.class):null;
         if(change.vote()!=null) voting.insert(c,change.vote());
         put(c,TABLES.get(0),change.trust(),false);put(c,TABLES.get(1),change.pair(),false);put(c,TABLES.get(2),change.score(),false);
-        for(var a:change.assessments()) put(c,TABLES.get(3),a,false);put(c,TABLES.get(4),change.audit(),true);put(c,TABLES.get(5),change.scope(),false);
+        for(var a:change.assessments()){put(c,TABLES.get(3),a,false);owner.captureFlag(c,a);}put(c,TABLES.get(4),change.audit(),true);put(c,TABLES.get(5),change.scope(),false);if(!Set.of("VOTE","ANALYSIS").contains(change.audit().kind())&&!change.audit().evidence().containsKey("moderation_model")){owner.captureLegacy(c,InvestigationLegacy.protection(change.audit()));owner.captureReview(c,change.audit(),previousReview);}
         try(var s=c.prepareStatement("DELETE FROM dr_active_votes WHERE scope_id=? AND voter_uuid=? AND target_uuid=?")) { s.setString(1,change.pair().scope());s.setString(2,change.pair().voter().toString());s.setString(3,change.pair().target().toString());s.executeUpdate(); }
         if(!change.pair().activeVote().isEmpty()) voting.active(c,voting.operation(c,UUID.fromString(change.pair().activeVote())));
         var p=change.profile();

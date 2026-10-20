@@ -2,7 +2,7 @@ name: DexturReputation
 version: '${version}'
 main: org.dextur.reputation.paper.DexturReputationPlugin
 api-version: '26.2'
-description: Asynchronous reputation, tiers and display for Dextur (Phase 6)
+description: Asynchronous reputation, tiers and display for Dextur (Phase 7)
 load: POSTWORLD
 softdepend: [PlaceholderAPI, LuckPerms, TAB]
 commands:
@@ -11,7 +11,7 @@ commands:
   rep:
     description: Reputation profile and language selection
   repadmin:
-    description: Essential reputation administration
+    description: Reputation administration and investigation
   like:
     description: Positive reputation vote
   dislike:
@@ -64,4 +64,42 @@ permissions:
   dexturreputation.admin.policy:
     default: op
   dexturreputation.admin.reload:
+    default: op
+  dexturreputation.admin.inspect:
+    default: op
+  dexturreputation.admin.history:
+    default: op
+  dexturreputation.admin.vote.inspect:
+    default: op
+  dexturreputation.admin.vote.invalidate:
+    default: op
+  dexturreputation.admin.vote.restore:
+    default: op
+  dexturreputation.admin.pending.view:
+    default: op
+  dexturreputation.admin.pending.approve:
+    default: op
+  dexturreputation.admin.pending.reject:
+    default: op
+  dexturreputation.admin.trust.inspect:
+    default: op
+  dexturreputation.admin.flags.inspect:
+    default: op
+  dexturreputation.admin.flags.resolve:
+    default: op
+  dexturreputation.admin.relations.inspect:
+    default: op
+  dexturreputation.admin.recalculate.reputation:
+    default: op
+  dexturreputation.admin.recalculate.trust:
+    default: op
+  dexturreputation.admin.recalculate.tier:
+    default: op
+  dexturreputation.admin.recalculate.all:
+    default: op
+  dexturreputation.admin.audit:
+    default: op
+  dexturreputation.admin.gui:
+    default: op
+  dexturreputation.admin.bulk:
     default: op

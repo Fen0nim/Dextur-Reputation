@@ -1,4 +1,4 @@
-# DexturReputation — Phase 6
+# DexturReputation — Phase 7
 
 Основа репутации Dextur: **Paper 26.2**, **Java 25**, три взаимозаменяемых хранилища.
 Новые установки используют **JSON без БД и пароля**. SQLite и MySQL/MariaDB выбираются
@@ -145,3 +145,7 @@ Runtime: `--recovery` отдельно от `--tiers/--protection/--voting`; т�
 /repadmin set/add/remove меняют отдельный auditable admin contribution без удаления votes/recovery/Trust; set задаёт результирующую публичную целую оценку. /repadmin voting lock/unlock/status работает для известных offline UUID; policy allow/deny/reset сохраняет индивидуальные overrides. /repadmin reload атомарно применяет только features.yml. Optional health adapter выключен по умолчанию и использует собственный обратимый transient modifier. /rep policies, GUI и три cache-only PAPI значения показывают публичные последствия без скрытого Trust.
 
 JSON format 6 / SQL V6 сохраняют весь Phase 1–5 dataset; offline StorageAdmin переносит admin ledger/locks/overrides во всех шести направлениях. Читайте [POLICIES](docs/POLICIES.md), [ADMIN_ESSENTIALS](docs/ADMIN_ESSENTIALS.md), [HEALTH](docs/HEALTH.md) и [отчёт Phase 6](docs/PHASE_6_TEST_REPORT.md). Phase 7 не реализована.
+
+## Phase 7 — Administration & Investigation
+
+Version 0.7.0-SNAPSHOT adds private moderation/investigation commands and GUI, reversible vote invalidation, pending review, bounded relationships, recalculation, audited resumable bulk operations and schema 7. Existing Phases 1–6 behavior/API remain. See [administration](docs/ADMINISTRATION.md), [investigation](docs/INVESTIGATION.md), [audit/backups](docs/AUDIT.md) and [verification](docs/PHASE_7_TEST_REPORT.md). Phase 8 is not implemented.

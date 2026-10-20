@@ -47,7 +47,7 @@ public final class ProtectionData {
         public Audit {
             Objects.requireNonNull(id);ProtectionData.scope(scope);Objects.requireNonNull(voteId);Objects.requireNonNull(voter);Objects.requireNonNull(target);Objects.requireNonNull(status);Objects.requireNonNull(createdAt);
             uuidOrEmpty(oldActive);uuidOrEmpty(newActive);Objects.requireNonNull(actor);Objects.requireNonNull(reason);evidence=ordered(evidence);relatedPlayers=relatedPlayers.stream().distinct().sorted().toList();
-            if(sequence<1||inputRevision<0||!Set.of("VOTE","ACCEPT","INVALIDATE","CONFIRM_MANIPULATION","ANALYSIS").contains(kind)||reason.length()>1000
+            if(sequence<1||inputRevision<0||!Set.of("VOTE","ACCEPT","INVALIDATE","CONFIRM_MANIPULATION","ANALYSIS","RESTORE").contains(kind)||reason.length()>1000
                     ||Math.addExact(Math.subtractExact(beforeUnits,removedUnits),addedUnits)!=afterUnits) fail();
         }
     }

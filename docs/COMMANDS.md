@@ -52,3 +52,7 @@ Trust/admin reload-команд в этой фазе нет. Tab completion пр
 ## Phase 6
 
 /repadmin set/add/remove; /repadmin voting lock/unlock/status; /repadmin policy allow/deny/reset; /repadmin reload; /rep policies [id]. Полная грамматика, signed integer semantics, UUID/console audit и offline поведение — [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md). Public consequences/GUI — [POLICIES](POLICIES.md). Это essential operations, не Phase 7 investigation suite.
+
+## Phase 7
+
+Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.

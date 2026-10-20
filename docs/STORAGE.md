@@ -240,3 +240,7 @@ JSON format 5 / SQLite user_version 5 / MySQL-MariaDB V5__recovery.sql доба�
 ## Phase 6
 
 JSON format6 / SQLite schema6 / MySQL-MariaDB V6__administration.sql добавляют отдельный canonical checksummed admin ledger, voting locks и policy overrides. V1–V5 сохранены; старые portable constructors и snapshots поддерживаются. Все шесть migration directions охватывают полный Phase 1–6 state с backups/pending/full verification/last activation/source retention. Backup и точная aggregate модель: [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md).
+
+## Phase 7
+
+Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.

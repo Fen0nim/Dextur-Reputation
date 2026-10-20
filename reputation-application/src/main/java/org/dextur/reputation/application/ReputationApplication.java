@@ -115,6 +115,9 @@ public final class ReputationApplication implements ReputationService, AutoClose
         int a = Math.floorMod(first.hashCode(), profileLocks.length), b = Math.floorMod(second.hashCode(), profileLocks.length);
         synchronized (profileLocks[Math.min(a,b)]) { synchronized (profileLocks[Math.max(a,b)]) { return operation.run(); } }
     }
+    <T> T withPlayers(java.util.Collection<UUID> players,Operation<T> work)throws Exception{int[] stripes=players.stream().mapToInt(id->Math.floorMod(id.hashCode(),profileLocks.length)).distinct().sorted().toArray();return withStripes(stripes,0,work);}
+    <T> T withAllProfiles(Operation<T> work)throws Exception{return withStripes(java.util.stream.IntStream.range(0,profileLocks.length).toArray(),0,work);}
+    private <T>T withStripes(int[] stripes,int index,Operation<T> work)throws Exception{if(index==stripes.length)return work.run();synchronized(profileLocks[stripes[index]]){return withStripes(stripes,index+1,work);}}
     public void observeProfiles(java.util.function.BiConsumer<ReputationSnapshot,Boolean> observer) { profileObserver=Objects.requireNonNull(observer); }
     void updateProfile(ReputationSnapshot profile) { updateProfile(profile,true); }
     void updateProfile(ReputationSnapshot profile,boolean committed) { profiles.put(profile.playerId(), profile);profileObserver.accept(profile,committed);for(var observer:additionalObservers)observer.accept(profile,committed); }
