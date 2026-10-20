@@ -1,3 +1,11 @@
+# Phase 5 — 0.5.0-SNAPSHOT
+
+- Versioned rehabilitation programs, ordered verified objectives, bounded activity tracking and immutable provider API.
+- Atomic system rewards and audited bounded Trust credits; no changes to community votes.
+- JSON format 5, SQLite/MySQL/MariaDB V5 recovery ledger, complete offline migrations.
+- RU/EN recovery commands, GUI, cache-only PAPI and local committed events.
+- Preserve Phase 1–4 API/config/history; stop before Phase 6.
+
 # Changelog
 
 ## 0.3.0-SNAPSHOT — Phase 3

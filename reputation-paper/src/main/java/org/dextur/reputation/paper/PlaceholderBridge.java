@@ -12,6 +12,9 @@ final class PlaceholderBridge extends PlaceholderExpansion {
     private final ReputationApplication application;
     private final Messages messages;
     private org.dextur.reputation.api.TierService tiers;
+    private org.dextur.reputation.api.RecoveryService recovery;
+    private boolean recoveryPlaceholders=true;
+    void recovery(org.dextur.reputation.api.RecoveryService recovery,boolean enabled){this.recovery=recovery;recoveryPlaceholders=enabled;}
     private org.dextur.reputation.application.DisplayFormatter formatter;
     void tiers(org.dextur.reputation.api.TierService tiers,org.dextur.reputation.application.DisplayFormatter formatter) {this.tiers=tiers;this.formatter=formatter;}
     PlaceholderBridge(DexturReputationPlugin plugin, ReputationApplication application, Messages messages) {
@@ -24,6 +27,9 @@ final class PlaceholderBridge extends PlaceholderExpansion {
     @Override public String onRequest(OfflinePlayer player, String parameter) {
         if (player == null || !plugin.ready()) return "";
         var id = player.getUniqueId();
+        if(parameter.startsWith("recovery_")){
+            if(recovery==null||!recoveryPlaceholders)return "";var s=recovery.cached(id);if(s.isEmpty())return "";var v=s.get();return switch(parameter){case "recovery_status"->v.status().name();case "recovery_stage"->v.stageId();case "recovery_progress"->Integer.toString(v.progressPercent());case "recovery_completed_tasks"->Integer.toString(v.completedTasks());case "recovery_total_tasks"->Integer.toString(v.objectives().size());case "recovery_eligible"->Boolean.toString(v.eligible());default->null;};
+        }
         var cached = application.cachedProfile(id);
         if (cached.isEmpty()) return "";
         var language = application.cachedLanguage(id);

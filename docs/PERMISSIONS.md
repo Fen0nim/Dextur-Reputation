@@ -28,3 +28,8 @@
 права новой операции получает Paper-адаптер. Нет permission bypass для квоты, возраста или
 cooldown. Дубликат уже зафиксированного API operation ID можно подтвердить без повторной
 eligibility-проверки; это не новая запись и не изменение репутации.
+
+
+## Phase 5
+
+dexturreputation.recovery, .recovery.start, .recovery.status, .recovery.cancel — default true; вместе с dexturreputation.use. Status требуется для GUI/tasks/progress/rewards/help. dexturreputation.recovery.admin — default op, ограниченные операции /rep admin recovery. Новых gameplay permissions/ограничений Phase 6 нет.

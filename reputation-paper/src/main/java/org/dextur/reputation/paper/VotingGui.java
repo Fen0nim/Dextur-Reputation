@@ -29,6 +29,8 @@ final class VotingGui implements Listener {
     private final GuiConfiguration config;
     private final Messages messages;
     private TierService tiers;
+    private RecoveryGui recovery;
+    void recovery(RecoveryGui recovery){this.recovery=recovery;}
     private DisplayFormatter formatter;
     void tiers(TierService tiers,DisplayFormatter formatter,org.dextur.reputation.domain.tier.TierRules rules) {
         this.tiers=tiers;this.formatter=formatter;
@@ -71,6 +73,7 @@ final class VotingGui implements Listener {
                 }
                 session.inventory.setItem(button.slot(),item(config.tierPanel().icons().getOrDefault(tier.id(),config.tierPanel().material()),messages.content(language,"gui-profile",Map.of("player",name,"reputation",messages.number(language,tier.score()))),lore));
             });
+            if(recovery!=null)recovery.attach(player,session);
             if(!player.getUniqueId().equals(target)) {
                 if(commands.allowed(player,"vote")&&commands.allowed(player,"positive")) button(session,player,"like",()->reasons(player,target,name,VoteType.POSITIVE,1));
                 if(commands.allowed(player,"vote")&&commands.allowed(player,"negative")) button(session,player,"dislike",()->reasons(player,target,name,VoteType.NEGATIVE,1));

@@ -43,7 +43,7 @@ final class JournalProtection {
         var profiles=new ArrayList<>(state.profiles());profiles.removeIf(p->p.playerId().equals(change.profile().playerId())&&p.scopeId().equals(change.profile().scopeId()));
         profiles.add(change.profile());if(voter!=null&&profiles.stream().noneMatch(p->p.playerId().equals(voter.playerId())&&p.scopeId().equals(voter.scopeId()))) profiles.add(voter);
         var votes=new ArrayList<>(state.votes());if(change.vote()!=null) votes.add(change.vote());
-        return new StorageSnapshot(profiles,state.preferences(),votes,state.protection().apply(change));
+        return new StorageSnapshot(profiles,state.preferences(),votes,state.protection().apply(change),TierSnapshot.empty(),state.recovery());
     }
     record Analysis(ScopeState scope,Audit event) { }
     static Analysis analysis(View view,VoteEntry latest,long before,ProtectionRules rules,Instant now) {

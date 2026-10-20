@@ -1,4 +1,4 @@
-# DexturReputation — Phase 4
+# DexturReputation — Phase 5
 
 Основа репутации Dextur: **Paper 26.2**, **Java 25**, три взаимозаменяемых хранилища.
 Новые установки используют **JSON без БД и пароля**. SQLite и MySQL/MariaDB выбираются
@@ -9,7 +9,7 @@
 лимиты, замена/отзыв, истории, статистика и GUI. Новые профили имеют нулевые оценки,
 tier `NEUTRAL`; прежний API и команды сохранены. Добавлены скрытый Trust, точные дробные веса,
 защита от повторов/взаимных групп и всплесков, pending-review и атомарный аудит решений.
-Trust не показывается игрокам и не зависит от знака публичной репутации. Добавлены настраиваемые уровни, гистерезис, оформление и необязательная LuckPerms. Phase 5 не реализована.
+Trust не показывается игрокам и не зависит от знака публичной репутации. Добавлены настраиваемые уровни, гистерезис, оформление и необязательная LuckPerms. Добавлена ограниченная многоэтапная реабилитация с проверяемыми целями и отдельным системным журналом наград.
 
 ## Сборка и проверка
 
@@ -27,7 +27,7 @@ Gradle Wrapper 9.7.0, версии/locks зависимостей и SHA-256 ф�
 - `reputation-paper/build/libs/DexturReputation.jar` — устанавливаемый Paper-плагин.
 - `reputation-paper/build/libs/DexturReputation-StorageAdmin.jar` — **отдельный offline CLI**
   для переноса/восстановления. Не помещайте этот JAR в `plugins/`.
-- `reputation-api/build/libs/reputation-api-0.4.0-SNAPSHOT.jar` — API для `compileOnly`;
+- `reputation-api/build/libs/reputation-api-0.5.0-SNAPSHOT.jar` — API для `compileOnly`;
   не упаковывайте повторную копию API в плагины-потребители.
 
 ## Установка и обновление
@@ -88,9 +88,9 @@ QA-плагин не входит в основной JAR. Логи/миры о�
 Документация: [хранилища/миграции/backup](docs/STORAGE.md), [конфигурация](docs/CONFIGURATION.md),
 [архитектура](docs/ARCHITECTURE.md), [API](docs/API_DOCUMENTATION.md), [команды](docs/COMMANDS.md),
 [права](docs/PERMISSIONS.md), [совместимость](docs/COMPATIBILITY.md),
-[текущий отчёт](docs/PHASE_3_TEST_REPORT.md), [история](CHANGELOG.md).
+[текущий отчёт](docs/PHASE_5_TEST_REPORT.md), [история](CHANGELOG.md).
 
-**Работа ограничена Phase 4. Phase 5 требует отдельного явного разрешения.**
+**Работа ограничена Phase 5. Phase 6 требует отдельного явного разрешения.**
 
 ## Phase 3
 
@@ -125,4 +125,15 @@ Phase 4 adds configurable reputation tiers with durable hysteresis, immutable as
 
 Read [TIERS](docs/TIERS.md), [DISPLAY](docs/DISPLAY.md), [LUCKPERMS](docs/LUCKPERMS.md), [storage](docs/STORAGE.md), [API](docs/API_DOCUMENTATION.md) and the [Phase 4 verification report](docs/PHASE_4_TEST_REPORT.md). Configuration changes merge defaults in memory and never overwrite administrator files. JSON format 4 / SQL schema 4 preserve all Phase 1–3 data; migrations retain complete tier history and permission intent. The offline StorageAdmin JAR remains an offline utility, not a Paper plugin.
 
-**STOP after Phase 4. Phase 5 requires explicit authorization.**
+**STOP after Phase 5. Phase 6 requires explicit authorization.**
+
+
+### Phase 5 — восстановление репутации
+
+`recovery.yml`: committed score ≤ -100, 30 часов игры, 7 дней с первого входа; ручное вступление по умолчанию. Три настраиваемых этапа: активная игра, разные login days, ожидание. Default reward 5/10/15 system points, cap 30/program и 150/lifetime UUID/scope. Старые голоса не стираются. Trust-кредит ограничен, скрыт и не обходит подтверждённые ограничения.
+
+`/rep recovery [status|start|tasks|progress|rewards|cancel|help]`, собственный GUI и шесть cache-only PAPI values. Ограниченные offline admin pause/resume/reset_stage/cancel/lock/unlock доступны операторам. Frozen definitions, persistent operation IDs, session watermarks, отдельный audit и единая транзакция reward/profile/Trust/tier защищают restart/повторы/переносы. JSON format 5 / SQL V5 сохраняют прежние данные; StorageAdmin переносит полный ledger с backup/verification.
+
+Читайте [RECOVERY](docs/RECOVERY.md), [Recovery API](docs/RECOVERY_API.md) и [проверки Phase 5](docs/PHASE_5_TEST_REPORT.md), включая ограничения AFK, системных часов, роста истории и локальных событий. Нет распознавания всех ботов или реализации торгов/контрактов/economy. После вступления и resume первый интервал, пересекающий границу, устанавливает baseline; прежняя/приостановленная активность не переигрывается.
+
+Runtime: `--recovery` отдельно от `--tiers/--protection/--voting`; три native клиента, один передаёт настоящие movement packets. QA меняет только отдельные тестовые конфиги. `--phase4-json-fixture /path/to/stopped/phase4/state.json` проверяет полный прежний снимок (рядом должен сохраниться исходный tiers.yml/integrations.yml). `--recovery-disabled` проверяет отключённую функцию. MYSQL engine выбирается `--database-engine MARIADB|MYSQL`. Используйте свежий каталог, pinned Paper/Mojang jars и полный PAPI JAR, как в остальных smoke-сценариях.

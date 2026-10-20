@@ -22,12 +22,15 @@ final class ReputationCommands implements CommandExecutor, TabCompleter {
     private final Settings settings;
     private final Messages messages;
     private VotingCommands voting;
+    private RecoveryCommands recovery;
+    void recovery(RecoveryCommands recovery){this.recovery=recovery;}
     void voting(VotingCommands voting) { this.voting=voting; }
 
     ReputationCommands(DexturReputationPlugin plugin, ReputationApplication application, Settings settings, Messages messages) {
         this.plugin = plugin; this.application = application; this.settings = settings; this.messages = messages;
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if(recovery!=null&&command.getName().equals("rep")&&recovery.rep(sender,args))return true;
         if (voting != null && command.getName().equals("rep") && voting.rep(sender,args)) return true;
         PlayerLanguage language = sender instanceof Player player ? application.cachedLanguage(player.getUniqueId()) : settings.defaultLanguage();
         if (command.getName().equals("dexturreputation")) {
@@ -103,7 +106,7 @@ final class ReputationCommands implements CommandExecutor, TabCompleter {
         sender.sendMessage(messages.render(language, key, placeholders));
     }
     @Override public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (voting != null && command.getName().equals("rep")) return voting.onTabComplete(sender,command,alias,args);
+        if(voting!=null&&command.getName().equals("rep")){var result=new java.util.LinkedHashSet<String>(voting.onTabComplete(sender,command,alias,args));if(recovery!=null)result.addAll(recovery.tabs(sender,args));return List.copyOf(result);}
         List<String> candidates;
         if (command.getName().equals("dexturreputation")) {
             candidates = args.length == 1 ? (sender.hasPermission("dexturreputation.status") ? List.of("help", "version", "status", "storage") : List.of("help", "version")) : List.of();

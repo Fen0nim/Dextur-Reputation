@@ -78,3 +78,8 @@ Trust, точные формулы и пороги не выводятся иг�
 pending, факт обработки, временную недоступность и обобщённый статус. Все динамические
 значения вставляются безопасными Components. Файлы БД/portable backup содержат скрытые данные:
 ограничьте доступ администраторами, как и к конфигам/обычным резервным копиям.
+
+
+## Phase 5
+
+Rehabilitation credit model 1 — версионированный auditable factor внутри прежней Trust modelVersion 1. Credit bounded, применяется после обычного min/max расчёта; confirmed/restricted исключает credit, lifetime budget не возвращается. Historical votes/pair ceilings не повышаются. В public Recovery API/GUI/PAPI Trust отсутствует. Формула, defaults и ограничения: [RECOVERY.md](RECOVERY.md).

@@ -120,3 +120,113 @@ gui-tier-progress: '<gray>До следующего положительного
 gui-tier-maximum: '<gray>Более высокий положительный уровень не настроен.</gray>'
 gui-tier-benefits: '<gray>Описание: {benefits}</gray>'
 display-conflict: '<yellow>Оформление пропущено: {reason}. Используйте placeholders/API.</yellow>'
+
+recovery-title: 'Восстановление репутации'
+
+recovery-help: '/rep recovery [status|start|tasks|progress|rewards|cancel|help]'
+
+recovery-admin-help: '/rep admin recovery <известный игрок/UUID> <status|start|pause|resume|reset_stage|cancel|lock|unlock> [причина]'
+
+recovery-summary: '{program}: {state}. Этап: {stage}. Прогресс: {progress}% ({completed}/{total}). Условия: {reason}.'
+
+recovery-error: 'Операция восстановления отклонена: {reason}.'
+
+recovery-cooldown: 'Повторное участие доступно после (UTC): {cooldown}.'
+
+recovery-objective: '{objective}: {progress}/{required} — {available}'
+
+recovery-objective-description: '{description}'
+
+recovery-reward: 'Этап {stage}: начислено {amount} системной репутации ({time}).'
+
+recovery-proposed-reward: 'Возможная награда {stage}: до {amount} с учётом лимитов.'
+
+recovery-no-rewards: 'Награды пока не начислены.'
+
+recovery-available: 'Доступно'
+
+recovery-unavailable: 'Провайдер недоступен'
+
+recovery-start: 'Начать восстановление'
+
+recovery-cancel: 'Отменить программу (повтор — после cooldown)'
+
+recovery-gui-disabled: 'Окно восстановления отключено; используйте /rep recovery status.'
+
+recovery-event: 'Восстановление: {event}. Прогресс {progress}%.'
+
+recovery-state-available: 'Доступна'
+
+recovery-state-active: 'Активна'
+
+recovery-state-paused: 'Приостановлена'
+
+recovery-state-completed: 'Завершена'
+
+recovery-state-cancelled: 'Отменена'
+
+recovery-state-expired: 'Истекла'
+
+recovery-reason-disabled: 'Восстановление отключено'
+
+recovery-reason-unknown: 'Игрок неизвестен серверу'
+
+recovery-reason-locked: 'Административная блокировка'
+
+recovery-reason-active: 'Уже участвуете в программе'
+
+recovery-reason-score: 'Репутация выше порога вступления'
+
+recovery-reason-playtime: 'Недостаточно игрового времени'
+
+recovery-reason-age: 'Недостаточный срок с первого входа'
+
+recovery-reason-cooldown: 'Период ожидания повторного участия'
+
+recovery-reason-restricted: 'Действует подтверждённое ограничение'
+
+recovery-reason-ready: 'Условия выполнены'
+
+recovery-reason-manual-disabled: 'Ручное вступление отключено'
+
+recovery-reason-provider-unavailable: 'Провайдер цели недоступен'
+
+recovery-reason-stale-enrollment: 'Программа уже изменилась; обновите данные'
+
+recovery-reason-clock-regression: 'Время сервера переместилось назад; исправьте часы'
+
+recovery-reason-receipt-limit: 'Достигнут лимит журнала операций; требуется администратор'
+
+recovery-reason-day-limit: 'Достигнут лимит истории дней'
+
+recovery-reason-error: 'Операция недоступна; подробности в журнале сервера'
+
+recovery-reason-id-conflict: 'Идентификатор операции уже использован с другими данными'
+
+recovery-reason-invalid-objective: 'Некорректная цель'
+
+recovery-reason-invalid-progress: 'Некорректный прогресс'
+
+recovery-event-program-started: 'Программа начата'
+
+recovery-event-stage-completed: 'Этап завершён'
+
+recovery-event-progress-changed: 'Прогресс сохранён'
+
+recovery-event-reward-granted: 'Награда начислена'
+
+recovery-event-program-paused: 'Программа приостановлена'
+
+recovery-event-program-completed: 'Программа завершена'
+
+recovery-event-program-cancelled: 'Программа отменена'
+
+recovery-event-program-expired: 'Срок программы истёк'
+
+recovery-event-program-resumed: 'Программа возобновлена'
+
+recovery-reason-paused: 'Программа приостановлена; требуется решение администратора'
+
+recovery-event-administrative-lock-changed: 'Блокировка восстановления изменена'
+
+recovery-reason-capacity: 'Лимит трекера активности достигнут; сообщите администратору'

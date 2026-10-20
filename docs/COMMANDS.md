@@ -42,3 +42,8 @@ Trust/admin reload-команд в этой фазе нет. Tab completion пр
 Имена, причины и языки имеют tab completion с учётом прав. Консоль может читать профиль/причины,
 но не голосовать и не открывать GUI. На успех отвечает только durable commit. Правила и
 поведение неопределённой ошибки — [VOTING.md](VOTING.md).
+
+
+## Phase 5
+
+/rep recovery открывает отдельный экран; status/start/tasks/progress/rewards/help/cancel — локализованные команды. /rep admin recovery <known-name|UUID> status|start|pause|resume|reset_stage|cancel|lock|unlock [reason] — ограниченное администрирование, включая offline. Eligibility/cooldown сохраняются для admin start. Force reward/Trust overwrite/удаление history не добавлены. Права и примеры: [RECOVERY.md](RECOVERY.md).

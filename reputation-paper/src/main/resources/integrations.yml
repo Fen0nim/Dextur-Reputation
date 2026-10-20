@@ -8,3 +8,5 @@ luckperms:
   retry-seconds: 30
   batch-size: 16
   tiers: {} # TIER_ID: reputation_group; overrides tiers.yml mapping
+
+recovery-placeholders: true

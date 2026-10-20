@@ -7,7 +7,8 @@ import org.dextur.reputation.domain.PlayerLanguage;
 
 /** Canonically ordered portable representation, including all scopes and preference timestamps. */
 public record StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference> preferences,
-        List<org.dextur.reputation.api.VoteEntry> votes, ProtectionSnapshot protection, TierSnapshot tiers) {
+        List<org.dextur.reputation.api.VoteEntry> votes, ProtectionSnapshot protection, TierSnapshot tiers,RecoverySnapshotData recovery) {
+    public StorageSnapshot(List<ReputationSnapshot> profiles,List<Preference> preferences,List<org.dextur.reputation.api.VoteEntry> votes,ProtectionSnapshot protection,TierSnapshot tiers){this(profiles,preferences,votes,protection,tiers,RecoverySnapshotData.empty());}
     public StorageSnapshot(List<ReputationSnapshot> profiles,List<Preference> preferences,List<org.dextur.reputation.api.VoteEntry> votes,ProtectionSnapshot protection) { this(profiles,preferences,votes,protection,TierSnapshot.empty()); }
     public StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference> preferences, List<org.dextur.reputation.api.VoteEntry> votes) { this(profiles,preferences,votes,ProtectionSnapshot.empty()); }
     public StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference> preferences) { this(profiles, preferences, List.of()); }
@@ -15,7 +16,7 @@ public record StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference
         public Preference { Objects.requireNonNull(playerId); Objects.requireNonNull(language); Objects.requireNonNull(updatedAt); }
     }
     public StorageSnapshot {
-        Objects.requireNonNull(protection);Objects.requireNonNull(tiers);tiers.validate(profiles);
+        Objects.requireNonNull(recovery);recovery.validate(profiles);Objects.requireNonNull(protection);Objects.requireNonNull(tiers);tiers.validate(profiles);
         Set<String> precise = protection.scores().stream().map(org.dextur.reputation.domain.protection.ProtectionData.Score::key).collect(java.util.stream.Collectors.toSet());
         Set<String> ids = new HashSet<>();
         for (var p : profiles) {
@@ -57,8 +58,10 @@ public record StorageSnapshot(List<ReputationSnapshot> profiles, List<Preference
             if (!precise.contains(profile.playerId()+"/"+profile.scopeId()) && score != null && (score != profile.communityScore() || Math.addExact(profile.communityScore(),profile.systemScore()) != profile.visibleScore())) throw new IllegalArgumentException("Profile/journal mismatch");
         }
         ProtectionValidation.validate(profiles,votes,protection);
+        for(var trust:protection.trusts())if(trust.explanation().getOrDefault("rehabilitation_credit",0L)>0){var ledger=recovery.get(trust.player(),trust.scope());if(ledger==null||trust.explanation().get("rehabilitation_credit")>ledger.lifetimeTrust()||trust.explanation().getOrDefault("rehabilitation_model",0L)!=1)throw new IllegalArgumentException("Trust/recovery ledger mismatch");}
+        for(var row:recovery.states())if(row.lifetimeTrust()>0&&protection.trusts().stream().noneMatch(t->t.player().equals(row.player())&&t.scope().equals(row.scope())))throw new IllegalArgumentException("Recovery Trust record missing");
     }
     public static StorageSnapshot empty() { return new StorageSnapshot(List.of(), List.of()); }
-    public boolean isEmpty() { return profiles.isEmpty() && preferences.isEmpty() && votes.isEmpty() && protection.isEmpty() && tiers.isEmpty(); }
+    public boolean isEmpty() { return profiles.isEmpty() && preferences.isEmpty() && votes.isEmpty() && protection.isEmpty() && tiers.isEmpty() && recovery.isEmpty(); }
     static Instant now() { return Instant.now().truncatedTo(java.time.temporal.ChronoUnit.MICROS); }
 }

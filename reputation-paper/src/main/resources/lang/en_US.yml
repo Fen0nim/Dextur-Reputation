@@ -120,3 +120,113 @@ gui-tier-progress: '<gray>Next positive threshold: {threshold}; remaining: {rema
 gui-tier-maximum: '<gray>No higher positive tier is configured.</gray>'
 gui-tier-benefits: '<gray>Description: {benefits}</gray>'
 display-conflict: '<yellow>Display skipped: {reason}. Use placeholders/API.</yellow>'
+
+recovery-title: 'Reputation rehabilitation'
+
+recovery-help: '/rep recovery [status|start|tasks|progress|rewards|cancel|help]'
+
+recovery-admin-help: '/rep admin recovery <known player/UUID> <status|start|pause|resume|reset_stage|cancel|lock|unlock> [reason]'
+
+recovery-summary: '{program}: {state}. Stage: {stage}. Progress: {progress}% ({completed}/{total}). Eligibility: {reason}.'
+
+recovery-error: 'Recovery operation rejected: {reason}.'
+
+recovery-cooldown: 'Repeat enrollment available after (UTC): {cooldown}.'
+
+recovery-objective: '{objective}: {progress}/{required} — {available}'
+
+recovery-objective-description: '{description}'
+
+recovery-reward: 'Stage {stage}: granted {amount} system reputation ({time}).'
+
+recovery-proposed-reward: 'Proposed reward {stage}: up to {amount}, subject to caps.'
+
+recovery-no-rewards: 'No rewards granted yet.'
+
+recovery-available: 'Available'
+
+recovery-unavailable: 'Provider unavailable'
+
+recovery-start: 'Start rehabilitation'
+
+recovery-cancel: 'Cancel program (repeat cooldown applies)'
+
+recovery-gui-disabled: 'Recovery GUI disabled; use /rep recovery status.'
+
+recovery-event: 'Rehabilitation: {event}. Progress {progress}%.'
+
+recovery-state-available: 'Available'
+
+recovery-state-active: 'Active'
+
+recovery-state-paused: 'Paused'
+
+recovery-state-completed: 'Completed'
+
+recovery-state-cancelled: 'Cancelled'
+
+recovery-state-expired: 'Expired'
+
+recovery-reason-disabled: 'Recovery disabled'
+
+recovery-reason-unknown: 'Unknown player'
+
+recovery-reason-locked: 'Administrative lock'
+
+recovery-reason-active: 'Already enrolled'
+
+recovery-reason-score: 'Reputation above enrollment threshold'
+
+recovery-reason-playtime: 'Insufficient playtime'
+
+recovery-reason-age: 'Insufficient server age'
+
+recovery-reason-cooldown: 'Repeat enrollment cooldown'
+
+recovery-reason-restricted: 'Confirmed restriction is active'
+
+recovery-reason-ready: 'Eligible'
+
+recovery-reason-manual-disabled: 'Manual enrollment disabled'
+
+recovery-reason-provider-unavailable: 'Objective provider unavailable'
+
+recovery-reason-stale-enrollment: 'Enrollment changed; refresh status'
+
+recovery-reason-clock-regression: 'Server clock moved backwards; correct the clock'
+
+recovery-reason-receipt-limit: 'Operation journal limit reached; contact an administrator'
+
+recovery-reason-day-limit: 'Day history limit reached'
+
+recovery-reason-error: 'Operation unavailable; see server log'
+
+recovery-reason-id-conflict: 'Operation identifier reused with different data'
+
+recovery-reason-invalid-objective: 'Invalid objective'
+
+recovery-reason-invalid-progress: 'Invalid progress'
+
+recovery-event-program-started: 'Program started'
+
+recovery-event-stage-completed: 'Stage completed'
+
+recovery-event-progress-changed: 'Progress saved'
+
+recovery-event-reward-granted: 'Reward granted'
+
+recovery-event-program-paused: 'Program paused'
+
+recovery-event-program-completed: 'Program completed'
+
+recovery-event-program-cancelled: 'Program cancelled'
+
+recovery-event-program-expired: 'Program expired'
+
+recovery-event-program-resumed: 'Program resumed'
+
+recovery-reason-paused: 'Program paused; an administrator must resume it'
+
+recovery-event-administrative-lock-changed: 'Recovery administrative lock changed'
+
+recovery-reason-capacity: 'Activity tracker capacity reached; contact an administrator'

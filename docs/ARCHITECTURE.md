@@ -125,3 +125,8 @@ Background: один non-overlapping Trust job (до 100, default 20), один 
 batches/refreshed/stale/failed/reviewed/elapsedNanos/running; отдельный флаг исключает overlap графа.
 
 Подробные формулы и эксплуатационные границы: [TRUST.md](TRUST.md), [ANTI_ABUSE.md](ANTI_ABUSE.md).
+
+
+## Phase 5
+
+RecoveryRepository/RecoveryEngine отделены от Paper. RecoveryApplication использует общий bounded executor, admission и profile locks. RecoveryData хранит frozen programs, receipts, session/activity watermarks, rewards и audit. SQL V5 dr_recovery + profile/Trust/tier используют одно соединение/COMMIT; JSON format 5 — один atomic replacement. Providers проверяются до transaction; локальные события публикуются после commit. Подробности: [RECOVERY.md](RECOVERY.md), [RECOVERY_API.md](RECOVERY_API.md).

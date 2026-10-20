@@ -2,7 +2,7 @@ name: DexturReputation
 version: '${version}'
 main: org.dextur.reputation.paper.DexturReputationPlugin
 api-version: '26.2'
-description: Asynchronous reputation, tiers and display for Dextur (Phase 4)
+description: Asynchronous reputation, tiers and display for Dextur (Phase 5)
 load: POSTWORLD
 softdepend: [PlaceholderAPI, LuckPerms, TAB]
 commands:
@@ -35,3 +35,13 @@ permissions:
     default: true
   dexturreputation.reasons:
     default: true
+  dexturreputation.recovery:
+    default: true
+  dexturreputation.recovery.start:
+    default: true
+  dexturreputation.recovery.status:
+    default: true
+  dexturreputation.recovery.cancel:
+    default: true
+  dexturreputation.recovery.admin:
+    default: op

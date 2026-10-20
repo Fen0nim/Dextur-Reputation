@@ -12,6 +12,8 @@ import struct
 import time
 import uuid
 import zlib
+import threading
+import math
 
 
 def varint(number):
@@ -39,10 +41,13 @@ def string(value):
     return varint(len(data)) + data
 
 
-def run(port, username):
+def run(port, username, walk=False):
     with socket.create_connection(("127.0.0.1", port), timeout=5) as connection:
         connection.settimeout(60)
         threshold = None
+        send_lock=threading.Lock()
+        position=[None]
+        stopped=threading.Event()
 
         def read(size):
             result = bytearray()
@@ -57,8 +62,17 @@ def run(port, username):
             packet = varint(packet_id) + body
             if threshold is not None:
                 packet = varint(len(packet)) + zlib.compress(packet) if len(packet) >= threshold else b"\0" + packet
-            connection.sendall(varint(len(packet)) + packet)
+            with send_lock:connection.sendall(varint(len(packet)) + packet)
 
+        def movement():
+            angle=0.0
+            while not stopped.wait(0.1):
+                base=position[0]
+                if base is not None and base[1]>=199:
+                    angle+=0.12
+                    try:send(0x1E,struct.pack(">dddB",base[0]+3*math.sin(angle),base[1],base[2]+3*(1-math.cos(angle)),0))
+                    except OSError:return
+        if walk:threading.Thread(target=movement,daemon=True).start()
         identity = bytearray(hashlib.md5(("OfflinePlayer:" + username).encode()).digest())
         identity[6] = (identity[6] & 15) | 48
         identity[8] = (identity[8] & 63) | 128
@@ -107,7 +121,10 @@ def run(port, username):
                 if packet_id == 0x2C:
                     send(0x1C, body)
                 elif packet_id == 0x48:
-                    teleport_id = read_varint(BytesIO(body).read)
+                    payload=BytesIO(body)
+                    teleport_id = read_varint(payload.read)
+                    coordinates=payload.read(24)
+                    if len(coordinates)==24:position[0]=struct.unpack(">ddd",coordinates)
                     send(0, varint(teleport_id))
                     send(0x2C)
                 elif packet_id == 0x20:
@@ -118,11 +135,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=25566)
     parser.add_argument("--username", default="Phase2Voter")
+    parser.add_argument("--walk",action="store_true",help="Send native movement for isolated Phase 5 activity tests")
     args = parser.parse_args()
     deadline = time.monotonic() + 160
     while time.monotonic() < deadline:
         try:
-            run(args.port, args.username)
+            run(args.port, args.username,args.walk)
             return
         except (ConnectionRefusedError, ConnectionResetError, EOFError, socket.timeout):
             time.sleep(0.25)

@@ -11,7 +11,7 @@ public final class TrustModel {
     private TrustModel() { }
     public static Trust initial(UUID player,String scope,VoterFacts facts,ProtectionRules rules,Instant now,long inputRevision) {
         return new Trust(player,scope,rules.trust().initial(),1,now,1,inputRevision,facts.playtimeSeconds(),facts.firstJoined(),now,0,0,0,Instant.EPOCH,
-                Map.of("initial_only",1L,"initial",rules.trust().initial(),"maturity",maturity(facts,rules,now)));
+                Map.of("initial_only",1L,"initial",rules.trust().initial(),"maturity",maturity(facts,rules,now),"enabled",rules.trust().enabled()?1L:0L,"minimum",rules.trust().min(),"maximum",rules.trust().max()));
     }
     public static long maturity(VoterFacts facts,ProtectionRules rules,Instant now) {
         long age=Math.max(0,Duration.between(facts.firstJoined(),now).getSeconds());
@@ -36,15 +36,29 @@ public final class TrustModel {
             if(config.history()) score=Math.addExact(Math.subtractExact(score,product(config.reliabilityPenalty(),reliability)+product(config.riskPenalty(),risk)),product(config.diversityInfluence(),diversity));
             if(config.penalties()) score=Math.subtractExact(score,Math.multiplyExact(config.confirmedPenalty(),Math.min(confirmed,1000000)));
         }
+        long rehabilitation=previous==null?0:previous.explanation().getOrDefault("rehabilitation_credit",0L);
+        if(confirmed>0||previous!=null&&previous.restrictedUntil().isAfter(now))rehabilitation=0;
         score=clamp(score,config.min(),config.max());
+        if(config.enabled())score=clamp(Math.addExact(score,rehabilitation),config.min(),config.max());
         var explanation=new TreeMap<String,Long>();explanation.put("maturity",maturity);explanation.put("outgoing_diversity",diversity);explanation.put("invalidated_fraction",reliability);explanation.put("repeat_risk",risk);
         explanation.put("initial",config.initial());explanation.put("confirmed",confirmed);explanation.put("enabled",config.enabled()?1L:0L);explanation.put("minimum",config.min());explanation.put("maximum",config.max());
         explanation.put("maturity_enabled",config.maturity()?1L:0L);explanation.put("history_enabled",config.history()?1L:0L);explanation.put("penalties_enabled",config.penalties()?1L:0L);
         explanation.put("maturity_influence",config.maturityInfluence());explanation.put("reliability_penalty",config.reliabilityPenalty());explanation.put("diversity_influence",config.diversityInfluence());
         explanation.put("repeat_penalty",config.riskPenalty());explanation.put("confirmed_penalty",config.confirmedPenalty());
+        if(rehabilitation>0){explanation.put("rehabilitation_credit",rehabilitation);explanation.put("rehabilitation_model",1L);}
         return new Trust(player,scope,score,1,now,previous==null?1:Math.incrementExact(previous.revision()),inputRevision,
                 facts.playtimeSeconds(),facts.firstJoined(),facts.online()||previous==null?now:previous.factsAt(),submitted,invalid,confirmed,previous==null?Instant.EPOCH:previous.restrictedUntil(),
                 explanation);
+    }
+    public static boolean canRehabilitate(Trust trust){return trust!=null&&trust.explanation().getOrDefault("enabled",0L)==1&&trust.explanation().containsKey("minimum")&&trust.explanation().containsKey("maximum");}
+    /** Rehabilitation credit model 1 adds at most 0.10 after the ordinary model, and never offsets confirmed penalties/restrictions. */
+    public static Trust rehabilitate(Trust previous,long totalCredit,Instant now) {
+        if(totalCredit<0||totalCredit>100000||!canRehabilitate(previous)||previous.confirmed()>0||previous.restrictedUntil().isAfter(now))throw new IllegalArgumentException("Trust rehabilitation restricted");
+        var f=new TreeMap<>(previous.explanation());
+        if(f.getOrDefault("initial_only",0L)==1){f.remove("initial_only");f.put("maturity_enabled",0L);f.put("history_enabled",0L);f.put("penalties_enabled",0L);}
+        f.put("rehabilitation_credit",totalCredit);f.put("rehabilitation_model",1L);
+        var candidate=new Trust(previous.player(),previous.scope(),previous.score(),1,now,previous.revision()+1,previous.inputRevision(),previous.playtimeSeconds(),previous.firstJoined(),previous.factsAt(),previous.submitted(),previous.invalidated(),previous.confirmed(),previous.restrictedUntil(),f);
+        return new Trust(candidate.player(),candidate.scope(),reproduce(candidate),1,now,candidate.revision(),candidate.inputRevision(),candidate.playtimeSeconds(),candidate.firstJoined(),candidate.factsAt(),candidate.submitted(),candidate.invalidated(),candidate.confirmed(),candidate.restrictedUntil(),f);
     }
     /** Uses only persisted factors, independent of the current configuration. */
     public static long reproduce(Trust trust) {
@@ -54,6 +68,8 @@ public final class TrustModel {
             if(f.get("history_enabled")==1) score=Math.addExact(Math.subtractExact(score,product(f.get("reliability_penalty"),f.get("invalidated_fraction"))+product(f.get("repeat_penalty"),f.get("repeat_risk"))),product(f.get("diversity_influence"),f.get("outgoing_diversity")));
             if(f.get("penalties_enabled")==1) score=Math.subtractExact(score,Math.multiplyExact(f.get("confirmed_penalty"),Math.min(f.get("confirmed"),1000000)));
         }
-        return clamp(score,f.get("minimum"),f.get("maximum"));
+        score=clamp(score,f.get("minimum"),f.get("maximum"));
+        if(f.getOrDefault("enabled",0L)==1&&trust.confirmed()==0&&!trust.restrictedUntil().isAfter(trust.calculatedAt()))score=clamp(Math.addExact(score,f.getOrDefault("rehabilitation_credit",0L)),f.get("minimum"),f.get("maximum"));
+        return score;
     }
 }

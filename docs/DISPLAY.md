@@ -55,3 +55,8 @@ DexturChat can consume `TierService`/`ReputationService` or these placeholders u
 ## Notifications
 
 Default: enabled chat, action bar/title disabled, no sound, cooldown 10 seconds. Independent switches: gain, loss, negative, severe, recover, neutral. Each destination tier can disable its notifications. RU/EN templates live in `lang/*.yml` (`tier-*`). Title and namespaced sound are optional; configured sound names are syntactically validated. Effects run on Paper's thread after durable commit. A bounded queue drains at most `refresh.batch-size` per refresh; saturation drops best-effort notifications, not committed transitions or permission intent. Offline/cooldown-suppressed notifications are not replayed on login. Repeated reads, reconnects and restart do not emit old transitions. No hidden Trust/factors are included.
+
+
+## Phase 5
+
+Старые значения сохранены. Шесть recovery_* placeholders читают только immutable RecoveryService cache, без SQL/Trust. Форматы и miss behavior: [RECOVERY.md](RECOVERY.md).

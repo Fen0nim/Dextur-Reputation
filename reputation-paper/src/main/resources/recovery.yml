@@ -1,0 +1,78 @@
+config-version: 1
+recovery:
+  enabled: true
+  eligibility:
+    reputation-at-or-below: -100
+    minimum-playtime-hours: 30
+    minimum-server-age-days: 7
+  enrollment:
+    automatic: false
+    manual: true
+    maximum-active-programs: 1
+    repeat-cooldown-days: 30
+    expiration-days: 180
+  activity:
+    timezone: UTC
+    inactivity-timeout-seconds: 120
+    minimum-meaningful-activity: 3
+    eligible-day-active-seconds: 300
+    persistence-seconds: 30
+    batch-size: 32
+    maximum-tracked-players: 4096
+  rewards:
+    maximum-per-program: 30
+    maximum-lifetime-recovery: 150
+    maximum-program-trust-credit-units: 10000
+    maximum-lifetime-trust-credit-units: 50000
+  violations:
+    suspicious-signal: NONE
+    confirmed-abuse: PAUSE
+    administrative-lock: PAUSE
+  program:
+    id: rehabilitation
+    version: 1
+    names: {ru_RU: 'Восстановление репутации', en_US: 'Reputation rehabilitation'}
+    stages:
+      - id: stabilization
+        names: {ru_RU: 'Стабилизация', en_US: 'Stabilization'}
+        icon: CLOCK
+        reputation: 5
+        trust-credit-units: 5000
+        objectives:
+          - id: stabilization_active
+            type: ACTIVE_PLAYTIME
+            required: 18000
+            names: {ru_RU: 'Активная игра', en_US: 'Active gameplay'}
+            descriptions: {ru_RU: 'Проведите 5 часов в активной игре.', en_US: 'Complete 5 hours of eligible active gameplay.'}
+      - id: consistency
+        names: {ru_RU: 'Последовательность', en_US: 'Consistency'}
+        icon: BOOK
+        reputation: 10
+        trust-credit-units: 0
+        objectives:
+          - id: consistency_days
+            type: LOGIN_DAYS
+            required: 3
+            names: {ru_RU: 'Разные игровые дни', en_US: 'Distinct eligible days'}
+            descriptions: {ru_RU: 'Играйте активно в 3 разных календарных дня.', en_US: 'Participate actively on 3 distinct calendar days.'}
+          - id: consistency_active
+            type: ACTIVE_PLAYTIME
+            required: 36000
+            names: {ru_RU: 'Стабильная активность', en_US: 'Consistent activity'}
+            descriptions: {ru_RU: 'Дополнительно проведите 10 часов в активной игре.', en_US: 'Complete another 10 hours of active gameplay.'}
+      - id: restoration
+        names: {ru_RU: 'Восстановление', en_US: 'Restoration'}
+        icon: EMERALD
+        reputation: 15
+        trust-credit-units: 5000
+        objectives:
+          - id: restoration_wait
+            type: WAIT_PERIOD
+            required: 604800
+            names: {ru_RU: 'Период наблюдения', en_US: 'Observation period'}
+            descriptions: {ru_RU: 'Пройдите семидневный период наблюдения.', en_US: 'Complete a seven-day observation period.'}
+          - id: restoration_active
+            type: ACTIVE_PLAYTIME
+            required: 18000
+            names: {ru_RU: 'Продолжение участия', en_US: 'Continued participation'}
+            descriptions: {ru_RU: 'Дополнительно проведите 5 часов в активной игре.', en_US: 'Complete another 5 hours of active gameplay.'}

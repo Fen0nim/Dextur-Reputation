@@ -67,3 +67,8 @@ TEAM_IF_FREE работает только на свободных команд�
 Не заявляется универсальная совместимость с любыми packet-плагинами, ручная проверка пикселей,
 Folia/Velocity, production TPS/TLS/power-loss или гарантированная доставка событий после crash.
 Все ограничения, владельцы и форматы описаны в DISPLAY.md и LUCKPERMS.md.
+
+
+## Phase 5
+
+Phase 5 сохраняет старые API signatures/commands/placeholders/config и V1–V4 SQL. Добавлены RecoveryService и immutable snapshots, JSON format 5 / SQL V5. Downgrade требует полного backup до обновления. Optional PAPI/LP остаются optional. Реальный Paper/Java25 и все backend проверяются в [PHASE_5_TEST_REPORT.md](PHASE_5_TEST_REPORT.md). Phase 6 не реализована.

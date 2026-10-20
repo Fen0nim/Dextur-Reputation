@@ -162,3 +162,8 @@ AutoCloseable subscription = tiers.onTierChanged(change -> {
 `TierChanged` contains transition ID, immutable resulting tier snapshot, previous stable ID and `notifyPlayer` hint. Subscriptions should be closed when no longer needed; at most 128 active subscriptions. Read operations, duplicate vote requests and cache refreshes do not emit old transitions. Bootstrap/configuration reconciliation suppresses player notifications. Persisted history and permission intent repair state, not lost public event delivery. This is a local single-owner API, not a cross-server outbox. On shutdown services unregister and asynchronous new requests fail; existing accepted storage work drains according to the existing deadline.
 
 Formatting conventions for every old/new PAPI value are in [DISPLAY.md](DISPLAY.md). Chat integrations should use this API or placeholders without intercepting DexturChat messages.
+
+
+## Phase 5
+
+Новый асинхронный RecoveryService, immutable RecoverySnapshot, objective provider handles, typed after-commit events и future reward extension hooks: [RECOVERY_API.md](RECOVERY_API.md). Старые records/сервисы Phase 1–4 сохраняют свои компоненты и сигнатуры. Trust и private audit не выдаются.
