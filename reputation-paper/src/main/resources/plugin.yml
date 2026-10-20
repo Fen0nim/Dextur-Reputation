@@ -2,7 +2,7 @@ name: DexturReputation
 version: '${version}'
 main: org.dextur.reputation.paper.DexturReputationPlugin
 api-version: '26.2'
-description: Asynchronous reputation, tiers and display for Dextur (Phase 5)
+description: Asynchronous reputation, tiers and display for Dextur (Phase 6)
 load: POSTWORLD
 softdepend: [PlaceholderAPI, LuckPerms, TAB]
 commands:
@@ -10,6 +10,8 @@ commands:
     description: Reputation diagnostics and help
   rep:
     description: Reputation profile and language selection
+  repadmin:
+    description: Essential reputation administration
   like:
     description: Positive reputation vote
   dislike:
@@ -44,4 +46,22 @@ permissions:
   dexturreputation.recovery.cancel:
     default: true
   dexturreputation.recovery.admin:
+    default: op
+  dexturreputation.policies:
+    default: true
+  dexturreputation.admin.set:
+    default: op
+  dexturreputation.admin.add:
+    default: op
+  dexturreputation.admin.remove:
+    default: op
+  dexturreputation.admin.voting.lock:
+    default: op
+  dexturreputation.admin.voting.unlock:
+    default: op
+  dexturreputation.admin.voting.status:
+    default: op
+  dexturreputation.admin.policy:
+    default: op
+  dexturreputation.admin.reload:
     default: op

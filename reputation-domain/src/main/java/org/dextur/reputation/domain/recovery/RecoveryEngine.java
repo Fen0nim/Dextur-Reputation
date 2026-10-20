@@ -13,14 +13,17 @@ import static org.dextur.reputation.api.RecoverySnapshot.Status.*;
 public final class RecoveryEngine {
     private RecoveryEngine() { }
     public static Change evaluate(State before,ReputationSnapshot profile,Trust trust,RecoveryRules current,Request request) {
-        State initial=before==null?State.empty(request.player(),request.scope(),profile.systemScore()):before;
-        return new Work(initial,profile,trust,current,request).run();
+        return evaluate(before,profile,trust,current,request,0);
+    }
+    public static Change evaluate(State before,ReputationSnapshot profile,Trust trust,RecoveryRules current,Request request,long administrativeContribution) {
+        State initial=before==null?State.empty(request.player(),request.scope(),Math.subtractExact(profile.systemScore(),administrativeContribution)):before;
+        return new Work(initial,profile,trust,current,request,administrativeContribution).run();
     }
     private static final class Work {
-        final State old;final Request r;final RecoveryRules current;final List<Enrollment> enrollments;final List<Reward> rewards;final List<Audit> audit;final List<Receipt> receipts;
+        final long administrativeContribution;final State old;final Request r;final RecoveryRules current;final List<Enrollment> enrollments;final List<Reward> rewards;final List<Audit> audit;final List<Receipt> receipts;
         final Map<String,Long> dayActive;final Set<String> days;final Set<String> loginDates;final List<Audit> added=new ArrayList<>();
         ReputationSnapshot profile;Trust trust;Enrollment e;long lifetime,credit,play,active,sessionPlay,sessionActive,confirmed;UUID session;String latestDay;boolean locked;Instant activityAt,eligibleSince;String auditStatus;
-        Work(State old,ReputationSnapshot profile,Trust trust,RecoveryRules current,Request r){
+        Work(State old,ReputationSnapshot profile,Trust trust,RecoveryRules current,Request r,long administrativeContribution){this.administrativeContribution=administrativeContribution;
             this.old=old;this.profile=profile;this.trust=trust;this.current=current;this.r=r;e=old.current();auditStatus=e==null?AVAILABLE.name():e.status().name();enrollments=new ArrayList<>(old.enrollments());rewards=new ArrayList<>(old.rewards());audit=new ArrayList<>(old.audit());receipts=new ArrayList<>(old.receipts());dayActive=new TreeMap<>(old.dayActive());days=new TreeSet<>(old.loginDays());loginDates=new TreeSet<>(old.loginDates());
             lifetime=old.lifetimeReward();credit=old.lifetimeTrust();play=old.play();active=old.active();session=old.session();sessionPlay=old.sessionConnected();sessionActive=old.sessionActive();confirmed=old.confirmedSeen();latestDay=old.latestDay();locked=old.locked();activityAt=old.activityAt();eligibleSince=old.eligibleSince();
         }
@@ -112,7 +115,7 @@ public final class RecoveryEngine {
                 long spent=rewards.stream().filter(x->x.enrollment().equals(e.id())).mapToLong(Reward::reputation).sum();long usedCredit=rewards.stream().filter(x->x.enrollment().equals(e.id())).mapToLong(Reward::trustCredit).sum();
                 long amount=Math.min(stage.reputation(),Math.min(Math.max(0,Math.min(current.maximumProgramReward(),e.definition().maximumProgramReward())-spent),Math.max(0,Math.min(current.maximumLifetimeReward(),e.definition().maximumLifetimeReward())-lifetime)));
                 boolean trustAllowed=TrustModel.canRehabilitate(trust)&&trust.confirmed()==0&&!locked&&!trust.restrictedUntil().isAfter(r.now());long grantedCredit=!trustAllowed?0:Math.min(stage.trustCredit(),Math.min(Math.max(0,Math.min(current.maximumTrustCredit(),e.definition().maximumTrustCredit())-usedCredit),Math.max(0,Math.min(current.lifetimeTrustCredit(),e.definition().lifetimeTrustCredit())-credit)));
-                long after=Math.addExact(profile.systemScore(),amount);rewards.add(new Reward(rewardId,e.id(),stage.id(),amount,grantedCredit,profile.systemScore(),after,Math.min(current.maximumProgramReward(),e.definition().maximumProgramReward()),Math.min(current.maximumLifetimeReward(),e.definition().maximumLifetimeReward()),Math.min(current.maximumTrustCredit(),e.definition().maximumTrustCredit()),Math.min(current.lifetimeTrustCredit(),e.definition().lifetimeTrustCredit()),trustAllowed,r.now()));lifetime=Math.addExact(lifetime,amount);credit=Math.addExact(credit,grantedCredit);
+                long after=Math.addExact(profile.systemScore(),amount);rewards.add(new Reward(rewardId,e.id(),stage.id(),amount,grantedCredit,Math.subtractExact(profile.systemScore(),administrativeContribution),Math.subtractExact(after,administrativeContribution),Math.min(current.maximumProgramReward(),e.definition().maximumProgramReward()),Math.min(current.maximumLifetimeReward(),e.definition().maximumLifetimeReward()),Math.min(current.maximumTrustCredit(),e.definition().maximumTrustCredit()),Math.min(current.lifetimeTrustCredit(),e.definition().lifetimeTrustCredit()),trustAllowed,r.now()));lifetime=Math.addExact(lifetime,amount);credit=Math.addExact(credit,grantedCredit);
                 profile=new ReputationSnapshot(profile.playerId(),profile.scopeId(),profile.communityScore(),after,Math.addExact(profile.communityScore(),after),profile.tier(),Math.incrementExact(profile.revision()),profile.createdAt(),r.now());
                 if(grantedCredit>0)trust=TrustModel.rehabilitate(trust,credit,r.now());
                 event(RecoveryService.Kind.REWARD_GRANTED,"");

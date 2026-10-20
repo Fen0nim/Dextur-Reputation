@@ -10,3 +10,5 @@ luckperms:
   tiers: {} # TIER_ID: reputation_group; overrides tiers.yml mapping
 
 recovery-placeholders: true
+
+policy-placeholders: true

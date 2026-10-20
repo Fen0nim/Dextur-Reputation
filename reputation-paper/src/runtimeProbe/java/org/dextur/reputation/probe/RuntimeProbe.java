@@ -89,7 +89,8 @@ public final class RuntimeProbe extends JavaPlugin {
             getLogger().info("PROBE_PAPI_PASS: registration and all three cached placeholders");
         }
         Object checkedExpansionManager=expansionManager;
-        if(Boolean.getBoolean("dextur.probe.recovery"))new RecoveryRuntimeProbe(this).start(()->{try{finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}},this::fail);
+        if(Boolean.getBoolean("dextur.probe.policies"))new PolicyRuntimeProbe(this).start(()->{try{finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}},this::fail);
+        else if(Boolean.getBoolean("dextur.probe.recovery"))new RecoveryRuntimeProbe(this).start(()->{try{finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}},this::fail);
         else if(Boolean.getBoolean("dextur.probe.tiers")) new TierRuntimeProbe(this).start(()->{
             try {finish(checkedExpansionManager);}catch(Throwable failure){fail(failure);}
         },this::fail);
@@ -104,14 +105,18 @@ public final class RuntimeProbe extends JavaPlugin {
     private void finish(Object expansionManager) throws Exception {
         // Resolve the dependency class while its plugin classloader is still enabled.
         Class<org.dextur.reputation.api.VotingService> votingApi=org.dextur.reputation.api.VotingService.class;
+        Class<org.dextur.reputation.api.ReputationPolicyService> policyApi=org.dextur.reputation.api.ReputationPolicyService.class;
         Class<org.dextur.reputation.api.RecoveryService> recoveryApi=org.dextur.reputation.api.RecoveryService.class;
         Class<org.dextur.reputation.api.TierService> tierApi=org.dextur.reputation.api.TierService.class;
         var target = getServer().getPluginManager().getPlugin("DexturReputation");
         getServer().getPluginManager().disablePlugin(target);
         for(var player:getServer().getOnlinePlayers()) {
             var holder=player.getOpenInventory().getTopInventory().getHolder();
-            if(holder!=null&&(holder.getClass().getName().endsWith("VotingGui$Session")||holder.getClass().getName().endsWith("RecoveryGui$Session"))) throw new AssertionError("GUI remained open after listener cleanup");
+            if(holder!=null&&(holder.getClass().getName().endsWith("VotingGui$Session")||holder.getClass().getName().endsWith("RecoveryGui$Session")||holder.getClass().getName().endsWith("PolicyEffects$Panel"))) throw new AssertionError("GUI remained open after listener cleanup");
         }
+        if(getServer().getServicesManager().load(policyApi)!=null)throw new AssertionError("Policy API leaked on shutdown");
+        for(var player:getServer().getOnlinePlayers()){var health=player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);if(health!=null&&health.getModifiers().stream().anyMatch(m->m.getKey().equals(new org.bukkit.NamespacedKey("dexturreputation","reputation-health"))))throw new AssertionError("Owned health modifier leaked on shutdown");}
+        if(Boolean.getBoolean("dextur.probe.policies")){var subject=getServer().getPlayerExact("Phase6Target");if(subject==null||subject.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH).getModifier(new org.bukkit.NamespacedKey("phase6qa","foreign-health"))==null)throw new AssertionError("Foreign health modifier removed on disable");}
         if(getServer().getServicesManager().load(recoveryApi)!=null)throw new AssertionError("Recovery service leaked on shutdown");
         if(getServer().getServicesManager().load(tierApi)!=null)throw new AssertionError("Tier API not unregistered");
         for(var viewer:getServer().getOnlinePlayers())for(var team:viewer.getScoreboard().getTeams())if(team.getName().startsWith("drt_"))throw new AssertionError("Owned display team leaked on disable");

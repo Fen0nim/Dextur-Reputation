@@ -167,3 +167,8 @@ Formatting conventions for every old/new PAPI value are in [DISPLAY.md](DISPLAY.
 ## Phase 5
 
 Новый асинхронный RecoveryService, immutable RecoverySnapshot, objective provider handles, typed after-commit events и future reward extension hooks: [RECOVERY_API.md](RECOVERY_API.md). Старые records/сервисы Phase 1–4 сохраняют свои компоненты и сигнатуры. Trust и private audit не выдаются.
+
+
+## Phase 6
+
+Новый ReputationPolicyService, immutable result/revision vector, limits/multipliers, public reason keys, metadata registration и consumer connections описаны в [POLICIES.md](POLICIES.md). Существующие API records/сервисы не менялись. Административная mutation capability не зарегистрирована как публичный Bukkit service; команды проверяют отдельные permissions. Никаких Trust/внутренних storage classes в policy API.

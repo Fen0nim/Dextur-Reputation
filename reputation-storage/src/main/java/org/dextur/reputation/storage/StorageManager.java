@@ -9,15 +9,16 @@ import org.dextur.reputation.domain.PlayerLanguage;
 import org.dextur.reputation.domain.ProfileRepository;
 
 /** Owns exactly one selected backend. No fallback or storage-dependent public API. */
-public final class StorageManager implements org.dextur.reputation.domain.recovery.RecoveryRepository, org.dextur.reputation.domain.tier.TierRepository, ProfileRepository, org.dextur.reputation.domain.VotingRepository, org.dextur.reputation.domain.protection.ProtectionRepository, AutoCloseable {
+public final class StorageManager implements org.dextur.reputation.domain.policy.PolicyRepository, org.dextur.reputation.domain.recovery.RecoveryRepository, org.dextur.reputation.domain.tier.TierRepository, ProfileRepository, org.dextur.reputation.domain.VotingRepository, org.dextur.reputation.domain.protection.ProtectionRepository, AutoCloseable {
     private volatile StorageBackend backend;
+    private org.dextur.reputation.domain.policy.PolicyRules featuresRules;
     private StorageLease lease;
     private org.dextur.reputation.domain.recovery.RecoveryRules recoveryRules;
     private org.dextur.reputation.domain.tier.TierRules tierRules;
     private org.dextur.reputation.domain.protection.ProtectionRules protectionRules;
     public void open(Path directory,Settings settings,Map<String,String> environment) throws Exception {
         lease=new StorageLease(directory.resolve(".storage.lock"));
-        try { backend=create(directory,settings,environment,false);if(protectionRules!=null) backend.protection(protectionRules);if(tierRules!=null) backend.tiers(tierRules);if(recoveryRules!=null)backend.recovery(recoveryRules); }
+        try { backend=create(directory,settings,environment,false);if(protectionRules!=null) backend.protection(protectionRules);if(tierRules!=null) backend.tiers(tierRules);if(recoveryRules!=null)backend.recovery(recoveryRules);if(featuresRules!=null)backend.features(featuresRules); }
         catch(Exception e) { if(backend!=null) { backend.close();backend=null; }lease.close();lease=null;throw e; }
     }
     public static StorageBackend create(Path directory,Settings settings,Map<String,String> environment,boolean migration) throws Exception {
@@ -59,6 +60,9 @@ public final class StorageManager implements org.dextur.reputation.domain.recove
     @Override public void recovery(org.dextur.reputation.domain.recovery.RecoveryRules rules)throws Exception{recoveryRules=java.util.Objects.requireNonNull(rules);if(backend!=null)backend.recovery(rules);}
     @Override public org.dextur.reputation.domain.recovery.RecoveryRules recoveryDefinition(UUID player,String scope)throws Exception{return backend().recoveryDefinition(player,scope);}
     @Override public org.dextur.reputation.domain.recovery.RecoveryData.Change recover(org.dextur.reputation.domain.recovery.RecoveryData.Request request)throws Exception{return backend().recover(request);}
+    @Override public void features(org.dextur.reputation.domain.policy.PolicyRules rules)throws Exception{featuresRules=java.util.Objects.requireNonNull(rules);if(backend!=null)backend.features(rules);}
+    @Override public org.dextur.reputation.domain.policy.PolicyEngine.Input policyInput(UUID player,String scope)throws Exception{return backend().policyInput(player,scope);}
+    @Override public org.dextur.reputation.domain.policy.AdministrationData.Change administer(org.dextur.reputation.domain.policy.AdministrationData.Request request)throws Exception{return backend().administer(request);}
     @Override public void close() {
         try { if(backend!=null) { backend.close();backend=null; } }
         catch(Exception e) { throw new IllegalStateException("Storage close failed",e); }

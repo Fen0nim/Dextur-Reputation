@@ -235,3 +235,8 @@ JSON still rewrites/validates the whole snapshot and stores full history under i
 ## Phase 5
 
 JSON format 5 / SQLite user_version 5 / MySQL-MariaDB V5__recovery.sql добавляют полный recovery ledger; V1–V4 сохранены. Portable StorageSnapshot имеет дополнительный RecoverySnapshotData и прежние constructors. Source/target backups и pending/equality/last-step config activation StorageAdmin охватывают программы, activity/progress, rewards, receipts/audit и весь прежний private/tier state. Все шесть направлений проверяются отдельно с MySQL и MariaDB. Перед обновлением остановите writers и сохраните полный storage и recovery.yml/GUI/локали. Подробнее: [RECOVERY.md](RECOVERY.md).
+
+
+## Phase 6
+
+JSON format6 / SQLite schema6 / MySQL-MariaDB V6__administration.sql добавляют отдельный canonical checksummed admin ledger, voting locks и policy overrides. V1–V5 сохранены; старые portable constructors и snapshots поддерживаются. Все шесть migration directions охватывают полный Phase 1–6 state с backups/pending/full verification/last activation/source retention. Backup и точная aggregate модель: [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md).

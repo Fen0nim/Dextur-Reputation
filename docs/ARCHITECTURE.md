@@ -130,3 +130,8 @@ batches/refreshed/stale/failed/reviewed/elapsedNanos/running; отдельный
 ## Phase 5
 
 RecoveryRepository/RecoveryEngine отделены от Paper. RecoveryApplication использует общий bounded executor, admission и profile locks. RecoveryData хранит frozen programs, receipts, session/activity watermarks, rewards и audit. SQL V5 dr_recovery + profile/Trust/tier используют одно соединение/COMMIT; JSON format 5 — один atomic replacement. Providers проверяются до transaction; локальные события публикуются после commit. Подробности: [RECOVERY.md](RECOVERY.md), [RECOVERY_API.md](RECOVERY_API.md).
+
+
+## Phase 6
+
+PolicyEngine — pure evaluator; PolicyApplication использует общий bounded executor/profile locks и immutable cache. AdministrationData хранит auditable admin contribution/lock/overrides; backend COMMIT/JSON replacement объединяет profile/admin/tier/hysteresis/LP intent. Старый systemScore остаётся совместимым total non-community, recovery ledger независим от admin. [POLICIES](POLICIES.md), [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md).

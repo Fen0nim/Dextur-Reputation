@@ -15,7 +15,7 @@ import org.dextur.reputation.domain.PlayerLanguage;
 public final class SnapshotCodec {
     public record Document(long generation, StorageSnapshot snapshot) { }
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
-    public byte[] encode(long generation, StorageSnapshot snapshot) { return encode(!snapshot.recovery().isEmpty()?5:!snapshot.tiers().isEmpty()?4:snapshot.protection().isEmpty()?2:3, generation, snapshot); }
+    public byte[] encode(long generation, StorageSnapshot snapshot) { return encode(!snapshot.administration().isEmpty()?6:!snapshot.recovery().isEmpty()?5:!snapshot.tiers().isEmpty()?4:snapshot.protection().isEmpty()?2:3, generation, snapshot); }
     private byte[] encode(int version, long generation, StorageSnapshot snapshot) {
         JsonObject data = new JsonObject();
         JsonArray profiles = new JsonArray(), preferences = new JsonArray();
@@ -40,6 +40,7 @@ public final class SnapshotCodec {
         if(version>=3) data.add("protection",ProtectionCodec.tree(snapshot.protection()));
         if(version>=4) data.add("tiers",ProtectionCodec.tree(snapshot.tiers()));
         if(version>=5)data.add("recovery",ProtectionCodec.tree(snapshot.recovery()));
+        if(version>=6)data.add("administration",ProtectionCodec.tree(snapshot.administration()));
         JsonObject document = new JsonObject(); document.addProperty("formatVersion", version); document.addProperty("generation", generation);
         document.add("data", data); document.addProperty("sha256", digest(version + "\n" + generation + "\n" + GSON.toJson(data)));
         return GSON.toJson(document).getBytes(StandardCharsets.UTF_8);
@@ -51,11 +52,11 @@ public final class SnapshotCodec {
             if (reader.peek() != JsonToken.END_DOCUMENT) throw new IOException("Trailing JSON data");
             keys(doc, "formatVersion", "generation", "data", "sha256");
             int version = Math.toIntExact(number(doc, "formatVersion"));
-            if (version != 1 && version != 2 && version != 3 && version != 4 && version != 5) throw new IOException("Unsupported JSON format");
+            if (version != 1 && version != 2 && version != 3 && version != 4 && version != 5 && version != 6) throw new IOException("Unsupported JSON format");
             long generation = number(doc, "generation");
             if (generation < 0) throw new IOException("Invalid generation");
             JsonObject data = doc.getAsJsonObject("data");
-            if (version == 1) keys(data, "profiles", "preferences"); else if(version==2) keys(data, "profiles", "preferences", "votes"); else if(version==3) keys(data,"profiles","preferences","votes","protection"); else if(version==4)keys(data,"profiles","preferences","votes","protection","tiers");else keys(data,"profiles","preferences","votes","protection","tiers","recovery");
+            if (version == 1) keys(data, "profiles", "preferences"); else if(version==2) keys(data, "profiles", "preferences", "votes"); else if(version==3) keys(data,"profiles","preferences","votes","protection"); else if(version==4)keys(data,"profiles","preferences","votes","protection","tiers");else if(version==5)keys(data,"profiles","preferences","votes","protection","tiers","recovery");else keys(data,"profiles","preferences","votes","protection","tiers","recovery","administration");
             List<ReputationSnapshot> profiles = new ArrayList<>(); List<StorageSnapshot.Preference> preferences = new ArrayList<>();
             for (var item : data.getAsJsonArray("profiles")) {
                 JsonObject p = item.getAsJsonObject();
@@ -69,7 +70,7 @@ public final class SnapshotCodec {
             }
             List<org.dextur.reputation.api.VoteEntry> votes = new ArrayList<>();
             if (version >= 2) for (var item : data.getAsJsonArray("votes")) votes.add(vote(item.getAsJsonObject()));
-            StorageSnapshot snapshot = new StorageSnapshot(profiles, preferences, votes,version>=3?ProtectionCodec.decode(data.get("protection"),ProtectionSnapshot.class):ProtectionSnapshot.empty(),version>=4?ProtectionCodec.decode(data.get("tiers"),TierSnapshot.class):TierSnapshot.empty(),version>=5?ProtectionCodec.decode(data.get("recovery"),RecoverySnapshotData.class):RecoverySnapshotData.empty());
+            StorageSnapshot snapshot = new StorageSnapshot(profiles, preferences, votes,version>=3?ProtectionCodec.decode(data.get("protection"),ProtectionSnapshot.class):ProtectionSnapshot.empty(),version>=4?ProtectionCodec.decode(data.get("tiers"),TierSnapshot.class):TierSnapshot.empty(),version>=5?ProtectionCodec.decode(data.get("recovery"),RecoverySnapshotData.class):RecoverySnapshotData.empty(),version>=6?ProtectionCodec.decode(data.get("administration"),AdministrationSnapshotData.class):AdministrationSnapshotData.empty());
             // Verify canonical logical content; JSON field/row order is not significant.
             JsonObject canonical = JsonParser.parseString(new String(encode(version, generation, snapshot), StandardCharsets.UTF_8)).getAsJsonObject();
             if (!MessageDigest.isEqual(text(doc,"sha256").getBytes(StandardCharsets.US_ASCII), text(canonical,"sha256").getBytes(StandardCharsets.US_ASCII))) throw new IOException("JSON checksum mismatch");

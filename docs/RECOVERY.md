@@ -118,3 +118,8 @@ java -jar DexturReputation-StorageAdmin.jar migrate \
 Форматы target JSON/SQLITE/MYSQL и secret env — [STORAGE.md](STORAGE.md). Все шесть направлений переносят одинаковый portable snapshot, включая frozen definitions, progress, receipts/sessions/days, rewards, audit, Trust, pending/голоса, precision, tier hysteresis/ownership, язык. CLI сохраняет проверенные source/target/config backups; pending guard и полное equality verification предшествуют **последней** атомарной активации storage.yml. Источник не удаляется. Ручная смена type не переносит ledger и создаёт независимую базу — используйте CLI, чтобы не сбросить caps.
 
 API/интеграционные ограничения: [RECOVERY_API.md](RECOVERY_API.md). Фактическая матрица проверок: [PHASE_5_TEST_REPORT.md](PHASE_5_TEST_REPORT.md).
+
+
+## Phase 6
+
+Административный вклад Phase 6 хранится отдельно; совместимый systemScore агрегирует recovery/legacy/admin. Recovery rewards, их systemBefore/After и lifetime budgets продолжают воспроизводиться без admin contribution; eligibility использует полный visible score. Set/add/remove не стирают программы/награды и не меняют Trust. [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md).

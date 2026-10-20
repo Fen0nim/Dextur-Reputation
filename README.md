@@ -1,4 +1,4 @@
-# DexturReputation — Phase 5
+# DexturReputation — Phase 6
 
 Основа репутации Dextur: **Paper 26.2**, **Java 25**, три взаимозаменяемых хранилища.
 Новые установки используют **JSON без БД и пароля**. SQLite и MySQL/MariaDB выбираются
@@ -27,7 +27,7 @@ Gradle Wrapper 9.7.0, версии/locks зависимостей и SHA-256 ф�
 - `reputation-paper/build/libs/DexturReputation.jar` — устанавливаемый Paper-плагин.
 - `reputation-paper/build/libs/DexturReputation-StorageAdmin.jar` — **отдельный offline CLI**
   для переноса/восстановления. Не помещайте этот JAR в `plugins/`.
-- `reputation-api/build/libs/reputation-api-0.5.0-SNAPSHOT.jar` — API для `compileOnly`;
+- `reputation-api/build/libs/reputation-api-0.6.0-SNAPSHOT.jar` — API для `compileOnly`;
   не упаковывайте повторную копию API в плагины-потребители.
 
 ## Установка и обновление
@@ -88,9 +88,9 @@ QA-плагин не входит в основной JAR. Логи/миры о�
 Документация: [хранилища/миграции/backup](docs/STORAGE.md), [конфигурация](docs/CONFIGURATION.md),
 [архитектура](docs/ARCHITECTURE.md), [API](docs/API_DOCUMENTATION.md), [команды](docs/COMMANDS.md),
 [права](docs/PERMISSIONS.md), [совместимость](docs/COMPATIBILITY.md),
-[текущий отчёт](docs/PHASE_5_TEST_REPORT.md), [история](CHANGELOG.md).
+[текущий отчёт](docs/PHASE_6_TEST_REPORT.md), [история](CHANGELOG.md).
 
-**Работа ограничена Phase 5. Phase 6 требует отдельного явного разрешения.**
+**Работа ограничена Phase 6. Phase 7 требует отдельного явного разрешения.**
 
 ## Phase 3
 
@@ -125,7 +125,7 @@ Phase 4 adds configurable reputation tiers with durable hysteresis, immutable as
 
 Read [TIERS](docs/TIERS.md), [DISPLAY](docs/DISPLAY.md), [LUCKPERMS](docs/LUCKPERMS.md), [storage](docs/STORAGE.md), [API](docs/API_DOCUMENTATION.md) and the [Phase 4 verification report](docs/PHASE_4_TEST_REPORT.md). Configuration changes merge defaults in memory and never overwrite administrator files. JSON format 4 / SQL schema 4 preserve all Phase 1–3 data; migrations retain complete tier history and permission intent. The offline StorageAdmin JAR remains an offline utility, not a Paper plugin.
 
-**STOP after Phase 5. Phase 6 requires explicit authorization.**
+**STOP after Phase 6. Phase 7 requires explicit authorization.**
 
 
 ### Phase 5 — восстановление репутации
@@ -137,3 +137,11 @@ Read [TIERS](docs/TIERS.md), [DISPLAY](docs/DISPLAY.md), [LUCKPERMS](docs/LUCKPE
 Читайте [RECOVERY](docs/RECOVERY.md), [Recovery API](docs/RECOVERY_API.md) и [проверки Phase 5](docs/PHASE_5_TEST_REPORT.md), включая ограничения AFK, системных часов, роста истории и локальных событий. Нет распознавания всех ботов или реализации торгов/контрактов/economy. После вступления и resume первый интервал, пересекающий границу, устанавливает baseline; прежняя/приостановленная активность не переигрывается.
 
 Runtime: `--recovery` отдельно от `--tiers/--protection/--voting`; три native клиента, один передаёт настоящие movement packets. QA меняет только отдельные тестовые конфиги. `--phase4-json-fixture /path/to/stopped/phase4/state.json` проверяет полный прежний снимок (рядом должен сохраниться исходный tiers.yml/integrations.yml). `--recovery-disabled` проверяет отключённую функцию. MYSQL engine выбирается `--database-engine MARIADB|MYSQL`. Используйте свежий каталог, pinned Paper/Mojang jars и полный PAPI JAR, как в остальных smoke-сценариях.
+
+### Phase 6 — политики и основное администрирование
+
+Добавлены асинхронный ReputationPolicyService и features.yml: публичные условия по score/tier/recovery/context, детерминированные ALLOW/DENY/LIMITED/UNAVAILABLE, limits/multipliers и lifecycle contracts будущих интеграций. Policy definition не означает установленную внешнюю функцию; DexturChat repository/API в этой задаче недоступен. Support emergency-contact baseline не отключается репутацией.
+
+/repadmin set/add/remove меняют отдельный auditable admin contribution без удаления votes/recovery/Trust; set задаёт результирующую публичную целую оценку. /repadmin voting lock/unlock/status работает для известных offline UUID; policy allow/deny/reset сохраняет индивидуальные overrides. /repadmin reload атомарно применяет только features.yml. Optional health adapter выключен по умолчанию и использует собственный обратимый transient modifier. /rep policies, GUI и три cache-only PAPI значения показывают публичные последствия без скрытого Trust.
+
+JSON format 6 / SQL V6 сохраняют весь Phase 1–5 dataset; offline StorageAdmin переносит admin ledger/locks/overrides во всех шести направлениях. Читайте [POLICIES](docs/POLICIES.md), [ADMIN_ESSENTIALS](docs/ADMIN_ESSENTIALS.md), [HEALTH](docs/HEALTH.md) и [отчёт Phase 6](docs/PHASE_6_TEST_REPORT.md). Phase 7 не реализована.

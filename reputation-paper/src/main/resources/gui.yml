@@ -38,3 +38,9 @@ recovery-panel:
   completed-material: LIME_DYE
   start-material: EMERALD
   cancel-material: BARRIER
+
+policy-panel:
+  enabled: true
+  entry-slot: 48
+  size: 27
+  material: BOOK

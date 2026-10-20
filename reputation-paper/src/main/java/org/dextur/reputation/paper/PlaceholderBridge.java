@@ -13,6 +13,11 @@ final class PlaceholderBridge extends PlaceholderExpansion {
     private final Messages messages;
     private org.dextur.reputation.api.TierService tiers;
     private org.dextur.reputation.api.RecoveryService recovery;
+    private org.dextur.reputation.application.PolicyApplication policies;
+    private PolicyEffects healthEffects;
+    void healthEffects(PolicyEffects effects){healthEffects=effects;}
+    private boolean policyPlaceholders=true;
+    void policies(org.dextur.reputation.application.PolicyApplication policies,boolean enabled){this.policies=policies;policyPlaceholders=enabled;}
     private boolean recoveryPlaceholders=true;
     void recovery(org.dextur.reputation.api.RecoveryService recovery,boolean enabled){this.recovery=recovery;recoveryPlaceholders=enabled;}
     private org.dextur.reputation.application.DisplayFormatter formatter;
@@ -27,6 +32,7 @@ final class PlaceholderBridge extends PlaceholderExpansion {
     @Override public String onRequest(OfflinePlayer player, String parameter) {
         if (player == null || !plugin.ready()) return "";
         var id = player.getUniqueId();
+        if(parameter.equals("policy_vote")||parameter.equals("policy_chat_send")||parameter.equals("health_modifier")){if(policies==null||!policyPlaceholders)return "";String policy=parameter.equals("policy_vote")?"reputation.vote":parameter.equals("policy_chat_send")?"chat.send":"health.maximum";return policies.cached(id,policy).map(result->parameter.equals("health_modifier")?(healthEffects==null?"":healthEffects.modifier(id,result.revision()).orElse("")):result.decision().name()).orElse("");}
         if(parameter.startsWith("recovery_")){
             if(recovery==null||!recoveryPlaceholders)return "";var s=recovery.cached(id);if(s.isEmpty())return "";var v=s.get();return switch(parameter){case "recovery_status"->v.status().name();case "recovery_stage"->v.stageId();case "recovery_progress"->Integer.toString(v.progressPercent());case "recovery_completed_tasks"->Integer.toString(v.completedTasks());case "recovery_total_tasks"->Integer.toString(v.objectives().size());case "recovery_eligible"->Boolean.toString(v.eligible());default->null;};
         }

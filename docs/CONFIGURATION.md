@@ -128,3 +128,8 @@ Safe defaults: configured tiers enabled; nameplates DISABLED; TAB PLACEHOLDER_ON
 ## Phase 5
 
 Добавлен recovery.yml version 1; полная схема, defaults и диапазоны — [RECOVERY.md](RECOVERY.md). gui.yml.recovery-panel и integrations.yml.recovery-placeholders объединяют defaults в памяти. Старые файлы/локали не переписываются. Новые recovery-* ключи RU/EN получают additive fallback. Активные определения сохраняются immutable на enrollment; restart применяет изменения только новым программам (текущие safety caps могут ужесточиться). При disabled startup устойчиво ставит активные программы на PAUSED, включая offline.
+
+
+## Phase 6
+
+features.yml version1, administration bounds/reason, ordered policies и optional health: [POLICIES](POLICIES.md), [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md), [HEALTH](HEALTH.md). gui.yml.policy-panel и integrations.yml.policy-placeholders имеют additive defaults без перезаписи файлов. /repadmin reload применяет только полный валидный features candidate; при ошибке остаётся прежний. Остальные файлы требуют restart.

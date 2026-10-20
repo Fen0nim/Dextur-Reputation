@@ -1,7 +1,7 @@
 plugins { base }
 allprojects {
     group = "org.dextur.reputation"
-    version = "0.5.0-SNAPSHOT"
+    version = "0.6.0-SNAPSHOT"
     repositories {
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")

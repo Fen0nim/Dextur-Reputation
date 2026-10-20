@@ -60,3 +60,8 @@ Default: enabled chat, action bar/title disabled, no sound, cooldown 10 seconds.
 ## Phase 5
 
 Старые значения сохранены. Шесть recovery_* placeholders читают только immutable RecoveryService cache, без SQL/Trust. Форматы и miss behavior: [RECOVERY.md](RECOVERY.md).
+
+
+## Phase 6
+
+Добавлен отдельный публичный policy panel и cache-only policy_vote/policy_chat_send/health_modifier, без Trust/SQL в expansion. Integration status отдельно от policy definition; actual health effect отличается от configured proposal. [POLICIES](POLICIES.md), [HEALTH](HEALTH.md).

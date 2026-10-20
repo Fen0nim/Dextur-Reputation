@@ -47,3 +47,8 @@ Trust/admin reload-команд в этой фазе нет. Tab completion пр
 ## Phase 5
 
 /rep recovery открывает отдельный экран; status/start/tasks/progress/rewards/help/cancel — локализованные команды. /rep admin recovery <known-name|UUID> status|start|pause|resume|reset_stage|cancel|lock|unlock [reason] — ограниченное администрирование, включая offline. Eligibility/cooldown сохраняются для admin start. Force reward/Trust overwrite/удаление history не добавлены. Права и примеры: [RECOVERY.md](RECOVERY.md).
+
+
+## Phase 6
+
+/repadmin set/add/remove; /repadmin voting lock/unlock/status; /repadmin policy allow/deny/reset; /repadmin reload; /rep policies [id]. Полная грамматика, signed integer semantics, UUID/console audit и offline поведение — [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md). Public consequences/GUI — [POLICIES](POLICIES.md). Это essential operations, не Phase 7 investigation suite.

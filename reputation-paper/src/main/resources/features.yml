@@ -1,0 +1,175 @@
+config-version: 1
+administration:
+  reputation:
+    minimum-visible-score: -100000
+    maximum-visible-score: 100000
+    maximum-single-adjustment: 10000
+    require-reason: true
+health:
+  enabled: false
+information:
+  enabled: true
+policies:
+  reputation.vote:
+    enabled: true
+    names: {ru_RU: "Голосование", en_US: "Reputation voting"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  chat.send:
+    enabled: true
+    names: {ru_RU: "Отправка сообщений", en_US: "Send chat messages"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  chat.cooldown:
+    enabled: true
+    names: {ru_RU: "Задержка чата", en_US: "Chat cooldown"}
+    rules:
+      - {priority: 10, when: {reputation-at-most: -100}, decision: LIMITED, multiplier: 3.0}
+      - {priority: 20, when: {reputation-at-most: -25}, decision: LIMITED, multiplier: 1.5}
+      - {priority: 30, when: {reputation-at-least: 250}, decision: LIMITED, multiplier: 0.9}
+      - {priority: 1000, decision: LIMITED, multiplier: 1.0}
+  shop.use:
+    enabled: true
+    names: {ru_RU: "Доступ к магазину", en_US: "Shop access"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  auction.use:
+    enabled: true
+    names: {ru_RU: "Доступ к аукциону", en_US: "Auction access"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  auction.create-listing:
+    enabled: true
+    names: {ru_RU: "Создание лота", en_US: "Create auction listing"}
+    rules:
+      - {priority: 10, when: {reputation-at-most: -250}, decision: LIMITED, limit: 1}
+      - {priority: 20, when: {reputation-at-most: -100}, decision: LIMITED, limit: 3}
+      - {priority: 30, when: {reputation-at-least: 250}, decision: LIMITED, limit: 15}
+      - {priority: 40, when: {reputation-at-least: 100}, decision: LIMITED, limit: 10}
+      - {priority: 1000, decision: LIMITED, limit: 7}
+  auction.listing-limit:
+    enabled: true
+    names: {ru_RU: "Лимит лотов", en_US: "Auction listing limit"}
+    rules:
+      - {priority: 10, when: {reputation-at-most: -250}, decision: LIMITED, limit: 1}
+      - {priority: 20, when: {reputation-at-most: -100}, decision: LIMITED, limit: 3}
+      - {priority: 30, when: {reputation-at-least: 250}, decision: LIMITED, limit: 15}
+      - {priority: 40, when: {reputation-at-least: 100}, decision: LIMITED, limit: 10}
+      - {priority: 1000, decision: LIMITED, limit: 7}
+  warps.create:
+    enabled: true
+    names: {ru_RU: "Создание точки перемещения", en_US: "Create player warp"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  warps.limit:
+    enabled: true
+    names: {ru_RU: "Лимит точек перемещения", en_US: "Player warp limit"}
+    rules:
+      - {priority: 10, when: {reputation-at-most: -250}, decision: LIMITED, limit: 1}
+      - {priority: 20, when: {reputation-at-most: -100}, decision: LIMITED, limit: 3}
+      - {priority: 30, when: {reputation-at-least: 250}, decision: LIMITED, limit: 15}
+      - {priority: 40, when: {reputation-at-least: 100}, decision: LIMITED, limit: 10}
+      - {priority: 1000, decision: LIMITED, limit: 7}
+  warps.visit:
+    enabled: true
+    names: {ru_RU: "Посещение точек перемещения", en_US: "Visit player warps"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  rewards.daily:
+    enabled: true
+    names: {ru_RU: "Ежедневная награда", en_US: "Daily reward"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  rewards.weekly:
+    enabled: true
+    names: {ru_RU: "Еженедельная награда", en_US: "Weekly reward"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  kits.use:
+    enabled: true
+    names: {ru_RU: "Доступ к наборам", en_US: "Kit access"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  reward-codes.use:
+    enabled: true
+    names: {ru_RU: "Коды наград", en_US: "Reward codes"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  buyer.use:
+    enabled: true
+    names: {ru_RU: "Доступ к скупщику", en_US: "Buyer access"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  buyer.limit:
+    enabled: true
+    names: {ru_RU: "Лимит скупщика", en_US: "Buyer limit"}
+    rules:
+      - {priority: 10, when: {reputation-at-most: -250}, decision: LIMITED, limit: 1}
+      - {priority: 20, when: {reputation-at-most: -100}, decision: LIMITED, limit: 3}
+      - {priority: 30, when: {reputation-at-least: 250}, decision: LIMITED, limit: 15}
+      - {priority: 40, when: {reputation-at-least: 100}, decision: LIMITED, limit: 10}
+      - {priority: 1000, decision: LIMITED, limit: 7}
+  support.create-ticket:
+    enabled: true
+    names: {ru_RU: "Создание обращения", en_US: "Create support ticket"}
+    rules:
+      - {priority: 1000, decision: ALLOW}
+  support.open-ticket-limit:
+    enabled: true
+    names: {ru_RU: "Лимит открытых обращений", en_US: "Open support ticket limit"}
+    rules:
+      - {priority: 10, when: {reputation-at-most: -250}, decision: LIMITED, limit: 1}
+      - {priority: 20, when: {reputation-at-most: -100}, decision: LIMITED, limit: 3}
+      - {priority: 30, when: {reputation-at-least: 250}, decision: LIMITED, limit: 15}
+      - {priority: 40, when: {reputation-at-least: 100}, decision: LIMITED, limit: 10}
+      - {priority: 1000, decision: LIMITED, limit: 7}
+  health.maximum:
+    enabled: true
+    names: {ru_RU: "Максимальное здоровье", en_US: "Maximum health"}
+    rules:
+      - priority: 0
+        when: {tiers: [SABOTEUR]}
+        decision: LIMITED
+        value: 16
+      - priority: 1
+        when: {tiers: [SERVER_THREAT]}
+        decision: LIMITED
+        value: 16
+      - priority: 2
+        when: {tiers: [OFFENDER]}
+        decision: LIMITED
+        value: 18
+      - priority: 3
+        when: {tiers: [SUSPICIOUS]}
+        decision: LIMITED
+        value: 18
+      - priority: 4
+        when: {tiers: [RECOGNIZED]}
+        decision: LIMITED
+        value: 20
+      - priority: 5
+        when: {tiers: [RESPECTED]}
+        decision: LIMITED
+        value: 21
+      - priority: 6
+        when: {tiers: [HONORED]}
+        decision: LIMITED
+        value: 22
+      - priority: 7
+        when: {tiers: [AUTHORITY]}
+        decision: LIMITED
+        value: 22
+      - priority: 8
+        when: {tiers: [PROJECT_PRIDE]}
+        decision: LIMITED
+        value: 23
+      - priority: 9
+        when: {tiers: [SUPREME_AUTHORITY]}
+        decision: LIMITED
+        value: 24
+      - {priority: 1000, decision: LIMITED, value: 20.0}
+  support.emergency-contact:
+    enabled: true
+    names: {ru_RU: "Аварийная связь с администрацией", en_US: "Emergency administration contact"}
+    rules:
+      - {priority: 1000, decision: ALLOW}

@@ -29,6 +29,8 @@ final class VotingGui implements Listener {
     private final GuiConfiguration config;
     private final Messages messages;
     private TierService tiers;
+    private PolicyEffects policies;
+    void policies(PolicyEffects policies){this.policies=policies;}
     private RecoveryGui recovery;
     void recovery(RecoveryGui recovery){this.recovery=recovery;}
     private DisplayFormatter formatter;
@@ -74,6 +76,7 @@ final class VotingGui implements Listener {
                 session.inventory.setItem(button.slot(),item(config.tierPanel().icons().getOrDefault(tier.id(),config.tierPanel().material()),messages.content(language,"gui-profile",Map.of("player",name,"reputation",messages.number(language,tier.score()))),lore));
             });
             if(recovery!=null)recovery.attach(player,session);
+            if(policies!=null)policies.attach(player,session);
             if(!player.getUniqueId().equals(target)) {
                 if(commands.allowed(player,"vote")&&commands.allowed(player,"positive")) button(session,player,"like",()->reasons(player,target,name,VoteType.POSITIVE,1));
                 if(commands.allowed(player,"vote")&&commands.allowed(player,"negative")) button(session,player,"dislike",()->reasons(player,target,name,VoteType.NEGATIVE,1));

@@ -16,10 +16,11 @@ public final class SchemaMigrator {
     public void protection(DataSource source) throws Exception { migrate(source,3); }
     public void tiers(DataSource source) throws Exception { migrate(source,4); }
     public void recovery(DataSource source)throws Exception{migrate(source,5);}
+    public void administration(DataSource source)throws Exception{migrate(source,6);}
     private void migrate(DataSource source,int target) throws Exception {
         java.util.Map<Integer, byte[]> migrations = new java.util.TreeMap<>();
         java.util.Map<Integer, String> checksums = new java.util.HashMap<>();
-        for (var entry : java.util.Map.of(1, "/db/V1__foundation.sql", 2, "/db/V2__voting.sql",3,"/db/V3__protection.sql",4,"/db/V4__tiers.sql",5,"/db/V5__recovery.sql").entrySet()) {
+        for (var entry : java.util.Map.of(1, "/db/V1__foundation.sql", 2, "/db/V2__voting.sql",3,"/db/V3__protection.sql",4,"/db/V4__tiers.sql",5,"/db/V5__recovery.sql",6,"/db/V6__administration.sql").entrySet()) {
             try (var in = SchemaMigrator.class.getResourceAsStream(entry.getValue())) {
                 if (in == null) throw new IOException("Missing migration " + entry.getKey());
                 byte[] sql = in.readAllBytes(); migrations.put(entry.getKey(), sql);

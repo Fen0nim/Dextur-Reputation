@@ -28,6 +28,8 @@ public final class VotingApplication implements VotingService {
         this.facts=facts;this.clock=clock;this.listenerFailure=listenerFailure;
         this.inFlight=new Semaphore(settings.queueSize());
     }
+    /** Includes accepted requests still waiting for authoritative Paper facts. */
+    public int pendingOperations(){return settings.queueSize()-inFlight.availablePermits();}
     @Override public CompletionStage<VoteReceipt> submit(VoteRequest request) {
         Objects.requireNonNull(request);
         // Includes requests awaiting the Paper facts stage, outside the IO executor queue.

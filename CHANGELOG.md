@@ -1,3 +1,11 @@
+# Phase 6 — 0.6.0-SNAPSHOT
+
+- Configurable public policy engine and lifecycle API; no future plugin business logic.
+- Persistent audited voting locks, policy overrides and exact visible set/signed add/positive remove.
+- Atomic admin/profile/tier persistence, JSON format 6 / additive SQL V6, complete offline migration.
+- Optional reversible owned health modifiers, RU/EN commands, public GUI and cache-only PAPI.
+- Preserve Phase 1–5 API/tests/data; stop before Phase 7.
+
 # Phase 5 — 0.5.0-SNAPSHOT
 
 - Versioned rehabilitation programs, ordered verified objectives, bounded activity tracking and immutable provider API.

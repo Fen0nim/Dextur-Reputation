@@ -20,6 +20,7 @@ public final class ReputationApplication implements ReputationService, AutoClose
     @FunctionalInterface public interface Operation<T> { T run() throws Exception; }
     private final ProfileRepository repository;
     private final Settings settings;
+    private final java.util.concurrent.CopyOnWriteArrayList<java.util.function.BiConsumer<ReputationSnapshot,Boolean>> additionalObservers=new java.util.concurrent.CopyOnWriteArrayList<>();
     private volatile java.util.function.BiConsumer<ReputationSnapshot,Boolean> profileObserver=(profile,committed)->{};
     private final ThreadPoolExecutor executor;
     private final BoundedCache<UUID, ReputationSnapshot> profiles;
@@ -116,7 +117,9 @@ public final class ReputationApplication implements ReputationService, AutoClose
     }
     public void observeProfiles(java.util.function.BiConsumer<ReputationSnapshot,Boolean> observer) { profileObserver=Objects.requireNonNull(observer); }
     void updateProfile(ReputationSnapshot profile) { updateProfile(profile,true); }
-    void updateProfile(ReputationSnapshot profile,boolean committed) { profiles.put(profile.playerId(), profile);profileObserver.accept(profile,committed); }
+    void updateProfile(ReputationSnapshot profile,boolean committed) { profiles.put(profile.playerId(), profile);profileObserver.accept(profile,committed);for(var observer:additionalObservers)observer.accept(profile,committed); }
+
+    public AutoCloseable addProfileObserver(java.util.function.BiConsumer<ReputationSnapshot,Boolean> observer){if(additionalObservers.size()>=16)throw new IllegalStateException("Profile observer limit");additionalObservers.add(Objects.requireNonNull(observer));return ()->additionalObservers.remove(observer);}
 
     public boolean terminated() { return executor.isTerminated(); }
 }

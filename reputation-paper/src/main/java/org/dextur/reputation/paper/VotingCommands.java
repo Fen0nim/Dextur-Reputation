@@ -40,7 +40,8 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
     }
     void failed(CommandSender sender,Throwable error) {
         Throwable cause=error;while(cause.getCause()!=null&&cause.getCause()!=cause) cause=cause.getCause();
-        if(cause instanceof VoteRejectedException rejected) send(sender,"vote-error-"+rejected.code().name().toLowerCase(Locale.ROOT).replace('_','-'),Map.of("seconds",Long.toString(rejected.remainingSeconds())));
+        if(cause instanceof org.dextur.reputation.api.PolicyDeniedException policy)send(sender,policy.reasonKey(),Map.of());
+        else if(cause instanceof VoteRejectedException rejected) send(sender,"vote-error-"+rejected.code().name().toLowerCase(Locale.ROOT).replace('_','-'),Map.of("seconds",Long.toString(rejected.remainingSeconds())));
         else { plugin.logFailure("voting",cause);send(sender,"error",Map.of()); }
     }
     <T> void complete(CommandSender sender,CompletionStage<T> stage,java.util.function.Consumer<T> success) {

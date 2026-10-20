@@ -33,3 +33,8 @@ eligibility-проверки; это не новая запись и не изм
 ## Phase 5
 
 dexturreputation.recovery, .recovery.start, .recovery.status, .recovery.cancel — default true; вместе с dexturreputation.use. Status требуется для GUI/tasks/progress/rewards/help. dexturreputation.recovery.admin — default op, ограниченные операции /rep admin recovery. Новых gameplay permissions/ограничений Phase 6 нет.
+
+
+## Phase 6
+
+Отдельные default op nodes: dexturreputation.admin.set/add/remove, .admin.voting.lock/unlock/status, .admin.policy, .admin.reload. dexturreputation.policies default true вместе с .use для /rep policies. Никаких автоматически выдаваемых staff permissions. [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md).

@@ -72,3 +72,8 @@ Folia/Velocity, production TPS/TLS/power-loss или гарантированн�
 ## Phase 5
 
 Phase 5 сохраняет старые API signatures/commands/placeholders/config и V1–V4 SQL. Добавлены RecoveryService и immutable snapshots, JSON format 5 / SQL V5. Downgrade требует полного backup до обновления. Optional PAPI/LP остаются optional. Реальный Paper/Java25 и все backend проверяются в [PHASE_5_TEST_REPORT.md](PHASE_5_TEST_REPORT.md). Phase 6 не реализована.
+
+
+## Phase 6
+
+Phase 6 сохраняет Phase 1–5 API/commands/config/data; policy definitions не объявляют чужие функции работающими. DexturChat repository недоступен, реализован только Reputation-side contract без hard dependency/interception. Health adapter disabled by default, foreign modifiers сохраняются; композиционные ограничения — [HEALTH](HEALTH.md). Проверки — [PHASE_6_TEST_REPORT](PHASE_6_TEST_REPORT.md).
