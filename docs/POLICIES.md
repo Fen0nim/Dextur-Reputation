@@ -57,7 +57,7 @@ policies:
 
 Defaults для limit-политик: score ≤ −250 → 1, ≤ −100 → 3, ≥ 250 → 15, ≥ 100 → 10, иначе 7. Chat cooldown: ≤ −100 → 3, ≤ −25 → 1.5, ≥ 250 → 0.9, иначе 1. Остальные access policies ALLOW. Все числа и условия редактируются; staff permissions не выдаются. Limit целый неотрицательный, multiplier с точностью до 6 знаков в диапазоне 0..1000; health value 2..40. Policy IDs содержат 2–4 lowercase сегмента через точку, каждый до 48 символов. Не более 256 definitions × 64 rules; default обязателен. Config и YAML size ограничены существующим loader.
 
-Future DexturSupport должен всегда предоставлять реальный аварийный/admin-contact маршрут, независимо от обычных ticket ограничений и репутации. `support.emergency-contact` всегда ALLOW, не допускает deny/disable/override. Сам маршрут в этой фазе не реализуется. При отсутствии Reputation API потребитель также должен сохранить свой аварийный маршрут. Это не обход защиты повреждённого хранилища для других действий.
+Future DexturSupport должен всегда предоставлять реальный аварийный/admin-contact маршрут, независимо от обычных ticket ограничений и репутации. `support.emergency-contact` всегда ALLOW, не допускает deny/disable/override. Сам маршрут реализует будущий DexturSupport, а не Reputation. При отсутствии Reputation API потребитель также должен сохранить свой аварийный маршрут. Это не обход защиты повреждённого хранилища для других действий.
 
 ## Voting и overrides
 

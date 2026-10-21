@@ -15,6 +15,10 @@ import org.dextur.reputation.application.StorageType;
 import org.dextur.reputation.domain.PlayerLanguage;
 
 public final class JsonStorage implements StorageBackend {
+    public static final class LimitException extends IOException {
+        public final int maximumBytes;
+        LimitException(int maximumBytes) { super("JSON size limit reached; stop writers, back up and migrate to SQLite or MySQL/MariaDB");this.maximumBytes=maximumBytes; }
+    }
     public enum Point { BEFORE_WRITE, BEFORE_RENAME, AFTER_RENAME }
     @FunctionalInterface public interface Fault { void at(Point point) throws IOException; }
     private final Path directory,primary,pending;
@@ -68,7 +72,7 @@ public final class JsonStorage implements StorageBackend {
         if(next.investigation().isEmpty()&&!state.investigation().isEmpty())throw new IOException("Investigation ledger cannot be discarded");
         if(next.administration().isEmpty()&&!state.administration().isEmpty())throw new IOException("Administration ledger cannot be discarded");
         byte[] bytes=codec.encode(Math.addExact(generation,1),next);
-        if(bytes.length>maximum) throw new IOException("JSON size limit reached");
+        if(bytes.length>maximum) throw new LimitException(maximum);
         try {
             fault.at(Point.BEFORE_WRITE);
             byte[] previous=read(primary);

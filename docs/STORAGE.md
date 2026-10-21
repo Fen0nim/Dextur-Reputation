@@ -1,4 +1,4 @@
-# Хранилища, резервные копии и перенос — Phase 2
+# Хранилища, резервные копии и перенос — 1.0.0
 
 ## Выбор и совместимость
 
@@ -38,8 +38,8 @@ storage:
 
 ## JSON
 
-`storage/json/state.json` содержит formatVersion=2, generation, profiles, preferences, votes и SHA-256.
-Формат 1 Phase 1.1 читается без потери данных; запись обновляет его до 2.
+`storage/json/state.json` содержит formatVersion (поддерживаются 1–7), generation, profiles, preferences, votes и SHA-256.
+Формат 1 Phase 1.1 читается без потери данных; запись выбирает формат 2–7 по реально сохранённым разделам.
 Сохраняются **все scope, оценки, tier, revision, UUID, timestamps профилей и выбора языка**.
 Снимок канонически сортируется; дубликаты ключей/профилей/языков, некорректные UUID/enum/числа,
 неподдерживаемый формат и неверная checksum отвергаются. Hash защищает от повреждения,
@@ -173,74 +173,27 @@ java -jar DexturReputation-StorageAdmin.jar recover-json \
   использовать официальный SQLite backup API. Не удалять WAL вручную.
 - MYSQL: согласованный дамп/backup средствами СУБД с безопасными client credentials;
   `--single-transaction` для InnoDB, без concurrent DDL. Дополнительно сохранить конфиги/lang.
-- Portable snapshots миграции содержат все данные Phase 1/1.1/2/3, но не произвольные таблицы других
+- Portable snapshots миграции содержат все данные завершённых Phase 1–7, но не произвольные таблицы других
   плагинов и не являются заменой полного DBA backup. Храните внешние копии и проверяйте restore.
 
-## Журнал Phase 2
+## Сохраняемые данные и рост
 
-Additive MySQL migration V2 добавляет dr_votes и dr_active_votes, сохраняя исходный V1/checksum.
-SQLite user_version=2. JSON profiles и votes фиксируются одним snapshot; SQL — одной транзакцией.
-Backup и recovery всегда охватывают их вместе. Все шесть направлений migration переносят
-полную историю, idempotency IDs и веса, восстанавливают active index, сверяют результат перед
-активацией. Подробный расчёт/квоты/границы событий и роста журнала — [VOTING.md](VOTING.md).
-Downgrade требует полного согласованного pre-upgrade backup; старый плагин не понимает новую
-схему. После JSON ошибки сначала проверьте состояние, не повторяйте команды с новым намерением
-вслепую: commit мог успеть завершиться. API предоставляет явный idempotent retry.
+Журнал votes/active pairs, request hashes, exact precision baseline/current units и lifetime ceilings; preferences; private Trust/assessments/signals/reviews; tiers/hysteresis/LP desired/applied metadata; recovery definitions/activity/progress/rewards/receipts; admin contribution/voting locks/policy overrides; flags/moderation/audit/bulk cursor — единый проверяемый portable snapshot. SQL использует additive V1–V7, SQLite user_version до 7. Исторические migrations и их checksums не изменены. Новая версия 1.0.0 не добавляет V8.
 
-## Trust и защита Phase 3
+Invalidation/restore не удаляет journal, не пересчитывает старый вес и не стирает confirmed evidence. Bulk состоит из bounded atomic batches, а не одной глобальной transaction. Cursor/audit фиксируются с batch. После restart требуется явное resume/cancel; volatile confirmation tokens не сохраняются.
 
-MySQL/MariaDB применяют additive checksummed V3, не меняя V1/V2; SQLite — transactional
-user_version=3 при включении защиты. Новые таблицы: dr_trust, dr_vote_pairs, dr_precision,
-dr_vote_assessments, dr_protection_audit, dr_protection_scope. Они содержат канонический
-private payload и проверяемые индексные колонки. Индексы scope/actor, target/sequence,
-due/status и participant/time позволяют bounded context, CAS и постраничный аудит.
-Незавершённая V3 DDL MySQL повторяется с проверкой уже созданных индексов; неизвестный
-checksum/version блокирует старт. Для уже защищённого состояния запись без конфигурации
-pipeline отклоняется; offline CLI читает/переносит его без отключения защиты данных.
+Деструктивный аудит, moderation markers, receipts и bulk metadata автоматически не удаляются. Только низкорисковые DIAGNOSTIC records имеют retention. Hard caps (например admin ledger 10 000 операций на UUID/scope, investigation maximum-records) fail closed; это не автоматическая архивация. JSON переписывает всю базу, SQL — затронутые payloads и indexed rows. Plan migration до достижения cap, сохраняйте проверяемый архив.
 
-JSON читает v1/v2/v3 и пишет v3, как только появляются private данные; единый checksum
-охватывает profile/preferences/votes/**весь private state**. Проверяются audit sequences,
-точные delta/score chains, active/latest pointers, факторы расчёта, Trust и публичный итог.
-Checksum не является цифровой подписью и не защищает от DBA, согласованно переписавшего всё.
+Обычные SQL profile/history/GUI reads не загружают всю базу в Java. Startup validation, offline verify, backup и migration намеренно читают полный snapshot и требуют соответствующей памяти/времени обслуживания. Глубокий OFFSET всё ещё имеет стоимость обхода индекса; не обещается константное время arbitrary page.
 
-StorageAdmin сохраняет точные baseline/current units, lifetime ceiling, Trust/его коэффициенты,
-assessment versions/status, pending/suspicious/audit/graph metadata и языки во всех шести
-направлениях JSON↔SQLite↔MYSQL. Полное сравнение исходного snapshot, backup и результата
-перед activation включает эти записи. Действующие configs остаются в том же data folder;
-инструмент заменяет только storage.yml. Не забудьте отдельный backup **всех** настроек/lang.
-Pending target при ошибке не запускается, source не удаляется. Новых CLI-команд не требуется.
+[Backup/restore](BACKUP_RESTORE.md) · [Upgrade](UPGRADE.md) · [Audit](AUDIT.md) · [Troubleshooting](TROUBLESHOOTING.md).
 
-Default JSON limit 64 MiB остаётся прежним. При `storage.json-warning-fraction: .75` из
-anti-abuse.yml раз в минуту выводится RU/EN предупреждение о приближении к configured limit.
-Достижение limit отклоняет запись до rename и не включает другой backend. На большом
-журнале выбирайте SQL; backup/restore всегда включает Trust вместе с голосами и профилями.
-Downgrade после записи v3 требует полного согласованного backup старой версии; удаление
-private таблиц или ручной сброс version не является допустимым downgrade.
+## Offline verification 1.0.0
 
-## Phase 4 tier data
+```sh
+java -jar DexturReputation-StorageAdmin.jar verify \
+  --data-directory /srv/paper/plugins/DexturReputation \
+  --confirm STOPPED-ALL-WRITERS --language ru_RU
+```
 
-JSON writes format **4** when tier state exists, reads formats 1–4, and keeps the existing SHA-256 canonical integrity check, atomic rename/fsync, previous recovery copy, owner lease and configured size limit (default 64 MiB). Tier state and score share a single snapshot; a failed pre-rename write cannot activate half a tier change. An error after rename can mean a committed result with a failed acknowledgment: stop, verify/recover explicitly, and retry the original vote ID. Checksums detect accidental corruption, not malicious edits with a recomputed checksum.
-
-SQLite adds `dr_tiers` and `PRAGMA user_version=4`, retaining WAL/FULL, prepared statements, busy timeout and the serialized backend owner. MySQL/MariaDB add checksummed **V4__tiers.sql**; V1/V2/V3 files and checksums are unchanged. Each tier payload has an independent checksum, indexed identity/revisions and canonical payload validation. Vote/review tier updates use the same SQL transaction as the score/journal/private anti-abuse changes. Startup refuses corrupt data and never switches backends.
-
-The portable `StorageSnapshot` now includes `TierSnapshot`: current tier, policy fingerprint, profile/tier revisions, complete transition history, desired group, sync/applied revisions and owned group metadata. Existing public profile record constructors and earlier portable snapshot constructors remain available. Old snapshots have an empty tier projection until explicit plugin startup reconciliation. Old writer code without a tier policy must not mutate Phase 4 vote state.
-
-All six offline migration directions carry the complete projection with exact snapshot equality verification. Existing commands, external backups, empty-target requirement, owner locks, pending guards and last-step atomic `storage.yml` activation are unchanged. Source data is retained. No tier recalculation runs during offline migration; the destination preserves hysteresis exactly. On its next plugin startup, a genuinely changed tier policy initiates controlled reconciliation.
-
-Back up `config.yml`, `storage.yml`, `tiers.yml`, `display.yml`, `integrations.yml`, `gui.yml`, both locales and the complete selected storage while **all writers are stopped**. Back up LuckPerms independently when enabled. For JSON preserve primary/backup/temporary candidates and never hand-edit transitions. Recovery requires explicit backup/temporary selection with quarantine, as above; a recovered older snapshot also rolls back its scores, pending votes and tier history together. For SQLite use a stopped-file copy or SQLite backup API including WAL handling; do not copy an active database file alone. For MySQL/MariaDB use a consistent transactional dump/snapshot and retain migration history.
-
-JSON still rewrites/validates the whole snapshot and stores full history under its size cap; it has no SQL transaction log, online incremental backup, independent row locking, multi-writer support or proven physical power-loss guarantee on every filesystem. SQL tier payload updates rewrite that player's transition history; there is no production throughput claim. Monitor growth and migrate to SQL before the JSON limit. Phase 4 adds no automatic pruning or deletion. See [TIERS.md](TIERS.md) and [LUCKPERMS.md](LUCKPERMS.md).
-
-
-## Phase 5
-
-JSON format 5 / SQLite user_version 5 / MySQL-MariaDB V5__recovery.sql добавляют полный recovery ledger; V1–V4 сохранены. Portable StorageSnapshot имеет дополнительный RecoverySnapshotData и прежние constructors. Source/target backups и pending/equality/last-step config activation StorageAdmin охватывают программы, activity/progress, rewards, receipts/audit и весь прежний private/tier state. Все шесть направлений проверяются отдельно с MySQL и MariaDB. Перед обновлением остановите writers и сохраните полный storage и recovery.yml/GUI/локали. Подробнее: [RECOVERY.md](RECOVERY.md).
-
-
-## Phase 6
-
-JSON format6 / SQLite schema6 / MySQL-MariaDB V6__administration.sql добавляют отдельный canonical checksummed admin ledger, voting locks и policy overrides. V1–V5 сохранены; старые portable constructors и snapshots поддерживаются. Все шесть migration directions охватывают полный Phase 1–6 state с backups/pending/full verification/last activation/source retention. Backup и точная aggregate модель: [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md).
-
-## Phase 7
-
-Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.
+Открывает выбранный backend с exclusive ownership, выполняет startup/schema validation и проверку полного canonical portable snapshot: profiles/journal/contributions/Trust/tier/recovery/admin/audit references. Печатает только counts и SHA-256; не исправляет оценки и не пересчитывает Trust. На старой схеме возможна обычная startup migration, поэтому backup обязателен до первого открытия новой версией. Полный snapshot загружается в память: это offline maintenance, не запрос публичного API. Публичные runtime reads/history/GUI SQL используют bounded queries. Ошибка verification возвращает ненулевой exit code; backend не заменяется.

@@ -32,6 +32,7 @@ final class ReputationCommands implements CommandExecutor, TabCompleter {
         this.plugin = plugin; this.application = application; this.settings = settings; this.messages = messages;
     }
     @Override public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if(!CommandInput.valid(args)){send(sender,sender instanceof Player p?application.cachedLanguage(p.getUniqueId()):settings.defaultLanguage(),"usage",Map.of());return true;}
         if(policies!=null&&command.getName().equals("rep")&&policies.rep(sender,args))return true;
         if(recovery!=null&&command.getName().equals("rep")&&recovery.rep(sender,args))return true;
         if (voting != null && command.getName().equals("rep") && voting.rep(sender,args)) return true;

@@ -20,6 +20,12 @@ abstract class InvestigationSession {
     abstract TierState tier(UUID id,String scope)throws Exception;
     abstract void putTier(TierState tier)throws Exception;
     abstract VoteStatistics statistics(UUID id,String scope)throws Exception;
+    Map<String,String> voteSummary(UUID id,String scope)throws Exception {
+        var values=new TreeMap<String,String>();
+        for(String status:List.of("ACCEPTED","SUSPICIOUS","INVALIDATED","PENDING"))values.put("count_"+status.toLowerCase(Locale.ROOT),Long.toString(count(scope,new Filter(null,id,null,status,null,null,"","",null))));
+        for(var type:VoteType.values())values.put(type==VoteType.POSITIVE?"positive":"negative",Long.toString(count(scope,new Filter(null,id,type,"ACCEPTED",null,null,"","",null))+count(scope,new Filter(null,id,type,"SUSPICIOUS",null,null,"","",null))));
+        var statistics=statistics(id,scope);values.put("unique_voters",Long.toString(statistics.uniqueVoters()));values.put("active",Long.toString(statistics.positive()+statistics.negative()));return values;
+    }
     abstract Trust trust(UUID id,String scope)throws Exception;
     abstract Score score(UUID id,String scope)throws Exception;
     abstract void putTrust(Trust trust)throws Exception;

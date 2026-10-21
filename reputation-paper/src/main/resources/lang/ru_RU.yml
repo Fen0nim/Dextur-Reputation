@@ -1,4 +1,5 @@
 config-version: 1
+storage-json-limit: '<red>Достигнут предел JSON ({limit} байт). Запись отклонена; предыдущий snapshot сохранён. Остановите плагин, сделайте backup и перенесите данные в SQLite или MySQL/MariaDB через StorageAdmin.</red>'
 prefix: '<dark_gray>[<aqua>Репутация</aqua>]</dark_gray> '
 help: '<gray>/rep [игрок] — профиль; /rep language [язык] — ru_RU или en_US; /dexturreputation help|version|status</gray>'
 version: '<gray>DexturReputation {version}; Paper 26.2; Java 25.</gray>'
@@ -20,7 +21,7 @@ integration-inactive: 'выключена'
 storage-status: '<gray>Активное хранилище: {type}. Перенос выполняется только офлайн через StorageAdmin.</gray>'
 storage-failed: '<red>Хранилище {type} не запущено ({error}). Проверьте storage.yml, доступ к файлам/БД и незавершённые миграции. Автоматического переключения нет.</red>'
 storage-config-invalid: '<red>Конфигурация хранилища отклонена: {reason}.</red>'
-storage-admin-usage: '<yellow>Остановите все серверы/писателей. migrate: --data-directory DIR --target-config FILE [--backups DIR]; recover-json: --data-directory DIR --candidate backup|temporary. Обязательно --confirm STOPPED-ALL-WRITERS; язык: --language ru_RU|en_US.</yellow>'
+storage-admin-usage: '<yellow>Остановите все серверы/писателей. verify: --data-directory DIR; migrate: --data-directory DIR --target-config FILE [--backups DIR]; recover-json: --data-directory DIR --candidate backup|temporary. Обязательно --confirm STOPPED-ALL-WRITERS; язык: --language ru_RU|en_US.</yellow>'
 storage-migrated: '<green>Перенос проверен, новая конфигурация активирована. Профилей: {profiles}; языков: {preferences}; SHA-256: {checksum}. Резервная копия: {backup}. Старые данные сохранены; запускайте сервер после проверки отчёта.</green>'
 storage-recovered: '<yellow>JSON восстановлен из явно выбранной копии. Предыдущие файлы сохранены: {backup}. Восстановление старой версии может отменить последние изменения; проверьте данные до запуска.</yellow>'
 storage-admin-failed: '<red>Операция хранилища не завершена ({error}). Проверьте конфигурацию, блокировки, место, права и резервные копии. Не активируйте незавершённое назначение; используйте новое пустое хранилище для повторного переноса.</red>'
@@ -264,7 +265,7 @@ policy-reason-reputation: "Требования политики не выпол
 policy-reason-configured: "Результат настроенной политики. Дополнительные проверки внешней функции сохраняются."
 
 # Phase 7 — private administration
-admin7-help: "/repadmin inspect|history|vote|invalidate|restore|pending|trust|flags|relations|recalculate|audit|gui|bulk|confirm. Подробнее: docs/ADMINISTRATION.md"
+admin7-help: "/repadmin inspect|history|vote|invalidate|restore|pending|trust|flags|flag|relations|recalculate|audit|gui|bulk|confirm. Подробнее: docs/ADMINISTRATION.md"
 admin7-report: "{section} — страница {page}, записей: {total}"
 admin7-field: "{field}: {value}"
 admin7-row: "{id}: {details}"
@@ -494,3 +495,5 @@ admin7-field-after_community_units: "Итоговые миллионные до�
 admin7-field-program: "Программа реабилитации"
 admin7-field-stage: "Этап"
 admin7-field-progress: "Прогресс"
+
+storage-verified: '<green>Проверка завершена: профилей {profiles}, голосов {votes}, SHA-256 {checksum}. Изменения оценок не выполнялись.</green>'

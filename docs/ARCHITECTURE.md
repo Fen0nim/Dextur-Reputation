@@ -1,12 +1,12 @@
-# Архитектура Phase 3
+# Архитектура 1.0.0
 
 | Модуль | Ответственность | Зависимости проекта |
 |---|---|---|
-| reputation-api | Неизменяемый снимок и асинхронный ReputationService | Нет |
-| reputation-domain | Язык игрока и порт хранилища | api |
+| reputation-api | Неизменяемые async contracts: profiles/voting/tiers/recovery/policies, без Trust/storage | Нет |
+| reputation-domain | Чистые модели/engines и repository ports: voting, protection, tiers, recovery, policies, investigation | api |
 | reputation-application | Сервис, очередь, ограниченный LRU/TTL, конфигурация, локализация | domain |
 | reputation-storage | StorageBackend, JSON, SQLite, MySQL, portable snapshots и offline migration | application |
-| reputation-paper | Жизненный цикл, команды, слушатели, необязательный PAPI-адаптер | storage |
+| reputation-paper | Lifecycle, commands/GUI, main-thread effects, optional PAPI/LuckPerms, display/health | storage |
 
 Домен и API не импортируют Bukkit/Paper. Adventure используется в сервисе сообщений,
 а не в моделях профиля. Storage-порт синхронный и вызывается только управляемыми IO workers или offline CLI.
@@ -77,7 +77,7 @@ prepared statements, транзакцию журнала/active index/profile и
 Journal — append-only CAST/REPLACE/REVOKE с operation UUID, hash нормализованного запроса,
 глобальным sequence, предыдущим событием пары, весами и before/after community. Active index
 SQL проверяется по журналу. Portable snapshot проверяет также цепочки, delta и финальный профиль.
-JSON v1 читается, v2 пишет журнал вместе с профилями; SQLite user_version 2, MySQL additive
+JSON читает formats 1–7 и пишет разделы единым snapshot; текущая SQL schema 7. Исторический журнал добавлен SQLite/MySQL V2, MySQL additive
 V2 с прежним V1 checksum. Migration переносит этот же snapshot, так что проверка активации
 включает голоса, counters/cooldown и историю, а не только profile totals.
 
@@ -129,7 +129,7 @@ batches/refreshed/stale/failed/reviewed/elapsedNanos/running; отдельный
 
 ## Phase 5
 
-RecoveryRepository/RecoveryEngine отделены от Paper. RecoveryApplication использует общий bounded executor, admission и profile locks. RecoveryData хранит frozen programs, receipts, session/activity watermarks, rewards и audit. SQL V5 dr_recovery + profile/Trust/tier используют одно соединение/COMMIT; JSON format 5 — один atomic replacement. Providers проверяются до transaction; локальные события публикуются после commit. Подробности: [RECOVERY.md](RECOVERY.md), [RECOVERY_API.md](RECOVERY_API.md).
+RecoveryRepository/RecoveryEngine отделены от Paper. RecoveryApplication использует общий bounded executor, admission и profile locks. RecoveryData хранит frozen programs, receipts, session/activity watermarks, rewards и audit. SQL V5 dr_recovery + profile/Trust/tier используют одно соединение/COMMIT; JSON snapshot с recovery разделом (форматы 5–7) — один atomic replacement. Providers проверяются до transaction; локальные события публикуются после commit. Подробности: [RECOVERY.md](RECOVERY.md), [RECOVERY_API.md](RECOVERY_API.md).
 
 
 ## Phase 6

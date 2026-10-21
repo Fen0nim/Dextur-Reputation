@@ -2,7 +2,7 @@ name: DexturReputation
 version: '${version}'
 main: org.dextur.reputation.paper.DexturReputationPlugin
 api-version: '26.2'
-description: Asynchronous reputation, tiers and display for Dextur (Phase 7)
+description: Reputation, voting, recovery, policies and administration for Paper
 load: POSTWORLD
 softdepend: [PlaceholderAPI, LuckPerms, TAB]
 commands:

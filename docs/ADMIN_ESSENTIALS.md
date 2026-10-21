@@ -1,6 +1,6 @@
-# Основное администрирование — Phase 6
+# Основное администрирование — 1.0.0
 
-Это ограниченный набор операций для эксплуатации. Investigation GUI, массовая инвалидация, dashboards и полный Phase 7 не реализованы.
+Это ограниченный набор операций для эксплуатации. Investigation GUI, ограниченные массовые операции и аудит описаны в ADMINISTRATION.md.
 
 ## Точная семантика оценки
 
@@ -56,9 +56,9 @@ Backend owner сериализует mutations; application использует
 
 ## Storage и перенос
 
-JSON format 6, SQLite user_version 6, MySQL/MariaDB additive `V6__administration.sql`, `dr_administration` с UUID/scope/revision/canonical payload/SHA-256. V1–V5 сохранены. Старые snapshots читаются с пустым admin ledger; прежние portable snapshot constructors сохранены. JSON checksum/atomic replace/backup/owner locking/64 MiB limit действуют и для новых данных. SQL не делает commit между изменением profile и ledger/tier.
+Текущая версия использует JSON до format 7 и SQL schema 7. Административный ledger введён additive `V6__administration.sql`: `dr_administration` с UUID/scope/revision/canonical payload/SHA-256. V1–V7 сохранены. Старые snapshots читаются с пустым admin ledger; прежние portable snapshot constructors сохранены. JSON checksum/atomic replace/backup/owner locking/64 MiB limit действуют и для новых данных. SQL не делает commit между изменением profile и ledger/tier.
 
-Остановите **всех** writers и сохраните весь storage, schema history и все YAML/обе локали перед обновлением/миграцией. Для SQLite используйте stopped copy с WAL handling либо backup API; для MySQL/MariaDB — consistent transactional dump; JSON сохраняйте с bak/tmp/checksums. LuckPerms backup независим. Downgrade требует полного pre-upgrade backup: старый writer не поддерживает format/schema 6.
+Остановите **всех** writers и сохраните весь storage, schema history и все YAML/обе локали перед обновлением/миграцией. Для SQLite используйте stopped copy с WAL handling либо backup API; для MySQL/MariaDB — consistent transactional dump; JSON сохраняйте с bak/tmp/checksums. LuckPerms backup независим. Downgrade требует полного pre-upgrade backup: старый writer может не поддерживать текущий format/schema 7.
 
 ```sh
 java -jar DexturReputation-StorageAdmin.jar migrate \

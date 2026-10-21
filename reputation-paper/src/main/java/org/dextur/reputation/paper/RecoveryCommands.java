@@ -24,7 +24,7 @@ final class RecoveryCommands {
         if(admin){
             if(!sender.hasPermission("dexturreputation.recovery.admin")){send(sender,"no-permission",Map.of());return true;}
             if(args.length<4){send(sender,"recovery-admin-help",Map.of());return true;}
-            UUID id;try{id=UUID.fromString(args[2]);var known=plugin.getServer().getOfflinePlayer(id);if(!known.hasPlayedBefore()&&!known.isOnline())throw new IllegalArgumentException();}catch(IllegalArgumentException ex){var known=plugin.getServer().getPlayerExact(args[2]);var cached=known==null?plugin.getServer().getOfflinePlayerIfCached(args[2]):known;if(cached==null||!cached.hasPlayedBefore()&&!cached.isOnline()){send(sender,"unknown-player",Map.of("player",args[2]));return true;}id=cached.getUniqueId();}
+            UUID id;try{id=CommandInput.uuid(args[2]);var known=plugin.getServer().getOfflinePlayer(id);if(!known.hasPlayedBefore()&&!known.isOnline())throw new IllegalArgumentException();}catch(IllegalArgumentException ex){var known=plugin.getServer().getPlayerExact(args[2]);var cached=known==null?plugin.getServer().getOfflinePlayerIfCached(args[2]):known;if(cached==null||!cached.hasPlayedBefore()&&!cached.isOnline()){send(sender,"unknown-player",Map.of("player",args[2]));return true;}id=cached.getUniqueId();}
             Command command;try{command=args[3].equalsIgnoreCase("status")?Command.READ:Command.valueOf(args[3].toUpperCase(Locale.ROOT));}catch(IllegalArgumentException e){send(sender,"recovery-admin-help",Map.of());return true;}
             var action=service.administer(id,command,sender instanceof Player moderator?moderator.getUniqueId().toString():"CONSOLE",String.join(" ",Arrays.copyOfRange(args,4,args.length)));complete(sender,action,"status");return true;
         }

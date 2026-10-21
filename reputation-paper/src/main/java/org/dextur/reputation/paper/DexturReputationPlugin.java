@@ -170,7 +170,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
                             try {
                                 permissionSync=new org.dextur.reputation.application.TierPermissionSync(application,storage,settings.scope(),displayConfiguration.luckperms().batch(),
                                     new LuckPermsBridge(net.luckperms.api.LuckPermsProvider.get(),settings.scope(),displayConfiguration.luckperms().createGroups()),
-                                    failure->getComponentLogger().warn(messages.render(settings.defaultLanguage(),"tier-sync-failed",Map.of("reason",String.valueOf(root(failure).getMessage())))));
+                                    failure->getComponentLogger().warn(messages.render(settings.defaultLanguage(),"tier-sync-failed",Map.of("reason",root(failure).getClass().getSimpleName()))));
                                 getServer().getScheduler().runTaskTimer(this,()->permissionSync.tick(),20L,20L*displayConfiguration.luckperms().retrySeconds());
                             }catch(LinkageError|RuntimeException failure){logFailure("LuckPerms",failure);}
                         }else getComponentLogger().warn(messages.render(settings.defaultLanguage(),"tier-luckperms-missing",Map.of()));
@@ -189,7 +189,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
                     getServer().getScheduler().runTaskTimer(this,this::maintenance,1200L,1200L);
                     getServer().getScheduler().runTaskTimer(this,()->protectionAdministration.analyze().exceptionally(analysisError->{logProtectionFailure(analysisError);return false;}),
                             20L*protectionRules.analysis().intervalSeconds(),20L*protectionRules.analysis().intervalSeconds());
-                    getLogger().info("READY: ReputationService registered; VotingService registered; Paper 26.2 Phase 7 enabled.");
+                    getLogger().info("READY: ReputationService registered; VotingService registered; Paper 26.2 " + getPluginMeta().getVersion() + " enabled.");
                 }));
     }
 
@@ -274,6 +274,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         });
     }
     private void logProtectionFailure(Throwable error) {
+        if(root(error) instanceof org.dextur.reputation.storage.JsonStorage.LimitException){logFailure("protection",error);return;}
         getComponentLogger().warn(messages.render(settings.defaultLanguage(),"protection-processing-failed",Map.of("error",root(error).getClass().getSimpleName())));
     }
     @EventHandler public void join(PlayerJoinEvent event) { warm(event.getPlayer().getUniqueId());initializeTrust(event.getPlayer());if(ready()&&recoveryActivity!=null)recoveryActivity.join(event.getPlayer());if(ready()&&policyEffects!=null)policyEffects.request(event.getPlayer()); }
@@ -284,8 +285,14 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     org.dextur.reputation.application.ProtectionAdministration protectionAdministration() { return protectionAdministration; }
     public String storageType() { return settings.storage().type().name(); }
     public boolean hasPlaceholders() { return placeholders != null && placeholders.isRegistered(); }
+    private final java.util.concurrent.atomic.AtomicLong capacityWarning = new java.util.concurrent.atomic.AtomicLong();
     public void logFailure(String operation, Throwable error) {
         // Never print SQLException messages, credentials, URLs, SQL parameters or player input.
+        if(root(error) instanceof org.dextur.reputation.storage.JsonStorage.LimitException capacity){
+            long now=System.nanoTime(),previous=capacityWarning.get();
+            if((previous==0||now-previous>=java.util.concurrent.TimeUnit.MINUTES.toNanos(1))&&capacityWarning.compareAndSet(previous,now))
+                getComponentLogger().warn(messages.render(settings.defaultLanguage(),"storage-json-limit",Map.of("limit",Integer.toString(capacity.maximumBytes))));return;
+        }
         getLogger().warning(operation + " failed: " + root(error).getClass().getSimpleName());
     }
     private static Throwable root(Throwable error) {

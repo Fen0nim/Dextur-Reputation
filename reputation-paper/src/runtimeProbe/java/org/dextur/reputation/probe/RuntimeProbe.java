@@ -27,6 +27,17 @@ public final class RuntimeProbe extends JavaPlugin {
                     return;
                 }
                 cancel();
+                if(Boolean.getBoolean("dextur.probe.release")) {
+                    new ReleaseRuntimeProbe(RuntimeProbe.this).start(()->{
+                        try {
+                            Object manager=null;
+                            var papi=getServer().getPluginManager().getPlugin("PlaceholderAPI");
+                            if(papi!=null&&papi.isEnabled())manager=papi.getClass().getMethod("getLocalExpansionManager").invoke(papi);
+                            finish(manager);
+                        }catch(Throwable failure){fail(failure);}
+                    },RuntimeProbe.this::fail);
+                    return;
+                }
                 service.getProfile(PLAYER).thenCombine(service.getProfile(PLAYER), (first, second) -> {
                     if (!first.equals(second)) throw new AssertionError("Profile uniqueness failed");
                     return first;
@@ -124,6 +135,17 @@ public final class RuntimeProbe extends JavaPlugin {
         if (getServer().getServicesManager().load(votingApi) != null) throw new AssertionError("Voting API not unregistered");
         if (getServer().getServicesManager().load(ReputationService.class) != null) throw new AssertionError("API not unregistered on shutdown");
         if (expansionManager != null && expansionManager.getClass().getMethod("getExpansion", String.class).invoke(expansionManager, "dexturreputation") != null) throw new AssertionError("Placeholder expansion not unregistered");
+        if(Boolean.getBoolean("dextur.probe.release")) {
+            getServer().getScheduler().runTaskLater(this,()->{
+                try {
+                    if(getServer().getScheduler().getPendingTasks().stream().anyMatch(task->task.getOwner()==target))throw new AssertionError("Scheduled target task leaked");
+                    if(!org.bukkit.event.HandlerList.getRegisteredListeners(target).isEmpty())throw new AssertionError("Listener leaked");
+                    if(Thread.getAllStackTraces().keySet().stream().anyMatch(thread->thread.isAlive()&&thread.getName().startsWith("DexturReputation-db-")))throw new AssertionError("Database worker leaked");
+                    getLogger().info("PROBE_RELEASE_CLEANUP_PASS: listeners/tasks/workers/services/GUI/owned modifiers removed");
+                    getLogger().info("PROBE_PASS: stable release clean installation/restart/restore and cleanup");getServer().shutdown();
+                }catch(Throwable failure){fail(failure);}
+            },2L);return;
+        }
         getLogger().info("PROBE_PASS: startup, API, zero profile, uniqueness, restart persistence, diagnostics, unknown player, shutdown cleanup");
         getServer().shutdown();
     }

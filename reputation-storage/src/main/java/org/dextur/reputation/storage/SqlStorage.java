@@ -82,7 +82,8 @@ public final class SqlStorage implements StorageBackend {
     }
     @Override public StorageType type() { return database==null?StorageType.SQLITE:StorageType.MYSQL; }
     @Override public synchronized ReputationSnapshot getOrCreate(UUID id,String scope) throws Exception {
-        if(tierRules!=null) return new SqlVoting(this).view(id,scope).profile();
+        if(!scope.matches("[a-z0-9_-]{1,32}")) throw new IllegalArgumentException("Invalid scope");
+        if(tierRules!=null) return new SqlVoting(this).profile(id,scope);
         if(database!=null) { database.ensureOwned();return new JdbcProfiles(database::dataSource).getOrCreate(id,scope); }
         if(!scope.matches("[a-z0-9_-]{1,32}")) throw new IllegalArgumentException("Invalid scope");
         try(Connection c=connect()) {
@@ -201,28 +202,32 @@ public final class SqlStorage implements StorageBackend {
                 if(privateSchema) for(String table:SqlProtection.TABLES) try(var query=c.createStatement();var rows=query.executeQuery("SELECT COUNT(*) FROM "+table)) { if(!rows.next()||rows.getLong(1)!=0) throw new SQLException("Private migration target is not empty"); }
                 for(String table:List.of("dr_tiers","dr_recovery","dr_administration","dr_investigation")){if(table.equals("dr_tiers")&&!tierSchema||table.equals("dr_recovery")&&!recoverySchema||table.equals("dr_administration")&&!administrationSchema||table.equals("dr_investigation")&&!investigationSchema)continue;try(var query=c.createStatement();var rows=query.executeQuery("SELECT COUNT(*) FROM "+table)){if(!rows.next()||rows.getLong(1)!=0)throw new SQLException("Nonempty migration target");}}
                 try(var s=c.prepareStatement("INSERT INTO dr_profiles(player_uuid,scope_id,community_score,system_score,visible_score,tier,profile_revision,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)")) {
-                    for(var p:snapshot.profiles()) {
-                        s.setString(1,p.playerId().toString());s.setString(2,p.scopeId());s.setLong(3,p.communityScore());s.setLong(4,p.systemScore());s.setLong(5,p.visibleScore());s.setString(6,p.tier());s.setLong(7,p.revision());timestamp(s,8,p.createdAt());timestamp(s,9,p.updatedAt());s.addBatch();
-                    }s.executeBatch();
+                    int n=0;for(var p:snapshot.profiles()) {
+                        s.setString(1,p.playerId().toString());s.setString(2,p.scopeId());s.setLong(3,p.communityScore());s.setLong(4,p.systemScore());s.setLong(5,p.visibleScore());s.setString(6,p.tier());s.setLong(7,p.revision());timestamp(s,8,p.createdAt());timestamp(s,9,p.updatedAt());s.addBatch();if(++n%100==0){s.executeBatch();s.clearBatch();}
+                    }if(n%100!=0)s.executeBatch();
                 }
                 try(var s=c.prepareStatement("INSERT INTO dr_player_preferences(player_uuid,language,updated_at) VALUES(?,?,?)")) {
-                    for(var p:snapshot.preferences()) { s.setString(1,p.playerId().toString());s.setString(2,p.language().name());timestamp(s,3,p.updatedAt());s.addBatch(); }s.executeBatch();
+                    int n=0;for(var p:snapshot.preferences()) { s.setString(1,p.playerId().toString());s.setString(2,p.language().name());timestamp(s,3,p.updatedAt());s.addBatch();if(++n%100==0){s.executeBatch();s.clearBatch();} }if(n%100!=0)s.executeBatch();
                 }
                 var voting=new SqlVoting(this);
-                for(var vote:snapshot.votes()) { voting.insert(c,vote);voting.active(c,vote); }
+                voting.importVotes(c,snapshot.votes(),snapshot.protection());
                 if(privateSchema) {
                     new SqlProtection(this).importState(c,snapshot.protection());
-                    try(var clear=c.createStatement()) { clear.executeUpdate("DELETE FROM dr_active_votes"); }
-                    for(var vote:ProtectionValidation.active(snapshot.votes(),snapshot.protection()).values()) voting.active(c,vote);
                 }
                 if(tierSchema) for(var state:snapshot.tiers().states()) new SqlTiers(this).put(c,state);
                 if(recoverySchema)for(var row:snapshot.recovery().states())new SqlRecovery(this).put(c,row);
                 if(administrationSchema)for(var row:snapshot.administration().states())new SqlAdministration(this).put(c,row);
                 if(investigationSchema)for(var row:snapshot.investigation().records())new SqlInvestigation(this).put(c,row);
                 c.commit();
-            } catch(Exception e) { c.rollback();throw e; }
+                // Bulk imports otherwise leave MySQL's empty-table estimates in use for normal commands.
+                if(database!=null)try(var analyze=c.createStatement()) {
+                    analyze.execute("ANALYZE TABLE dr_profiles,dr_votes,dr_active_votes"+(investigationSchema?",dr_investigation":""));
+                    try(var result=analyze.getResultSet()){while(result.next())if("error".equalsIgnoreCase(result.getString("Msg_type")))throw new SQLException("Optimizer statistics refresh failed");}
+                }
+            } catch(Exception e) { rollback(c,e);throw e; }
         }
     }
+    static void rollback(Connection c,Exception original) {try{c.rollback();}catch(SQLException failure){original.addSuppressed(failure);}}
     private void enableTierSchema() throws Exception {
         if(tierSchema) return;enableProtectionSchema();
         if(database!=null) new SchemaMigrator().tiers(database.dataSource());

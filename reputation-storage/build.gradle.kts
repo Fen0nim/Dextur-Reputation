@@ -23,4 +23,8 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 }
 tasks.test { useJUnitPlatform { excludeTags("database") } }
 tasks.check { dependsOn(integrationTest) }
+tasks.withType<Test>().configureEach {
+    maxHeapSize = "2g"
+    systemProperty("release.qa.classpath", sourceSets.test.get().runtimeClasspath.asPath)
+}
 sourceSets.test { resources.srcDir("../reputation-paper/src/main/resources") }

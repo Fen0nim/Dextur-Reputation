@@ -35,6 +35,7 @@ tasks.register<Jar>("runtimeProbeJar") {
 }
 tasks.register<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("storageAdminJar") {
     from(sourceSets.main.get().output)
+    exclude("plugin.yml", "org/dextur/reputation/paper/**")
     configurations = listOf(project.configurations.runtimeClasspath.get())
     archiveFileName.set("DexturReputation-StorageAdmin.jar")
     manifest { attributes["Main-Class"] = "org.dextur.reputation.storage.StorageAdmin" }

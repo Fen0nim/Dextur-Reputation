@@ -34,6 +34,14 @@ public final class StorageAdmin {
                 Path backups=options.containsKey("--backups")?Path.of(options.get("--backups")):directory.resolve("backups");
                 var result=new StorageMigration().migrate(directory,target,backups,System.getenv());
                 print(messages,language,"storage-migrated",Map.of("profiles",Integer.toString(result.profiles()),"preferences",Integer.toString(result.preferences()),"backup",result.backupDirectory().toString(),"checksum",result.checksum()));
+            } else if(args[0].equals("verify")) {
+                try(var manager=new StorageManager()) {
+                    manager.open(directory,Settings.load(directory),System.getenv());
+                    var snapshot=manager.backend().snapshot();var codec=new SnapshotCodec();
+                    byte[] canonical=codec.encode(0,snapshot);
+                    if(!snapshot.equals(codec.decode(canonical).snapshot()))throw new IllegalStateException("Snapshot verification failed");
+                    print(messages,language,"storage-verified",Map.of("profiles",Integer.toString(snapshot.profiles().size()),"votes",Integer.toString(snapshot.votes().size()),"checksum",codec.checksum(snapshot)));
+                }
             } else if(args[0].equals("recover-json")) {
                 Path backup=new StorageMigration().recoverJson(directory,Settings.load(directory),Objects.requireNonNull(options.get("--candidate")));
                 print(messages,language,"storage-recovered",Map.of("backup",backup.toString()));

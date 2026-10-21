@@ -1,4 +1,4 @@
-# Голосование — Phase 3
+# Голосование — 1.0.0
 
 ## Правила и расчёт
 
@@ -130,13 +130,12 @@ click, offhand, drop, drag и клики нижнего инвентаря от�
 Исторический JSON v2 хранит profiles/preferences/**votes в одном checksummed snapshot**. Один atomic rename
 фиксирует журнал и репутацию вместе; отдельные несогласованные vote/profile файлы не используются.
 При чтении проверяются уникальность ID/sequence, цепочки пары, hash запроса, расчёты и итоговые
-профили. Читается формат v1 Phase 1.1; первая запись обновляет до v2 с сохранением старой копии.
+профили. Читается формат v1 Phase 1.1; запись выбирает формат 2–7 по сохранённым разделам с сохранением старой копии.
 JSON имеет полную сериализацию/валидацию O(N) и fsync на запись, ограничение 64 MiB и полное
 состояние в памяти. Рост истории требует перехода к SQL. `.bak` — предыдущий snapshot, не архив
 всех поколений; восстановление старого backup может потерять последние операции.
 
-SQLite schema user_version 2, WAL/FULL, busy timeout, один управляемый writer. MySQL additive
-V2/checksum, InnoDB transaction, prepared statements, Hikari pool и ownership Phase 1.1.
+Журнал введён SQLite/MySQL V2; текущая SQL schema до 7. WAL/FULL/busy timeout и один управляемый writer SQLite сохранены; MySQL сохраняет additive checksummed migrations, InnoDB transactions, prepared statements, Hikari pool и ownership.
 `dr_votes.operation_id` и sequence уникальны; `dr_active_votes` имеет PK(scope,voter,target).
 Операция атомарно проверяет правила/квоту, пишет event, меняет active index и профиль. SQL
 проверяет согласованность полного журнала и индекса при старте/backup. Обычные запросы используют
@@ -166,7 +165,7 @@ loopback offline сервере, не является production-клиенто
 
 ## Изменения Phase 3
 
-Текущая запись при наличии скрытых данных — JSON v3 / SQL schema 3. Active определяется
+Private protection state введён в format/schema 3; текущая версия поддерживает JSON до 7 / SQL schema 7. Active определяется
 сохранённым pair pointer; latest pending может отличаться от active. Статистика учитывает
 применённые active, а история сохраняет все попытки с durable commit. Public outcome
 показывает PENDING/ACCEPTED/REVOKED/SUPERSEDED/INVALIDATED без Trust/сигналов.

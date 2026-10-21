@@ -1,3 +1,9 @@
+# Changelog
+
+## 1.0.0
+
+Stable release preparation: complete reputation/voting/Trust/tiers/recovery/policy/admin functionality, three storage backend types (MySQL and MariaDB verified separately), optional PAPI/LuckPerms, compatibility and failure hardening. See [release notes](docs/RELEASE_NOTES_1.0.0.md) and [verification report](docs/PHASE_8_TEST_REPORT.md).
+
 # 0.7.0-SNAPSHOT — Phase 7
 
 - Private investigation commands/GUI and separate permissions, RU/EN.

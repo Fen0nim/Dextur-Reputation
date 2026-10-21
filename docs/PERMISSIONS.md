@@ -1,44 +1,53 @@
-# Права Phase 2
+# Права 1.0.0
 
-| Permission | По умолчанию | Назначение |
-|---|---|---|
-| dexturreputation.use | true | Просмотр профиля |
-| dexturreputation.language | true | Смена собственного языка; также нужен use |
-| dexturreputation.status | op | Диагностика очереди и интеграции |
+Полный список из plugin.yml. Wildcard/children grants не объявлены. Справка и версия общедоступны. Узлы голосования можно явно заменить в voting.yml; выдача custom nodes — ответственность администратора. Tier/LP mapping сам по себе не выдаёт administrative nodes.
 
-Справка и версия общедоступны. Чужой язык менять нельзя.
-Права не дают возможности редактировать файлы/SQL. Отказ в доступе проходит через
-сервис локализации, а не через нелокализованное permission-message Paper.
+| Permission | Default |
+| --- | --- |
+| `dexturreputation.use` | `true` |
+| `dexturreputation.language` | `true` |
+| `dexturreputation.status` | `op` |
+| `dexturreputation.vote` | `true` |
+| `dexturreputation.like` | `true` |
+| `dexturreputation.dislike` | `true` |
+| `dexturreputation.revoke` | `true` |
+| `dexturreputation.history` | `true` |
+| `dexturreputation.gui` | `true` |
+| `dexturreputation.reasons` | `true` |
+| `dexturreputation.recovery` | `true` |
+| `dexturreputation.recovery.start` | `true` |
+| `dexturreputation.recovery.status` | `true` |
+| `dexturreputation.recovery.cancel` | `true` |
+| `dexturreputation.recovery.admin` | `op` |
+| `dexturreputation.policies` | `true` |
+| `dexturreputation.admin.set` | `op` |
+| `dexturreputation.admin.add` | `op` |
+| `dexturreputation.admin.remove` | `op` |
+| `dexturreputation.admin.voting.lock` | `op` |
+| `dexturreputation.admin.voting.unlock` | `op` |
+| `dexturreputation.admin.voting.status` | `op` |
+| `dexturreputation.admin.policy` | `op` |
+| `dexturreputation.admin.reload` | `op` |
+| `dexturreputation.admin.inspect` | `op` |
+| `dexturreputation.admin.history` | `op` |
+| `dexturreputation.admin.vote.inspect` | `op` |
+| `dexturreputation.admin.vote.invalidate` | `op` |
+| `dexturreputation.admin.vote.restore` | `op` |
+| `dexturreputation.admin.pending.view` | `op` |
+| `dexturreputation.admin.pending.approve` | `op` |
+| `dexturreputation.admin.pending.reject` | `op` |
+| `dexturreputation.admin.trust.inspect` | `op` |
+| `dexturreputation.admin.flags.inspect` | `op` |
+| `dexturreputation.admin.flags.resolve` | `op` |
+| `dexturreputation.admin.relations.inspect` | `op` |
+| `dexturreputation.admin.recalculate.reputation` | `op` |
+| `dexturreputation.admin.recalculate.trust` | `op` |
+| `dexturreputation.admin.recalculate.tier` | `op` |
+| `dexturreputation.admin.recalculate.all` | `op` |
+| `dexturreputation.admin.audit` | `op` |
+| `dexturreputation.admin.gui` | `op` |
+| `dexturreputation.admin.bulk` | `op` |
 
-Все новые узлы имеют `default: true` в plugin.yml. В `voting.yml.permissions` можно назначить
-собственные узлы; для custom nodes настройте выдачу в вашей permission-системе.
+Подкоманды `/rep` также проверяют use. Новые оценки требуют vote и like/dislike; revoke требует vote и revoke. Recovery требует recovery и отдельный action/status node. Административный GUI дополнительно проверяет права раздела/действия; bulk — bulk плюс mutation node. Trust/flags не доступны обычным игрокам, PAPI их не публикует. Console разрешена в пределах administration.yml; GUI требует Player. Списки tab completion фильтруются правами и не раскрывают базу неизвестных offline игроков.
 
-| Ключ voting.yml | Default node | Назначение |
-|---|---|---|
-| vote | dexturreputation.vote | Любая новая операция, в том числе отзыв |
-| positive | dexturreputation.like | Положительный голос |
-| negative | dexturreputation.dislike | Отрицательный голос |
-| revoke | dexturreputation.revoke | Отзыв своего голоса |
-| history | dexturreputation.history | Командные/GUI истории |
-| gui | dexturreputation.gui | Inventory GUI |
-| reasons | dexturreputation.reasons | Список причин |
-
-Для подкоманд `/rep` также нужен прежний `dexturreputation.use`. Команды `/like`/`/dislike`
-проверяют vote и соответствующий type node. Проверки не обходятся через GUI/API: факты и
-права новой операции получает Paper-адаптер. Нет permission bypass для квоты, возраста или
-cooldown. Дубликат уже зафиксированного API operation ID можно подтвердить без повторной
-eligibility-проверки; это не новая запись и не изменение репутации.
-
-
-## Phase 5
-
-dexturreputation.recovery, .recovery.start, .recovery.status, .recovery.cancel — default true; вместе с dexturreputation.use. Status требуется для GUI/tasks/progress/rewards/help. dexturreputation.recovery.admin — default op, ограниченные операции /rep admin recovery. Новых gameplay permissions/ограничений Phase 6 нет.
-
-
-## Phase 6
-
-Отдельные default op nodes: dexturreputation.admin.set/add/remove, .admin.voting.lock/unlock/status, .admin.policy, .admin.reload. dexturreputation.policies default true вместе с .use для /rep policies. Никаких автоматически выдаваемых staff permissions. [ADMIN_ESSENTIALS](ADMIN_ESSENTIALS.md).
-
-## Phase 7
-
-Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.
+[Команды](COMMANDS.md), [точные admin права](ADMINISTRATION.md).

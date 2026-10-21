@@ -27,6 +27,7 @@ public final class ReputationApplication implements ReputationService, AutoClose
     private final BoundedCache<UUID, PlayerLanguage> languages;
     private final Object[] profileLocks = java.util.stream.IntStream.range(0, 64).mapToObj(i -> new Object()).toArray();
     private final Object[] languageLocks = java.util.stream.IntStream.range(0, 64).mapToObj(i -> new Object()).toArray();
+    private final java.util.concurrent.atomic.AtomicLong observerWarning = new java.util.concurrent.atomic.AtomicLong();
 
     public ReputationApplication(ProfileRepository repository, Settings settings) {
         this(repository, settings, () -> { });
@@ -120,7 +121,19 @@ public final class ReputationApplication implements ReputationService, AutoClose
     private <T>T withStripes(int[] stripes,int index,Operation<T> work)throws Exception{if(index==stripes.length)return work.run();synchronized(profileLocks[stripes[index]]){return withStripes(stripes,index+1,work);}}
     public void observeProfiles(java.util.function.BiConsumer<ReputationSnapshot,Boolean> observer) { profileObserver=Objects.requireNonNull(observer); }
     void updateProfile(ReputationSnapshot profile) { updateProfile(profile,true); }
-    void updateProfile(ReputationSnapshot profile,boolean committed) { profiles.put(profile.playerId(), profile);profileObserver.accept(profile,committed);for(var observer:additionalObservers)observer.accept(profile,committed); }
+    void updateProfile(ReputationSnapshot profile,boolean committed) {
+        profiles.put(profile.playerId(), profile);
+        notifyObserver(profileObserver,profile,committed);
+        for(var observer:additionalObservers)notifyObserver(observer,profile,committed);
+    }
+    private void notifyObserver(java.util.function.BiConsumer<ReputationSnapshot,Boolean> observer,ReputationSnapshot profile,boolean committed) {
+        try { observer.accept(profile,committed); }
+        catch(Throwable error) {
+            long now=System.nanoTime(),previous=observerWarning.get();
+            if((previous==0||now-previous>=TimeUnit.MINUTES.toNanos(1))&&observerWarning.compareAndSet(previous,now))
+                System.getLogger(ReputationApplication.class.getName()).log(System.Logger.Level.WARNING,"Profile observer failed: {0}",error.getClass().getSimpleName());
+        }
+    }
 
     public AutoCloseable addProfileObserver(java.util.function.BiConsumer<ReputationSnapshot,Boolean> observer){if(additionalObservers.size()>=16)throw new IllegalStateException("Profile observer limit");additionalObservers.add(Objects.requireNonNull(observer));return ()->additionalObservers.remove(observer);}
 

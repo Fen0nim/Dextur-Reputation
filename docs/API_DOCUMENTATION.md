@@ -176,3 +176,11 @@ Formatting conventions for every old/new PAPI value are in [DISPLAY.md](DISPLAY.
 ## Phase 7
 
 Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.
+
+## Контракт стабильной линии 1.x
+
+Артефакт API: `reputation-api-1.0.0.jar`; получайте сервисы через Bukkit ServicesManager после readiness и проверяйте null при shutdown. CompletionStage не блокируйте на Paper main thread. Cached методы не выполняют I/O; возвращённые records/maps неизменяемы. Bukkit entity/inventory/world effects планируйте на основном потоке. Подписки закрывайте при disable.
+
+Phase 8 не добавляет публичных gameplay API types и сохраняет все 41 прежний class file побайтово. Новые CommandInput и release QA helpers не являются API. `JsonStorage.LimitException` относится к backend maintenance diagnostics, StorageAdmin verify — к offline эксплуатации; storage/internal investigation contracts не зарегистрированы как публичные Bukkit services. Hidden Trust/evidence не становятся public placeholders.
+
+В 1.x существующие record components/signatures и семантика сохраняются; совместимые расширения добавляются отдельными типами/default методами. Любое несовместимое изменение требует отдельного major release и документации. Локальные after-commit events не являются durable distributed outbox: callback failure не отменяет сохранённую операцию и не мешает остальным observers, но процессный crash может прервать доставку. Источник истины — durable state/revisions, внешние consumers должны быть идемпотентными.

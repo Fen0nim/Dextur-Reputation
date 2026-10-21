@@ -19,7 +19,7 @@ import org.dextur.reputation.domain.PlayerLanguage;
 
 public final class Messages {
     public static final Set<String> STORAGE_KEYS = Set.of("storage-status", "storage-failed", "storage-config-invalid",
-            "storage-admin-usage", "storage-migrated", "storage-recovered", "storage-admin-failed");
+            "storage-admin-usage", "storage-migrated", "storage-recovered", "storage-admin-failed", "storage-json-limit", "storage-verified");
     public static final Set<String> REQUIRED = Set.of("prefix", "help", "version", "status", "profile",
             "language-set", "language-usage", "unknown-player", "players-only", "no-permission",
             "unavailable", "error", "usage", "tier-neutral", "state-ready", "state-starting", "integration-active", "integration-inactive");

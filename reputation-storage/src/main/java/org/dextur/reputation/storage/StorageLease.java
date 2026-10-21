@@ -9,9 +9,9 @@ public final class StorageLease implements AutoCloseable {
     private final FileChannel channel;
     private final FileLock lock;
     public StorageLease(Path path) throws IOException {
-        Files.createDirectories(path.getParent());
+        AtomicFiles.directories(path.getParent());
         if(Files.isSymbolicLink(path)) throw new IOException("Symlink lock unsupported");
-        channel=FileChannel.open(path,StandardOpenOption.CREATE,StandardOpenOption.WRITE);
+        channel=FileChannel.open(path,StandardOpenOption.CREATE,StandardOpenOption.WRITE,LinkOption.NOFOLLOW_LINKS);
         FileLock acquired;
         try { acquired=channel.tryLock(); }
         catch(IOException|OverlappingFileLockException e) { channel.close(); throw new IOException("Storage is in use; stop its owner first",e); }

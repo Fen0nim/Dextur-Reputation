@@ -1,6 +1,6 @@
 # Восстановление репутации — Phase 5
 
-Paper 26.2 / Java 25, JSON / SQLite / MySQL / MariaDB. Отрицательная репутация сама по себе не означает нарушение правил. Восстановление добавляет ограниченную **системную** оценку; не удаляет и не исправляет голоса сообщества, не создаёт likes. Trust остаётся скрытым, отдельным показателем. Phase 6 и полный административный набор Phase 7 не реализованы.
+Paper 26.2 / Java 25, JSON / SQLite / MySQL / MariaDB. Отрицательная репутация сама по себе не означает нарушение правил. Восстановление добавляет ограниченную **системную** оценку; не удаляет и не исправляет голоса сообщества, не создаёт likes. Trust остаётся скрытым, отдельным показателем. Политики и полное администрирование доступны; см. POLICIES.md и ADMINISTRATION.md.
 
 ## Вступление и состояния
 
@@ -103,7 +103,7 @@ JSON format **5**, SQLite user_version **5**, MySQL/MariaDB **V5__recovery.sql**
 
 Recovery SQL payload переписывает состояние одного UUID/scope; JSON переписывает весь snapshot и весь аудит. Старые данные автоматически не удаляются. История растёт; receipt/session journal имеет fail-closed предел **10000** операций на UUID/scope, календарная история — **3660** дат, providers — 64 каждого типа, listeners — 128, reward extension futures — 128. Это инженерные пределы, не способы сбрасывать lifetime caps. При достижении предела сохраните backup и запланируйте контролируемое обслуживание; ручное удаление receipts/rewards небезопасно. Нет SLA для больших histories и многосерверной записи. JSON не имеет транзакционного SQL-журнала, row-level concurrency, инкрементальных backup или универсальной гарантии физического power loss.
 
-Перед обновлением/изменением backend остановите **все** writers и сохраните полный storage + все *.yml/оба языка. SQLite копируйте остановленным с корректным WAL handling или через backup API; MySQL/MariaDB — consistent transactional dump со schema history. JSON сохраняйте с .bak/.tmp и исходными checksums. Откат на Phase 4 требует восстановления **всего** backup: старый writer не поддерживает format/schema 5.
+Перед обновлением/изменением backend остановите **все** writers и сохраните полный storage + все *.yml/оба языка. SQLite копируйте остановленным с корректным WAL handling или через backup API; MySQL/MariaDB — consistent transactional dump со schema history. JSON сохраняйте с .bak/.tmp и исходными checksums. Откат на более раннюю версию требует восстановления **всего** pre-upgrade backup: старый writer может не поддерживать текущий format/schema 7.
 
 Пример безопасного переноса (target — новый пустой backend):
 

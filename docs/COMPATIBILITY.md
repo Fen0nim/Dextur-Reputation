@@ -71,7 +71,7 @@ Folia/Velocity, production TPS/TLS/power-loss или гарантированн�
 
 ## Phase 5
 
-Phase 5 сохраняет старые API signatures/commands/placeholders/config и V1–V4 SQL. Добавлены RecoveryService и immutable snapshots, JSON format 5 / SQL V5. Downgrade требует полного backup до обновления. Optional PAPI/LP остаются optional. Реальный Paper/Java25 и все backend проверяются в [PHASE_5_TEST_REPORT.md](PHASE_5_TEST_REPORT.md). Phase 6 не реализована.
+Phase 5 сохраняет старые API signatures/commands/placeholders/config и V1–V4 SQL. Добавлены RecoveryService и immutable snapshots, JSON format 5 / SQL V5. Downgrade требует полного backup до обновления. Optional PAPI/LP остаются optional. Реальный Paper/Java25 и все backend проверяются в [PHASE_5_TEST_REPORT.md](PHASE_5_TEST_REPORT.md). Политики и здоровье описаны в POLICIES.md и HEALTH.md.
 
 
 ## Phase 6
@@ -81,3 +81,7 @@ Phase 6 сохраняет Phase 1–5 API/commands/config/data; policy definiti
 ## Phase 7
 
 Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.
+
+## Стабильная версия 1.0.0
+
+Поддержка всех перечисленных реализованных подсистем сохраняется; предыдущие Phase-разделы описывают историю добавления, а не отсутствие более поздних возможностей. JSON читает 1–7, SQL schema до 7; V8 нет. Полная финальная матрица и SHA опубликованы в [PHASE_8_TEST_REPORT](PHASE_8_TEST_REPORT.md). Ограничения и benchmark environment описываются там отдельно от результатов функциональных тестов.

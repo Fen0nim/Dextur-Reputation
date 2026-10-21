@@ -1,7 +1,7 @@
 plugins { base }
 allprojects {
     group = "org.dextur.reputation"
-    version = "0.7.0-SNAPSHOT"
+    version = "1.0.0"
     repositories {
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
@@ -23,6 +23,10 @@ subprojects {
     tasks.withType<AbstractArchiveTask>().configureEach {
         isPreserveFileTimestamps = false
         isReproducibleFileOrder = true
+    }
+    tasks.withType<Jar>().configureEach {
+        manifest.attributes["Implementation-Version"] = project.version.toString()
+        manifest.attributes["Specification-Version"] = "1.0"
     }
     dependencies {
         "testImplementation"(platform("org.junit:junit-bom:5.13.4"))

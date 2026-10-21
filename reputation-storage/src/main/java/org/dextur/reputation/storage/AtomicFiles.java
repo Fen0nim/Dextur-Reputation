@@ -10,6 +10,7 @@ import static java.nio.file.StandardOpenOption.*;
 public final class AtomicFiles {
     private AtomicFiles() { }
     public static void replace(Path target, byte[] bytes) throws IOException {
+        safeAncestors(target.getParent());
         if (Files.isSymbolicLink(target)) throw new IOException("Symlink target unsupported");
         Path temporary=target.resolveSibling(target.getFileName()+".tmp");
         write(temporary,bytes);
@@ -17,6 +18,7 @@ public final class AtomicFiles {
         syncDirectory(target.getParent());
     }
     public static void write(Path path, byte[] bytes) throws IOException {
+        safeAncestors(path.getParent());
         try(FileChannel file=FileChannel.open(path,java.util.Set.of(CREATE,TRUNCATE_EXISTING,WRITE,LinkOption.NOFOLLOW_LINKS),
                 java.nio.file.attribute.PosixFilePermissions.asFileAttribute(java.nio.file.attribute.PosixFilePermissions.fromString("rw-------")))) {
             ByteBuffer data=ByteBuffer.wrap(bytes); while(data.hasRemaining()) file.write(data); file.force(true);
@@ -26,15 +28,25 @@ public final class AtomicFiles {
         try(FileChannel channel=FileChannel.open(directory,READ)) { channel.force(true); }
     }
     public static void directories(Path directory) throws IOException {
-        if (Files.exists(directory)) return;
+        safeAncestors(directory);
+        if (Files.exists(directory)) {
+            if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) throw new IOException("Directory required");
+            return;
+        }
         Path parent=directory.getParent();
         if(parent!=null) directories(parent);
         Files.createDirectory(directory);
         if(parent!=null) syncDirectory(parent);
         syncDirectory(directory);
     }
+    static void safeAncestors(Path path) throws IOException {
+        for (Path part=path.toAbsolutePath().normalize(); part!=null; part=part.getParent()) {
+            if (Files.isSymbolicLink(part)) throw new IOException("Symlink storage/backup ancestors are unsupported");
+        }
+    }
     static Path resolve(Path root,String relative) throws IOException {
         Path base=root.toAbsolutePath().normalize(), result=base.resolve(relative).normalize();
+        safeAncestors(base);
         if(!result.startsWith(base)||result.equals(base)) throw new IOException("Storage path escapes data directory");
         Path walk=base;
         if(Files.isSymbolicLink(walk)) throw new IOException("Symlink data directory is unsupported");

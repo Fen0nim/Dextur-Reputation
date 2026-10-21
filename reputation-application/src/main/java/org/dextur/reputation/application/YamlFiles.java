@@ -16,6 +16,9 @@ public final class YamlFiles {
     public static Map<String, Object> read(Path path) throws IOException {
         try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
             return read(reader, path.getFileName().toString());
+        } catch (org.yaml.snakeyaml.error.YAMLException e) {
+            // Parser messages include source lines, which may contain credentials.
+            throw new IllegalArgumentException(path.getFileName() + ": invalid YAML; check syntax, duplicate keys, aliases and nesting", e);
         }
     }
     public static Map<String, Object> resource(String resource) throws IOException {
@@ -34,8 +37,17 @@ public final class YamlFiles {
                 throw new IllegalArgumentException(name + ": expected a YAML mapping");
             }
             @SuppressWarnings("unchecked") Map<String, Object> result = (Map<String, Object>) map;
+            validate(result, name);
             return Map.copyOf(result);
         }
+    }
+    private static void validate(Object value, String name) {
+        if(value==null) throw new IllegalArgumentException(name+": null configuration values are unsupported");
+        if(value instanceof Map<?,?> map) for(var entry:map.entrySet()) {
+            if(!(entry.getKey() instanceof String)) throw new IllegalArgumentException(name+": configuration keys must be strings");
+            validate(entry.getValue(),name);
+        }
+        else if(value instanceof Iterable<?> values) for(var item:values)validate(item,name);
     }
 
     public static String text(Map<String, Object> values, String key) {

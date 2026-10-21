@@ -1,4 +1,4 @@
-# Конфигурация Phase 3
+# Конфигурация 1.0.0
 
 Создаются `config.yml`, `storage.yml`, `integrations.yml`, `voting.yml`, `gui.yml`, `trust.yml`, `anti-abuse.yml`, `lang/ru_RU.yml`, `lang/en_US.yml`.
 Файлы администратора не переписываются. Неизвестные версии, дубликаты YAML, неверные типы,
@@ -58,7 +58,7 @@ MYSQL принимает настоящий process password, не HTTPS proxy p
 
 ## Изменения persistent state
 
-Reload в этой фазе нет. Настройки целиком применяются после restart; backend активируется
+`/repadmin reload` атомарно перечитывает только features.yml. Остальные настройки применяются после restart; backend активируется
 только после успешного открытия/валидации. Смена type/пути/БД вручную **не переносит** данные:
 используйте offline StorageAdmin. Изменение scope создаёт отдельный набор профилей, старый
 сохраняется; выбранный язык общий по UUID. Смена default-language не меняет сохранённый выбор.
@@ -80,7 +80,7 @@ placeholders. Новые настройки валидируются до отк
 Оба файла version 1. Неверный тип/диапазон/комбинация блокирует enable до открытия backend.
 Все изменения требуют restart. Множители действуют только на новые оценки, исторические
 веса не пересчитываются. Периодический Trust refresh меняет только будущую оценку Trust.
-Массовый пересчёт вклада старых голосов в этой фазе не предоставлен.
+Исторические веса/ceiling не переоцениваются автоматически. Административный recalculate воспроизводит авторитетный журнал, сохраняя старые веса; bounded bulk описан в ADMINISTRATION.md.
 
 | Группа | Default / допустимые границы |
 |---|---|
@@ -137,3 +137,11 @@ features.yml version1, administration bounds/reason, ordered policies и optiona
 ## Phase 7
 
 Private `/repadmin` investigation/moderation and GUI, administration.yml and schema/format 7 are documented in [ADMINISTRATION](ADMINISTRATION.md), [INVESTIGATION](INVESTIGATION.md) and [AUDIT](AUDIT.md). Public API class files are preserved; sensitive internal contracts are not registered as player services or PAPI. Historical SQL V1–V6 remain unchanged.
+
+## Итоговый набор файлов 1.0.0
+
+12 YAML конфигураций: config, storage, integrations, voting, trust, anti-abuse, tiers, display, gui, recovery, features, administration; отдельно lang/ru_RU и lang/en_US (итого 14). Все config-version=1, кроме storage=2; legacy storage=1 поддерживается явно. Defaults/malformed/version/missing-field merge и сохранение custom файлов проверяются release tests. GUI materials/slots и cross-file tier references проверяются Paper-адаптером до READY.
+
+YAML использует SafeConstructor, не допускает object tags, duplicate keys, collection aliases, null и нестроковые mapping keys. Ошибка синтаксиса сообщает файл без вывода source lines. Минимальные/максимальные значения/enum/markup проверяются соответствующим loader. Неизвестные дополнительные поля не следует считать включённой функцией.
+
+`/repadmin reload` атомарно применяет только features.yml; прочие настройки — штатный restart. При неверном reload candidate прежняя конфигурация продолжает действовать. Конфигурация остаётся admin-trusted: не выдавайте игрокам доступ к YAML или SQL.

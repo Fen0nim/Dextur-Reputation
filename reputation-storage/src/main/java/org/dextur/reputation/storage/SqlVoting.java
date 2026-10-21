@@ -71,6 +71,13 @@ final class SqlVoting {
             catch(Exception e) { c.rollback();throw e; }
         }
     }
+    ReputationSnapshot profile(UUID id,String scope)throws Exception {
+        try(var c=owner.connect()){
+            c.setAutoCommit(false);
+            try {var profile=ensure(c,id,scope,StorageSnapshot.now());c.commit();return profile;}
+            catch(Exception error){SqlStorage.rollback(c,error);throw error;}
+        }
+    }
     VoteReceipt apply(String scope,VoteRequest request,VoterFacts facts,VotingRules rules,Instant now) throws Exception {
         try(var c=owner.connect()) {
             if(mysql) c.setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE);
@@ -112,12 +119,25 @@ final class SqlVoting {
                 try(var s=c.createStatement();var r=s.executeQuery("SELECT COALESCE(MAX(sequence_no),0) FROM dr_votes")) { r.next();sequence=Math.incrementExact(r.getLong(1)); }
         return new VotingEngine.Context(voter,target,pair,last,used,sequence);
     }
+    private static final String INSERT="INSERT INTO dr_votes(operation_id,sequence_no,scope_id,voter_uuid,target_uuid,action,vote_type,reason_id,comment_text,created_at,previous_id,base_weight,effective_weight,calculation_version,request_hash,community_before,community_after) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
     void insert(Connection c,VoteEntry entry) throws SQLException {
-        try(var s=c.prepareStatement("INSERT INTO dr_votes(operation_id,sequence_no,scope_id,voter_uuid,target_uuid,action,vote_type,reason_id,comment_text,created_at,previous_id,base_weight,effective_weight,calculation_version,request_hash,community_before,community_after) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
+        try(var s=c.prepareStatement(INSERT)) { bind(s,entry);s.executeUpdate(); }
+    }
+    private void bind(PreparedStatement s,VoteEntry entry)throws SQLException {
             s.setString(1,entry.operationId().toString());s.setLong(2,entry.sequence());s.setString(3,entry.scope());s.setString(4,entry.voterId().toString());s.setString(5,entry.targetId().toString());
             s.setString(6,entry.action().name());s.setString(7,entry.type().name());s.setString(8,entry.reason());s.setString(9,entry.comment());time(s,10,entry.createdAt());
             s.setString(11,entry.previousOperationId()==null?null:entry.previousOperationId().toString());s.setLong(12,entry.baseWeight());s.setLong(13,entry.effectiveWeight());
-            s.setInt(14,entry.calculationVersion());s.setString(15,entry.requestHash());s.setLong(16,entry.communityBefore());s.setLong(17,entry.communityAfter());s.executeUpdate();
+            s.setInt(14,entry.calculationVersion());s.setString(15,entry.requestHash());s.setLong(16,entry.communityBefore());s.setLong(17,entry.communityAfter());
+    }
+    void importVotes(Connection c,List<VoteEntry> votes,ProtectionSnapshot protection)throws SQLException {
+        try(var s=c.prepareStatement(INSERT)) {
+            int n=0;for(var vote:votes){bind(s,vote);s.addBatch();if(++n%100==0){s.executeBatch();s.clearBatch();}}if(n%100!=0)s.executeBatch();
+        }
+        // The target is empty: build the final authoritative active index once, in the same transaction.
+        try(var s=c.prepareStatement("INSERT INTO dr_active_votes(scope_id,voter_uuid,target_uuid,operation_id,vote_type) VALUES(?,?,?,?,?)")) {
+            int n=0;for(var vote:ProtectionValidation.active(votes,protection).values()){
+                s.setString(1,vote.scope());s.setString(2,vote.voterId().toString());s.setString(3,vote.targetId().toString());s.setString(4,vote.operationId().toString());s.setString(5,vote.type().name());s.addBatch();if(++n%100==0){s.executeBatch();s.clearBatch();}
+            }if(n%100!=0)s.executeBatch();
         }
     }
     void active(Connection c,VoteEntry entry) throws SQLException {
@@ -153,7 +173,7 @@ final class SqlVoting {
                     s.setString(1,scope);s.setString(2,id.toString());try(var r=s.executeQuery()) { r.next();total=r.getLong(1); }
                 }
                 List<VotePage.Item> items=new ArrayList<>();
-                try(var s=c.prepareStatement("SELECT v.*,a.operation_id AS active_id FROM dr_votes v LEFT JOIN dr_active_votes a ON a.operation_id=v.operation_id WHERE v.scope_id=? AND v."+column+"=? ORDER BY v.sequence_no DESC LIMIT ? OFFSET ?")) {
+                try(var s=c.prepareStatement("SELECT v.*,a.operation_id AS active_id FROM (SELECT operation_id,sequence_no FROM dr_votes WHERE scope_id=? AND "+column+"=? ORDER BY sequence_no DESC LIMIT ? OFFSET ?) page JOIN dr_votes v ON v.operation_id=page.operation_id LEFT JOIN dr_active_votes a ON a.operation_id=v.operation_id ORDER BY page.sequence_no DESC")) {
                     s.setString(1,scope);s.setString(2,id.toString());s.setInt(3,size);s.setLong(4,Math.multiplyExact((long)page-1,size));
                     try(var r=s.executeQuery()) { while(r.next()) items.add(new VotePage.Item(read(r),r.getString("active_id")!=null)); }
                 }

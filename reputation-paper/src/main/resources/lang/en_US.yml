@@ -1,4 +1,5 @@
 config-version: 1
+storage-json-limit: '<red>JSON limit reached ({limit} bytes). Write rejected; the previous snapshot is intact. Stop the plugin, create a backup and migrate to SQLite or MySQL/MariaDB with StorageAdmin.</red>'
 prefix: '<dark_gray>[<aqua>Reputation</aqua>]</dark_gray> '
 help: '<gray>/rep [player] — profile; /rep language [language] — ru_RU or en_US; /dexturreputation help|version|status</gray>'
 version: '<gray>DexturReputation {version}; Paper 26.2; Java 25.</gray>'
@@ -20,7 +21,7 @@ integration-inactive: 'disabled'
 storage-status: '<gray>Active storage: {type}. Migrations are offline operations through StorageAdmin.</gray>'
 storage-failed: '<red>Storage {type} did not start ({error}). Check storage.yml, file/database access and pending migrations. There is no automatic fallback.</red>'
 storage-config-invalid: '<red>Storage configuration rejected: {reason}.</red>'
-storage-admin-usage: '<yellow>Stop every server/writer. migrate: --data-directory DIR --target-config FILE [--backups DIR]; recover-json: --data-directory DIR --candidate backup|temporary. Required: --confirm STOPPED-ALL-WRITERS; locale: --language ru_RU|en_US.</yellow>'
+storage-admin-usage: '<yellow>Stop every server/writer. verify: --data-directory DIR; migrate: --data-directory DIR --target-config FILE [--backups DIR]; recover-json: --data-directory DIR --candidate backup|temporary. Required: --confirm STOPPED-ALL-WRITERS; locale: --language ru_RU|en_US.</yellow>'
 storage-migrated: '<green>Migration verified and new configuration activated. Profiles: {profiles}; languages: {preferences}; SHA-256: {checksum}. Backup: {backup}. Old data retained; review the report before restarting.</green>'
 storage-recovered: '<yellow>JSON restored from the explicitly selected copy. Previous files retained at {backup}. Restoring an older version may roll back recent changes; verify data before starting.</yellow>'
 storage-admin-failed: '<red>Storage operation did not complete ({error}). Check configuration, ownership locks, space, permissions and backups. Do not activate an incomplete target; use a fresh empty destination for another migration.</red>'
@@ -264,7 +265,7 @@ policy-reason-reputation: "Policy requirements are not met."
 policy-reason-configured: "Configured policy result. The feature retains its additional safety checks."
 
 # Phase 7 — private administration
-admin7-help: "/repadmin inspect|history|vote|invalidate|restore|pending|trust|flags|relations|recalculate|audit|gui|bulk|confirm. Details: docs/ADMINISTRATION.md"
+admin7-help: "/repadmin inspect|history|vote|invalidate|restore|pending|trust|flags|flag|relations|recalculate|audit|gui|bulk|confirm. Details: docs/ADMINISTRATION.md"
 admin7-report: "{section} — page {page}, records: {total}"
 admin7-field: "{field}: {value}"
 admin7-row: "{id}: {details}"
@@ -494,3 +495,5 @@ admin7-field-after_community_units: "Resulting community millionths"
 admin7-field-program: "Recovery program"
 admin7-field-stage: "Stage"
 admin7-field-progress: "Progress"
+
+storage-verified: '<green>Verification complete: {profiles} profiles, {votes} votes, SHA-256 {checksum}. No score repairs performed.</green>'

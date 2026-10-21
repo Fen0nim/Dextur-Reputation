@@ -88,6 +88,7 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
         if(target!=null&&config.notifyTarget()) send(target,"protection-status-changed",Map.of("status",messages.plain(language(target),"protection-status-"+event.status().name().toLowerCase(Locale.ROOT))));
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
+        if(!CommandInput.valid(args)){send(sender,"vote-usage",Map.of());return true;}
         if(!plugin.ready()) { send(sender,"unavailable",Map.of());return true; }
         if(!(sender instanceof Player voter)) { send(sender,"players-only",Map.of());return true; }
         if(!allowed(sender,"vote")) { send(sender,"no-permission",Map.of());return true; }
