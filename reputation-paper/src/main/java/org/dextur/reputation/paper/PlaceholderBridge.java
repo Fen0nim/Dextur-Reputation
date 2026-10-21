@@ -43,6 +43,8 @@ final class PlaceholderBridge extends PlaceholderExpansion {
         if(tiers!=null&&tier.isEmpty()) return "";
         return switch (parameter) {
             case "score" -> Long.toString(cached.get().visibleScore());
+            case "score_signed" -> (cached.get().visibleScore()>0?"+":"")+cached.get().visibleScore();
+            case "score_bracketed" -> "("+(cached.get().visibleScore()>0?"+":"")+cached.get().visibleScore()+")";
             case "score_formatted" -> messages.number(language, cached.get().visibleScore());
             case "tier", "tier_name" -> tier.isPresent()?org.dextur.reputation.application.DisplayFormatter.plain(formatter.name(tier.get(),language)):PlainTextComponentSerializer.plainText().serialize(messages.tier(language));
             case "tier_id" -> tier.map(org.dextur.reputation.api.ReputationTierSnapshot::id).orElse(cached.get().tier());

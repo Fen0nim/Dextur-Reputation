@@ -38,7 +38,9 @@ Requires the complete PlaceholderAPI release (verified with 2.12.3), not its Mav
 
 | Placeholder suffix | Return value |
 | --- | --- |
-| score | Signed decimal visible score; no separators. |
+| score | Existing plain decimal visible score: `100`, `-25`, `0`; no leading plus or separators. |
+| score_signed | Plain signed decimal: `+100`, `-25`, `0`. |
+| score_bracketed | Plain signed decimal in parentheses: `(+100)`, `(-25)`, `(0)`. |
 | score_formatted | Existing contract: localized grouped signed number; plain text. |
 | tier | Existing contract: localized **plain tier name**, not an ID. |
 | tier_name | Same plain localized name. |
@@ -50,7 +52,23 @@ Requires the complete PlaceholderAPI release (verified with 2.12.3), not its Mav
 
 Wrap a suffix as `%dexturreputation_<suffix>%`. For a MiniMessage-aware external formatter, use `%dexturreputation_prefix%<player> %dexturreputation_reputation_formatted%`. Its player substitution must be literal. A legacy-only formatter needs a trusted MiniMessage-to-legacy adapter on its side; these values are not ampersand color codes. Preserve unknown/missing data behavior in external formatting.
 
-DexturChat can consume `TierService`/`ReputationService` or these placeholders under a future integration contract. DexturReputation registers no chat interception/channel replacement and changes no other repository.
+For consumers such as DexturChat that do not parse MiniMessage returned by PlaceholderAPI, use plain data and let the consumer own formatting:
+
+```text
+<green>(%dexturreputation_score_signed%)</green>
+```
+
+`score`, `score_signed` and `score_bracketed` use the cached visible score directly, without localization, separators, MiniMessage tags, color codes or Adventure serialization. Their existing cache/readiness rules still apply: missing data returns an empty string, not `0`. `reputation_formatted` retains its existing MiniMessage output unchanged. `%dexturreputation_reputation%` is not a registered placeholder.
+
+Existing suffixes retained unchanged (wrap each as `%dexturreputation_<suffix>%`):
+
+- Score/display: `score`, `score_formatted`, `tier`, `tier_name`, `tier_id`, `prefix`, `suffix`, `color`, `positive`, `negative`, `reputation_formatted`.
+- Recovery: `recovery_status`, `recovery_stage`, `recovery_progress`, `recovery_completed_tasks`, `recovery_total_tasks`, `recovery_eligible`.
+- Policy/health: `policy_vote`, `policy_chat_send`, `health_modifier`.
+
+Added plain-text suffixes: `score_signed`, `score_bracketed`.
+
+DexturReputation registers no chat interception/channel replacement and changes no other repository.
 
 ## Notifications
 

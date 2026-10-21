@@ -29,6 +29,14 @@ JSON подходит для небольших баз: он переписыв�
 
 PlaceholderAPI и LuckPerms необязательны. PAPI читает готовый кэш, не обращается к БД синхронно и не раскрывает Trust. LuckPerms синхронизирует принадлежащие плагину косметические группы, не меняя primary group. При внешнем владельце TAB используйте PLACEHOLDER_ONLY. DexturCore не требуется. DexturChat-side интеграция не заявлена: предоставлен Reputation-side policy contract.
 
+Для чата используйте plain-text PAPI значения: `%dexturreputation_score%` → `100`, `%dexturreputation_score_signed%` → `+100`, `%dexturreputation_score_bracketed%` → `(+100)`. В DexturChat цвет задаёт сам формат:
+
+```text
+<green>(%dexturreputation_score_signed%)</green>
+```
+
+Эти значения не содержат тегов или цветовых кодов. `reputation_formatted` сохраняет MiniMessage-вывод; `%dexturreputation_reputation%` не зарегистрирован. [Полный список placeholders](docs/DISPLAY.md#placeholderapi--chat).
+
 ## Документация
 
 [Установка](docs/INSTALLATION.md) · [Конфигурация](docs/CONFIGURATION.md) · [Хранилища и миграции](docs/STORAGE.md) · [Обновление](docs/UPGRADE.md) · [Backup/restore](docs/BACKUP_RESTORE.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)
