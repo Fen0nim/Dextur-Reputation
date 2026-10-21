@@ -17,7 +17,7 @@ import static org.mockito.Mockito.*;
 class ReleasePaperAuditTest {
     @TempDir Path directory;
     @Test void allDeclaredSensitivePermissionsHaveOperatorDefaultAndNoWildcardGrants()throws Exception {
-        var descriptor=YamlFiles.resource("/plugin.yml");assertEquals("1.0.0",descriptor.get("version"));assertEquals("26.2",descriptor.get("api-version"));assertFalse(descriptor.containsKey("depend"));
+        var descriptor=YamlFiles.resource("/plugin.yml");assertEquals("1.0.1",descriptor.get("version"));assertEquals("26.2",descriptor.get("api-version"));assertFalse(descriptor.containsKey("depend"));
         var permissions=VotingConfiguration.mapping(descriptor.get("permissions"));assertEquals(Set.of("dexturreputation","rep","repadmin","like","dislike"),VotingConfiguration.mapping(descriptor.get("commands")).keySet());
         for(var entry:permissions.entrySet()){assertTrue(entry.getKey().startsWith("dexturreputation."));assertFalse(entry.getKey().contains("*"));var definition=VotingConfiguration.mapping(entry.getValue());assertFalse(definition.containsKey("children"));if(entry.getKey().startsWith("dexturreputation.admin.")||entry.getKey().equals("dexturreputation.recovery.admin")||entry.getKey().equals("dexturreputation.status"))assertEquals("op",definition.get("default"),entry.getKey());else assertEquals(true,definition.get("default"),entry.getKey());}
     }

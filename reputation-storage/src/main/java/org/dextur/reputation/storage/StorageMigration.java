@@ -15,11 +15,17 @@ public final class StorageMigration {
         return migrate(directory,targetConfig,backups,environment,() -> {});
     }
     public Result migrate(Path directory,Path targetConfig,Path backups,Map<String,String> environment,Checkpoint checkpoint) throws Exception {
-        Path active=directory.resolve("storage.yml");
+        var root=StoragePaths.trustedRoot(directory);
+        Path active=root.resolve("storage.yml");
+        Path absoluteBackups=backups.toAbsolutePath().normalize();
+        if(absoluteBackups.equals(root.logical())||absoluteBackups.equals(root.path()))backups=root.path();
+        else if(absoluteBackups.startsWith(root.logical()))backups=root.resolve(root.logical().relativize(absoluteBackups).toString());
+        else if(absoluteBackups.startsWith(root.path()))backups=root.resolve(root.path().relativize(absoluteBackups).toString());
+        else backups=StoragePaths.selectedDirectory(absoluteBackups);
         byte[] before=Files.readAllBytes(active), targetBytes=Files.readAllBytes(targetConfig);
         Settings from=Settings.load(directory), to=Settings.load(directory,targetConfig);
         if(identity(directory,from).equals(identity(directory,to))) throw new IOException("Source and target storage are identical");
-        try(var lease=new StorageLease(directory.resolve(".storage.lock"));
+        try(var lease=new StorageLease(AtomicFiles.resolve(directory,".storage.lock"));
             var source=StorageManager.create(directory,from,environment,false);
             var target=StorageManager.create(directory,to,environment,true)) {
             StorageSnapshot original=source.snapshot(), previous=target.snapshot();
@@ -66,7 +72,7 @@ public final class StorageMigration {
         if(settings.storage().type()!=org.dextur.reputation.application.StorageType.JSON) throw new IOException("JSON recovery requires selected JSON backend");
         if(!Set.of("backup","temporary").contains(candidate)) throw new IOException("Choose backup or temporary");
         Path json=AtomicFiles.resolve(directory,settings.storage().jsonDirectory());
-        try(var owner=new StorageLease(directory.resolve(".storage.lock"));var lock=new StorageLease(json.resolve("owner.lock"))) {
+        try(var owner=new StorageLease(AtomicFiles.resolve(directory,".storage.lock"));var lock=new StorageLease(json.resolve("owner.lock"))) {
             if(Files.exists(json.resolve("migration.pending"))) throw new IOException("Recovery cannot clear a pending migration; use a fresh empty migration target");
             Path selected=json.resolve(candidate.equals("backup")?"state.json.bak":"state.json.tmp");
             if(Files.isSymbolicLink(selected)||Files.size(selected)>settings.storage().maximumJsonBytes()) throw new IOException("Invalid recovery candidate");

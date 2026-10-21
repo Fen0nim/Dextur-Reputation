@@ -21,7 +21,8 @@ public final class StorageManager implements org.dextur.reputation.domain.invest
     private org.dextur.reputation.domain.tier.TierRules tierRules;
     private org.dextur.reputation.domain.protection.ProtectionRules protectionRules;
     public void open(Path directory,Settings settings,Map<String,String> environment) throws Exception {
-        lease=new StorageLease(directory.resolve(".storage.lock"));
+        var root=StoragePaths.trustedRoot(directory);
+        lease=new StorageLease(root.resolve(".storage.lock"));
         try { backend=create(directory,settings,environment,false);if(protectionRules!=null) backend.protection(protectionRules);if(tierRules!=null) backend.tiers(tierRules);if(recoveryRules!=null)backend.recovery(recoveryRules);if(featuresRules!=null)backend.features(featuresRules);if(investigationRules!=null)backend.investigation(investigationRules); }
         catch(Exception e) { if(backend!=null) { backend.close();backend=null; }lease.close();lease=null;throw e; }
     }

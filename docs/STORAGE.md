@@ -1,4 +1,4 @@
-# Хранилища, резервные копии и перенос — 1.0.0
+# Хранилища, резервные копии и перенос — 1.0.1
 
 ## Выбор и совместимость
 
@@ -34,7 +34,7 @@ storage:
 Все объявленные параметры валидируются до регистрации API. Для MYSQL дополнительно нужен
 реальный пароль в указанной переменной окружения процесса; для файловых backend он не читается.
 Никакой ошибки типа/данных/подключения не приводит к автоматическому fallback.
-Относительные пути должны оставаться в каталоге плагина; symlink-пути запрещены.
+Относительные пути должны оставаться в каноническом каталоге плагина. Существующие предки явно доверенного data root канонизируются без OS-specific исключений. Ссылка/junction внутри этого root разрешена только при цели внутри той же канонической границы; выход наружу и подмена корня отвергаются. Низкоуровневые операции принимают уже разрешённый канонический путь и сохраняют строгие проверки. Для явно выбранного внешнего backup directory администратор доверяет его существующей ancestry; symlink самого backup root отвергается. Backup внутри data root разрешается по границе data root и не может ссылкой выйти наружу. См. SECURITY.md.
 
 ## JSON
 
@@ -48,12 +48,12 @@ storage:
 Каждая мутация сериализована под lock и подтверждается только после:
 
 1. Проверки, что текущий файл не повреждён/не изменён вне владельца.
-2. Durable-замены предыдущей версии в `state.json.bak`.
+2. Атомарной замены предыдущей версии в `state.json.bak`.
 3. Записи полного нового `state.json.tmp` и `FileChannel.force(true)`.
-4. `ATOMIC_MOVE` в `state.json` на той же файловой системе и fsync каталога.
+4. `ATOMIC_MOVE` в `state.json` на той же файловой системе и fsync каталога на поддерживаемой платформе (Linux).
 
-Создание новых каталогов также синхронизирует родительские записи. Новые snapshot/backup
-файлы создаются с POSIX mode 0600. Нет неатомарного обходного пути. Ошибка/неопределённый
+На Linux создание новых каталогов также синхронизирует родительские записи. На macOS/Windows directory sync имеет описанное ниже ограничение. Новые snapshot/backup
+файлы создаются с POSIX mode 0600 либо приватным ACL владельца на Windows. Нет неатомарного обходного пути. Ошибка/неопределённый
 результат записи переводит открытый backend в fail-closed до перезапуска/проверки.
 Если rename успел завершиться до ошибки fsync/падения, после рестарта может существовать новая
 полная версия, хотя caller не получил успех. Повторные getOrCreate/выбор того же языка идемпотентны; голос повторяйте с тем же operationId.
@@ -66,8 +66,7 @@ Backup — предыдущая версия, не бесконечный жур
 Ограничения: полная сериализация и fsync на каждую мутацию (O(N)), ограничение размера файла
 по умолчанию 64 MiB, полный snapshot в памяти, один процесс-владелец. Нет SQL-запросов,
 построчного журнала или произвольных многооперационных транзакций. Подходит для небольших
-установок; для роста выбирайте SQLite/MySQL. Проверена Linux/POSIX local filesystem;
-Windows, NFS/FUSE и устройства, не соблюдающие fsync/atomic rename, не заявлены. Неподдерживаемые
+установок; для роста выбирайте SQLite/MySQL. Выполнены проверки Linux и синтетических OS-границ; нативные macOS/APFS и Windows/NTFS добавлены в CI, их фактическое удалённое исполнение отмечается отдельно в отчёте 1.0.1. На macOS Java 25 и Windows нет directory fsync через этот NIO backend: file force и atomic replacement сохраняются, metadata durability при физическом отключении питания не заявляется. NFS/FUSE и нестандартные файловые системы не проверены. Неподдерживаемые
 операции должны завершаться ошибкой, а не ослаблять гарантию. Настоящая потеря питания не тестировалась.
 
 ## SQLite
@@ -178,7 +177,7 @@ java -jar DexturReputation-StorageAdmin.jar recover-json \
 
 ## Сохраняемые данные и рост
 
-Журнал votes/active pairs, request hashes, exact precision baseline/current units и lifetime ceilings; preferences; private Trust/assessments/signals/reviews; tiers/hysteresis/LP desired/applied metadata; recovery definitions/activity/progress/rewards/receipts; admin contribution/voting locks/policy overrides; flags/moderation/audit/bulk cursor — единый проверяемый portable snapshot. SQL использует additive V1–V7, SQLite user_version до 7. Исторические migrations и их checksums не изменены. Новая версия 1.0.0 не добавляет V8.
+Журнал votes/active pairs, request hashes, exact precision baseline/current units и lifetime ceilings; preferences; private Trust/assessments/signals/reviews; tiers/hysteresis/LP desired/applied metadata; recovery definitions/activity/progress/rewards/receipts; admin contribution/voting locks/policy overrides; flags/moderation/audit/bulk cursor — единый проверяемый portable snapshot. SQL использует additive V1–V7, SQLite user_version до 7. Исторические migrations и их checksums не изменены. Hotfix 1.0.1 не меняет формат и не добавляет V8.
 
 Invalidation/restore не удаляет journal, не пересчитывает старый вес и не стирает confirmed evidence. Bulk состоит из bounded atomic batches, а не одной глобальной transaction. Cursor/audit фиксируются с batch. После restart требуется явное resume/cancel; volatile confirmation tokens не сохраняются.
 
@@ -188,7 +187,7 @@ Invalidation/restore не удаляет journal, не пересчитывае�
 
 [Backup/restore](BACKUP_RESTORE.md) · [Upgrade](UPGRADE.md) · [Audit](AUDIT.md) · [Troubleshooting](TROUBLESHOOTING.md).
 
-## Offline verification 1.0.0
+## Offline verification 1.0.1
 
 ```sh
 java -jar DexturReputation-StorageAdmin.jar verify \

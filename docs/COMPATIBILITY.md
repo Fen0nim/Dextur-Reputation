@@ -26,7 +26,7 @@ Runtime smoke использует локальный offline-mode сервер,
 Новая установка JSON; SQLite JDBC 3.51.1.0 необязателен по выбору storage.type. MySQL/MariaDB
 и исходный SQL V1 совместимы с Phase 1; flat config v1 без selector остаётся MYSQL. Новый
 config storage version 2. SQLite/native и atomic file persistence проверяются на Linux amd64.
-JSON требует local POSIX FS с atomic rename/directory fsync. Один владелец физического
+JSON требует локальную FS с atomic replacement и POSIX либо ACL permissions. Directory fsync выполняется на Linux; на macOS Java 25/Windows остаются file force и atomic rename с документированным ограничением power-loss metadata durability. Один владелец физического
 хранилища/базы; multi-server shared writer topology не заявлена. MySQL использует N+1
 соединений (request pool + dedicated ownership session). Migration CLI — отдельный fat JAR.
 Актуальные результаты в [PHASE_1_1_TEST_REPORT.md](PHASE_1_1_TEST_REPORT.md); раздел выше
@@ -85,3 +85,7 @@ Private `/repadmin` investigation/moderation and GUI, administration.yml and sch
 ## Стабильная версия 1.0.0
 
 Поддержка всех перечисленных реализованных подсистем сохраняется; предыдущие Phase-разделы описывают историю добавления, а не отсутствие более поздних возможностей. JSON читает 1–7, SQL schema до 7; V8 нет. Полная финальная матрица и SHA опубликованы в [PHASE_8_TEST_REPORT](PHASE_8_TEST_REPORT.md). Ограничения и benchmark environment описываются там отдельно от результатов функциональных тестов.
+
+## Hotfix 1.0.1
+
+Java 25 / Gradle Wrapper 9.7.0. Обычная сборка не требует Docker; releaseCheck требует обе SQL integration suites. Реально выполнена Linux-сборка; macOS/Windows — структурная проверка, синтетические регрессии и отдельные CI jobs, без заявления о наблюдавшемся native run. [BUILDING](BUILDING.md), [отчёт](1.0.1_PORTABILITY_TEST_REPORT.md).

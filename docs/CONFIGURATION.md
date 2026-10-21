@@ -1,4 +1,4 @@
-# Конфигурация 1.0.0
+# Конфигурация 1.0.1
 
 Создаются `config.yml`, `storage.yml`, `integrations.yml`, `voting.yml`, `gui.yml`, `trust.yml`, `anti-abuse.yml`, `lang/ru_RU.yml`, `lang/en_US.yml`.
 Файлы администратора не переписываются. Неизвестные версии, дубликаты YAML, неверные типы,

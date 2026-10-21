@@ -14,7 +14,7 @@ dependencies {
     testRuntimeOnly("com.mysql:mysql-connector-j:9.5.0")
 }
 val integrationTest = tasks.register<Test>("integrationTest") {
-    description = "Runs mandatory MariaDB integration tests (requires Docker)."
+    description = "Runs mandatory MariaDB and MySQL integration tests for releaseCheck (requires Docker)."
     group = "verification"
     testClassesDirs = sourceSets.test.get().output.classesDirs
     classpath = sourceSets.test.get().runtimeClasspath
@@ -22,7 +22,6 @@ val integrationTest = tasks.register<Test>("integrationTest") {
     shouldRunAfter(tasks.test)
 }
 tasks.test { useJUnitPlatform { excludeTags("database") } }
-tasks.check { dependsOn(integrationTest) }
 tasks.withType<Test>().configureEach {
     maxHeapSize = "2g"
     systemProperty("release.qa.classpath", sourceSets.test.get().runtimeClasspath.asPath)

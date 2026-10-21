@@ -40,6 +40,7 @@ public final class SqlStorage implements StorageBackend {
         catch(Exception e) { db.close();throw e; }
     }
     public static SqlStorage sqlite(Path file,int busy,boolean migration) throws Exception {
+        file=StoragePaths.checked(file);
         AtomicFiles.directories(file.getParent());var lease=new StorageLease(file.resolveSibling(file.getFileName()+".owner.lock"));
         var backend=new SqlStorage(null,file,busy,lease);
         try { backend.initialize(migration);return backend; } catch(Exception e) { backend.close();throw e; }
@@ -47,6 +48,7 @@ public final class SqlStorage implements StorageBackend {
     Connection connect() throws SQLException {
         if(closed) throw new SQLException("Storage closed");
         if(database!=null) { database.ensureOwned();return database.dataSource().getConnection(); }
+        try {lease.verify();}catch(java.io.IOException error){throw new SQLException("SQLite owner path changed",error);}
         Properties props=new Properties();props.setProperty("busy_timeout",Integer.toString(busy));props.setProperty("synchronous","FULL");props.setProperty("foreign_keys","true");
         return DriverManager.getConnection("jdbc:sqlite:"+file,props);
     }

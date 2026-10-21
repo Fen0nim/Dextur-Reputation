@@ -1,4 +1,4 @@
-# Установка 1.0.0
+# Установка 1.0.1
 
 Требуются Java 25 и Paper 26.2 build 134. Проверка Java: `java -version`. Используйте официальный Paper, настройте EULA и online-mode согласно правилам своего сервера. Протокол QA с offline-mode применим только к изолированным локальным тестам.
 
@@ -11,3 +11,5 @@ PlaceholderAPI 2.12.3 и LuckPerms 5.5.87 проверены как необяз
 После первого запуска остановите сервер, сохраните YAML и данные, настройте правила и выполните перезапуск. Не используйте Bukkit `/reload` или стороннюю горячую выгрузку. `/repadmin reload` обновляет только features.yml атомарно: неверный кандидат не заменяет действующие политики.
 
 Дальше: [конфигурация](CONFIGURATION.md), [права](PERMISSIONS.md), [backup](BACKUP_RESTORE.md), [обновление](UPGRADE.md).
+
+Сборка для macOS/Windows/Linux: [BUILDING](BUILDING.md). Обычный build не требует Docker. Каталог данных и backups должен принадлежать учётной записи сервера; неизвестные symlink/junction пути внутри него отвергаются. Ограничения directory sync на macOS Java 25/Windows описаны в [STORAGE](STORAGE.md).

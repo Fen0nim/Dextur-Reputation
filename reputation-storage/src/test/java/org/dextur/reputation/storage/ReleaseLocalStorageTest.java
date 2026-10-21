@@ -12,6 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ReleaseLocalStorageTest {
     @TempDir Path directory;
+    @AfterEach void removeLinksWithoutTraversingTargets() throws Exception {PortableTestFiles.cleanupLinks();}
     @ParameterizedTest @EnumSource(value=StorageType.class,names={"JSON","SQLITE"})
     void boundedMixedHighContention(StorageType type)throws Exception {try(var b=StorageFixtures.local(directory,type,false)){ReleaseStorageChecks.stress(b,directory);}}
     @ParameterizedTest @EnumSource(value=StorageType.class,names={"JSON","SQLITE"})
@@ -61,7 +62,7 @@ class ReleaseLocalStorageTest {
     }
     @ParameterizedTest @ValueSource(strings={"json","sqlite","backup","lock"})
     void rejectsSymlinkAncestorsAndLeavesForeignFilesUntouched(String kind)throws Exception {
-        Path outside=directory.resolve("foreign"),link=directory.resolve("link");Files.createDirectories(outside);Files.writeString(outside.resolve("sentinel"),"unchanged");Files.createSymbolicLink(link,outside);
+        Path outside=directory.resolve("foreign"),link=directory.resolve("link");Files.createDirectories(outside);Files.writeString(outside.resolve("sentinel"),"unchanged");PortableTestFiles.directoryLink(link,outside);
         switch(kind){case "json"->assertThrows(Exception.class,()->new JsonStorage(link.resolve("nested/json"),1048576,false));case "sqlite"->assertThrows(Exception.class,()->SqlStorage.sqlite(link.resolve("nested/test.sqlite"),250,false));case "backup"->assertThrows(Exception.class,()->AtomicFiles.replace(link.resolve("sentinel"),new byte[]{1}));default->assertThrows(Exception.class,()->new StorageLease(link.resolve("owner.lock")));}
         assertEquals("unchanged",Files.readString(outside.resolve("sentinel")));assertFalse(Files.exists(outside.resolve("nested")));
     }

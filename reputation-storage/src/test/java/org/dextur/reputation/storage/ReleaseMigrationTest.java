@@ -24,7 +24,7 @@ class ReleaseMigrationTest {
         try(var paths=Files.list(directory.resolve("crash-backups"))){Path backup=paths.findFirst().orElseThrow();assertEquals(expected,new SnapshotCodec().decode(Files.readAllBytes(backup.resolve("source.json"))).snapshot());assertFalse(Files.exists(backup.resolve("VERIFIED.json")));}
     }
     static void crash(Path directory,Map<String,String> environment)throws Exception {
-        var p=new ProcessBuilder(Path.of(System.getProperty("java.home"),"bin/java").toString(),"-Xmx512m","-cp",System.getProperty("release.qa.classpath"),ReleaseMigrationCrash.class.getName(),directory.toString(),directory.resolve("target.yml").toString(),directory.resolve("crash-backups").toString()).redirectErrorStream(true).redirectOutput(directory.resolve("crashed-child.log").toFile());p.environment().putAll(environment);
-        Process child=p.start();assertTrue(child.waitFor(60,TimeUnit.SECONDS));assertEquals(73,child.exitValue(),()->"Child did not reach crash checkpoint; see "+directory.resolve("crashed-child.log"));
+        var p=new ProcessBuilder(PortableTestFiles.javaExecutable(),"-Xmx512m","-cp",System.getProperty("release.qa.classpath"),ReleaseMigrationCrash.class.getName(),directory.toString(),directory.resolve("target.yml").toString(),directory.resolve("crash-backups").toString()).redirectErrorStream(true).redirectOutput(directory.resolve("crashed-child.log").toFile());p.environment().putAll(environment);
+        Process child=p.start();try{assertTrue(child.waitFor(60,TimeUnit.SECONDS));assertEquals(73,child.exitValue(),()->"Child did not reach crash checkpoint; see "+directory.resolve("crashed-child.log"));}finally{if(child.isAlive()){child.destroyForcibly();assertTrue(child.waitFor(10,TimeUnit.SECONDS));}}
     }
 }

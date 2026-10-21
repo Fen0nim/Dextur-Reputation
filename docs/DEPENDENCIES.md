@@ -1,6 +1,6 @@
-# Зависимости 1.0.0
+# Зависимости 1.0.1
 
-Версии закреплены Gradle STRICT lockfiles и gradle/verification-metadata.xml. Phase 8 не добавляет зависимостей и не меняет locks/checksums. Локально проверены direct declarations, cached POM metadata, scopes и состав итоговых JAR.
+Версии закреплены Gradle STRICT lockfiles и gradle/verification-metadata.xml. Hotfix не меняет версии и lockfiles. В verification metadata добавлены точные недостающие POM/BOM/module checksums для холодного разрешения; прежние доверенные хеши сохранены, wildcard trust и отключения verification нет. Подробности сверки — в отчёте 1.0.1. Локально проверены direct declarations, cached POM metadata, scopes и состав итоговых JAR.
 
 | Компонент | Версия | Scope / упаковка | Лицензия по cached POM |
 | --- | --- | --- | --- |

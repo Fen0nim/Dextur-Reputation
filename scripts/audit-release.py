@@ -13,19 +13,20 @@ p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--artifacts-directory',type=Path,default=root/'reputation-paper/build/libs')
 p.add_argument('--baseline-jar',type=Path)
 p.add_argument('--output',type=Path)
+p.add_argument('--version',default='1.0.1')
 a=p.parse_args();results={}
 for name in ['DexturReputation.jar','DexturReputation-StorageAdmin.jar']:
  path=a.artifacts_directory/name
  with zipfile.ZipFile(path) as z:
   names=z.namelist();duplicates=[n for n,c in Counter(names).items() if c>1];assert not duplicates,duplicates
-  manifest=z.read('META-INF/MANIFEST.MF').decode();assert 'Implementation-Version: 1.0.0' in manifest and 'Specification-Version: 1.0' in manifest
+  manifest=z.read('META-INF/MANIFEST.MF').decode();assert 'Implementation-Version: '+a.version in manifest and 'Specification-Version: 1.0' in manifest
   forbidden=('org/dextur/reputation/probe/','org/junit/','org/mockito/','org/testcontainers/','me/clip/placeholderapi/','net/luckperms/')
   assert not [n for n in names if n.startswith(forbidden)]
   test_classes=[str(t).split('/src/test/java/',1)[1][:-5] for t in root.glob('*/src/test/java/**/*.java')]
   assert not [n for n in names if n.endswith('.class') and any(n==t+'.class' or n.startswith(t+'$') for t in test_classes)]
   assert not [n for n in names if re.search(r'(^|/)(smoke-world|server.properties|eula.txt|state.json|.*\.sqlite|.*\.sql\.dump|\.env)$',n)]
   if name=='DexturReputation.jar':
-   descriptor=z.read('plugin.yml').decode();assert "version: '1.0.0'" in descriptor
+   descriptor=z.read('plugin.yml').decode();assert "version: '"+a.version+"'" in descriptor
    assert "api-version: '26.2'" in descriptor and 'main: org.dextur.reputation.paper.DexturReputationPlugin' in descriptor
    assert 'depend:' not in descriptor.replace('softdepend:','')
   else:

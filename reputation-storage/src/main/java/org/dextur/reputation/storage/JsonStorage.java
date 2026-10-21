@@ -35,6 +35,7 @@ public final class JsonStorage implements StorageBackend {
     private org.dextur.reputation.domain.tier.TierRules tierRules;
     public JsonStorage(Path directory,int maximum,boolean migration) throws Exception { this(directory,maximum,migration,p -> {}); }
     public JsonStorage(Path directory,int maximum,boolean migration,Fault fault) throws Exception {
+        directory=StoragePaths.checked(directory);
         this.directory=directory;this.maximum=maximum;this.fault=fault;
         AtomicFiles.directories(directory); lease=new StorageLease(directory.resolve("owner.lock"));
         primary=directory.resolve("state.json");pending=directory.resolve("migration.pending");
@@ -49,11 +50,12 @@ public final class JsonStorage implements StorageBackend {
         } catch(Exception e) { lease.close();throw e; }
     }
     private byte[] read(Path path) throws IOException {
+        lease.verify();StoragePaths.checked(path);
         if(Files.isSymbolicLink(path)||Files.size(path)>maximum) throw new IOException("Unsafe or oversized JSON file");
         return Files.readAllBytes(path);
     }
     @Override public StorageType type() { return StorageType.JSON; }
-    private void available() throws IOException { if(closed||poisoned) throw new IOException("JSON storage closed or uncertain write; restart and verify files"); }
+    private void available() throws IOException { if(closed||poisoned) throw new IOException("JSON storage closed or uncertain write; restart and verify files");lease.verify(); }
     private Rules investigationRules;
     private void commit(StorageSnapshot next) throws Exception {
         if(investigationRules!=null)next=indexFlags(next);
@@ -81,7 +83,7 @@ public final class JsonStorage implements StorageBackend {
             AtomicFiles.replace(directory.resolve("state.json.bak"),previous);
             AtomicFiles.write(directory.resolve("state.json.tmp"),bytes);
             fault.at(Point.BEFORE_RENAME);
-            Files.move(directory.resolve("state.json.tmp"),primary,StandardCopyOption.ATOMIC_MOVE,StandardCopyOption.REPLACE_EXISTING);
+            AtomicFiles.move(directory.resolve("state.json.tmp"),primary);
             fault.at(Point.AFTER_RENAME);AtomicFiles.syncDirectory(directory);
             state=next;generation++;
         } catch(Exception e) { poisoned=true;throw e; }

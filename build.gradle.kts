@@ -1,7 +1,7 @@
 plugins { base }
 allprojects {
     group = "org.dextur.reputation"
-    version = "1.0.0"
+    version = "1.0.1"
     repositories {
         mavenCentral()
         maven("https://repo.papermc.io/repository/maven-public/")
@@ -45,3 +45,8 @@ subprojects {
 }
 tasks.named("build") { dependsOn(subprojects.map { "${it.path}:build" }) }
 tasks.named("check") { dependsOn(subprojects.map { "${it.path}:check" }) }
+tasks.register("releaseCheck") {
+    description = "Builds the release and runs mandatory MariaDB/MySQL integration tests (requires Docker)."
+    group = "verification"
+    dependsOn(tasks.named("build"), ":reputation-storage:integrationTest")
+}

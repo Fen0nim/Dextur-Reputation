@@ -179,7 +179,7 @@ Private `/repadmin` investigation/moderation and GUI, administration.yml and sch
 
 ## Контракт стабильной линии 1.x
 
-Артефакт API: `reputation-api-1.0.0.jar`; получайте сервисы через Bukkit ServicesManager после readiness и проверяйте null при shutdown. CompletionStage не блокируйте на Paper main thread. Cached методы не выполняют I/O; возвращённые records/maps неизменяемы. Bukkit entity/inventory/world effects планируйте на основном потоке. Подписки закрывайте при disable.
+Артефакт API: `reputation-api-1.0.1.jar`; получайте сервисы через Bukkit ServicesManager после readiness и проверяйте null при shutdown. CompletionStage не блокируйте на Paper main thread. Cached методы не выполняют I/O; возвращённые records/maps неизменяемы. Bukkit entity/inventory/world effects планируйте на основном потоке. Подписки закрывайте при disable.
 
 Phase 8 не добавляет публичных gameplay API types и сохраняет все 41 прежний class file побайтово. Новые CommandInput и release QA helpers не являются API. `JsonStorage.LimitException` относится к backend maintenance diagnostics, StorageAdmin verify — к offline эксплуатации; storage/internal investigation contracts не зарегистрированы как публичные Bukkit services. Hidden Trust/evidence не становятся public placeholders.
 

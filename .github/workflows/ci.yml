@@ -8,8 +8,41 @@ concurrency:
   group: verify-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  verify:
-    runs-on: ubuntu-24.04
+  build:
+    name: Java 25 / ${{ matrix.os }} / no Docker
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      DOCKER_HOST: tcp://127.0.0.1:1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Normal build (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./gradlew clean build --no-build-cache
+      - name: Normal build (Windows, no Bash)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\gradlew.bat clean build --no-build-cache
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DexturReputation-1.0.1-${{ matrix.os }}
+          path: |
+            reputation-paper/build/libs/DexturReputation.jar
+            reputation-paper/build/libs/DexturReputation-StorageAdmin.jar
+            **/build/reports/tests/
+  release-sql:
+    name: Full release / MariaDB and MySQL
+    runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -18,10 +51,9 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Docker required for both SQL engines
-        run: docker info
-      - name: Full clean build and mandatory tests
-        run: ./gradlew clean build --no-build-cache
+      - run: docker info
+      - name: All normal tests and mandatory SQL tests
+        run: ./gradlew clean releaseCheck --no-build-cache
       - name: Save reproducibility reference
         run: |
           mkdir -p "$RUNNER_TEMP/reproducibility"
@@ -38,7 +70,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: DexturReputation-1.0.0-verification
+          name: DexturReputation-1.0.1-release-sql
           path: |
             reputation-paper/build/libs/DexturReputation.jar
             reputation-paper/build/libs/DexturReputation-StorageAdmin.jar

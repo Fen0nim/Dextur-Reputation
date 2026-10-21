@@ -1,4 +1,4 @@
-# DexturReputation 1.0.0
+# DexturReputation 1.0.1
 
 Плагин репутации для **Paper 26.2 / Java 25**. Игроки оставляют оценки с причинами; Trust и anti-abuse определяют допустимость и вес голосов. Репутация задаёт уровни, оформление и настраиваемые политики. Администраторы получают расследования, аудит и безопасные массовые операции.
 
@@ -19,7 +19,7 @@
 
 `DexturReputation-StorageAdmin.jar` — отдельный **offline CLI**, не Paper-плагин. `DexturReputationProbe.jar` предназначен исключительно для QA и не устанавливается в production.
 
-JSON подходит для небольших баз: он переписывает полный снимок, имеет стандартный предел 64 MiB и требует локальную файловую систему с atomic rename/fsync. SQLite удобен для одного сервера с растущей историей. MySQL/MariaDB подходят для внешней БД с управляемыми резервными копиями. Одновременно допускается один владелец хранилища; общей записи с нескольких серверов нет. При ошибке выбранного backend автоматического переключения нет.
+JSON подходит для небольших баз: он переписывает полный снимок, имеет стандартный предел 64 MiB и требует локальную файловую систему с атомарной заменой файлов. SQLite удобен для одного сервера с растущей историей. MySQL/MariaDB подходят для внешней БД с управляемыми резервными копиями. Одновременно допускается один владелец хранилища; общей записи с нескольких серверов нет. При ошибке выбранного backend автоматического переключения нет.
 
 ## Команды и интеграции
 
@@ -43,6 +43,6 @@ PlaceholderAPI и LuckPerms необязательны. PAPI читает гот
 ./gradlew clean build --no-build-cache
 ```
 
-Нужны Java 25 и работающий Docker: тесты MariaDB/MySQL обязательны. Gradle wrapper, зависимости и verification metadata закреплены. Основные JAR находятся в `reputation-paper/build/libs/`. Публичные 1.x API сохраняют совместимость; операции возвращают CompletionStage, Bukkit-эффекты выполняются на основном потоке.
+Нужны Java 25 и Gradle Wrapper из репозитория; глобальная установка Gradle не нужна. Обычный build выполняет все локальные JSON/SQLite, application и Paper-тесты **без Docker**. Полная проверка выпуска: `./gradlew releaseCheck --no-build-cache`; она дополнительно требует Docker и запускает все тесты MariaDB/MySQL. На Windows используйте `gradlew.bat`. Gradle wrapper, зависимости и verification metadata закреплены. Основные JAR находятся в `reputation-paper/build/libs/`. Публичные 1.x API сохраняют совместимость; операции возвращают CompletionStage, Bukkit-эффекты выполняются на основном потоке.
 
-[Release checklist](docs/RELEASE_CHECKLIST.md) · [Результаты Phase 8](docs/PHASE_8_TEST_REPORT.md) · [Release notes 1.0.0](docs/RELEASE_NOTES_1.0.0.md). Старые PHASE_*_TEST_REPORT — исторические отчёты, не описание текущей версии. Merge в main, tag и GitHub Release выполняются отдельно после явного разрешения владельца.
+[Release checklist](docs/RELEASE_CHECKLIST.md) · [Результаты Phase 8](docs/PHASE_8_TEST_REPORT.md) · [Сборка на macOS/Windows/Linux](docs/BUILDING.md) · [Отчёт hotfix 1.0.1](docs/1.0.1_PORTABILITY_TEST_REPORT.md) · [Release notes 1.0.1](docs/RELEASE_NOTES_1.0.1.md). Старые PHASE_*_TEST_REPORT — исторические отчёты, не описание текущей версии. Merge в main, tag и GitHub Release выполняются отдельно после явного разрешения владельца.

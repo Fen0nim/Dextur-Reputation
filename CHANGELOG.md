@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+Cross-platform filesystem hotfix: platform-neutral canonical trusted roots, bounded internal links and escape rejection, private POSIX/Windows ACL file creation, explicit directory-sync limits, portable JVM/locking/reparse tests and safe junction cleanup. Normal builds no longer require Docker; releaseCheck retains all MariaDB/MySQL tests. Complete cold-cache dependency verification metadata and Java 25 Linux/macOS/Windows CI matrix. No gameplay, API or persistent format change. See [release notes](docs/RELEASE_NOTES_1.0.1.md).
+
 ## 1.0.0
 
 Stable release preparation: complete reputation/voting/Trust/tiers/recovery/policy/admin functionality, three storage backend types (MySQL and MariaDB verified separately), optional PAPI/LuckPerms, compatibility and failure hardening. See [release notes](docs/RELEASE_NOTES_1.0.0.md) and [verification report](docs/PHASE_8_TEST_REPORT.md).

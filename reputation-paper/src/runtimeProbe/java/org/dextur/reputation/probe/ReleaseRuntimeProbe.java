@@ -25,7 +25,7 @@ final class ReleaseRuntimeProbe {
     void start(Runnable success,Consumer<Throwable> failure){
         poll(()->main(()->{operator=plugin.getServer().getPlayerExact("ReleaseAdmin");target=plugin.getServer().getPlayerExact("ReleaseTarget");ordinary=plugin.getServer().getPlayerExact("ReleaseUser");return operator!=null&&target!=null&&ordinary!=null;}),Boolean::booleanValue,0)
         .thenCompose(v->profiles.getProfile(target.getUniqueId())).thenCompose(profile->main(()->{
-            var owner=plugin.getServer().getPluginManager().getPlugin("DexturReputation");check(owner.getPluginMeta().getVersion().equals("1.0.0"),"Release version metadata");
+            var owner=plugin.getServer().getPluginManager().getPlugin("DexturReputation");check(owner.getPluginMeta().getVersion().equals("1.0.1"),"Release version metadata");
             for(String root:List.of("dexturreputation","rep","repadmin","like","dislike"))check(plugin.getServer().getPluginCommand(root)!=null,"Missing command "+root);
             check(plugin.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")==Boolean.getBoolean("dextur.probe.expect-papi"),"Unexpected PAPI presence");
             check(plugin.getServer().getPluginManager().isPluginEnabled("LuckPerms")==Boolean.getBoolean("dextur.probe.expect-lp"),"Unexpected LP presence");
@@ -53,7 +53,7 @@ final class ReleaseRuntimeProbe {
             var attribute=target.getAttribute(Attribute.MAX_HEALTH);check(attribute.getModifier(foreign)!=null,"Foreign health modifier removed");check(attribute.getModifiers().stream().filter(m->m.getKey().equals(own)).count()==(run>=3?1:0),"Owned health modifier duplication");
             String mode=DisplayConfiguration.load(plugin.getServer().getPluginManager().getPlugin("DexturReputation").getDataFolder().toPath()).tab().mode().name();
             if(mode.equals("DIRECT"))check(plain(target.playerListName()).contains("100"),"Direct TAB missing");else check(!plain(target.playerListName()).contains("100"),"Disabled/placeholder-only TAB mutated name");
-            plugin.getLogger().info("PROBE_RELEASE_PASS: version1.0.0, fresh/defaults, permissions, RUEN GUI, restart/restore, optional integrations, TAB="+mode+", foreign state, run="+run);
+            plugin.getLogger().info("PROBE_RELEASE_PASS: version1.0.1, fresh/defaults, permissions, RUEN GUI, restart/restore, optional integrations, TAB="+mode+", foreign state, run="+run);
             success.run();return true;
         })).exceptionally(error->{main(()->{failure.accept(error);return null;});return null;});
     }
