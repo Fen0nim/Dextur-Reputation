@@ -233,7 +233,7 @@ recovery-event-administrative-lock-changed: 'Блокировка восстан
 recovery-reason-capacity: 'Лимит трекера активности достигнут; сообщите администратору'
 
 # Phase 6
-admin-help: "/repadmin set|add|remove <игрок> <целое> <причина>; voting lock|unlock|status <игрок> [причина]; policy <игрок> <policy> allow|deny|reset <причина>; reload"
+admin-help: Начните с /repadmin gui <игрок> или /repadmin help 1.
 admin-error-reason: "Укажите непустую причину операции."
 admin-error-remove: "remove принимает только положительную величину."
 admin-error-conflict: "Идентификатор операции уже использован с другими параметрами."
@@ -265,7 +265,7 @@ policy-reason-reputation: "Требования политики не выпол
 policy-reason-configured: "Результат настроенной политики. Дополнительные проверки внешней функции сохраняются."
 
 # Phase 7 — private administration
-admin7-help: "/repadmin inspect|history|vote|invalidate|restore|pending|trust|flags|flag|relations|recalculate|audit|gui|bulk|confirm. Подробнее: docs/ADMINISTRATION.md"
+admin7-help: 'Разделы: /repadmin help 1, 2, 3.'
 admin7-report: "{section} — страница {page}, записей: {total}"
 admin7-field: "{field}: {value}"
 admin7-row: "{id}: {details}"
@@ -276,7 +276,7 @@ admin7-confirm: "Подтвердите /repadmin confirm {token} в течен�
 admin7-bulk-result: "Bulk {operation}: {status}, обработано {completed}/{total}."
 admin7-empty: "Записей нет."
 admin7-gui-title: "Администрирование репутации"
-admin7-gui-reason: "Подтверждено администратором в GUI"
+admin7-gui-reason: Изменение через меню управления игроком
 admin7-recalculate-reason: "Явный административный перерасчёт"
 admin7-previous: "Назад"
 admin7-next: "Далее"
@@ -353,7 +353,7 @@ admin7-field-vote: "Голос"
 admin7-field-voter: "Автор"
 admin7-field-target: "Цель"
 admin7-field-action: "Действие"
-admin7-field-type: "Тип"
+admin7-field-type: Оценка
 admin7-field-reason: "Причина"
 admin7-field-comment: "Комментарий"
 admin7-field-timestamp: "Время UTC"
@@ -392,12 +392,12 @@ admin7-field-operation: "Операция"
 admin7-field-count: "Количество"
 admin7-field-page: "Страница"
 admin7-field-total: "Всего"
-admin7-field-neighbor: "Связанный игрок"
+admin7-field-neighbor: Другой игрок
 admin7-field-outgoing: "Исходящие"
 admin7-field-incoming: "Входящие"
 admin7-field-reciprocity: "Взаимные события"
 admin7-field-recent_burst: "События за последний час"
-admin7-field-evidence: "Наблюдения"
+admin7-field-evidence: Примечание
 admin7-field-complete: "Анализ полный в пределах окна"
 admin7-field-examined: "Просмотрено"
 admin7-field-source: "Детектор"
@@ -432,29 +432,29 @@ admin7-value-invalidated: "Инвалидирован"
 admin7-value-superseded: "Заменён"
 admin7-value-revoked: "Отозван"
 admin7-value-running: "Выполняется"
-admin7-value-completed: "Завершено"
-admin7-value-cancelled: "Отменено"
-admin7-value-paused: "Приостановлено"
+admin7-value-completed: Завершено
+admin7-value-cancelled: Отменено
+admin7-value-paused: Приостановлено
 admin7-value-suspicion: "Подозрение, не доказательство"
 admin7-value-pending_review: "Ожидает проверки"
 admin7-value-confirmed_abuse: "Подтверждено модератором"
 admin7-value-false_positive: "Разрешён: ложное срабатывание"
-admin7-value-correlation_only: "Корреляция, не доказательство манипуляции"
+admin7-value-correlation_only: Связь сама по себе не доказывает нарушение
 admin7-value-true: "Да"
 admin7-value-false: "Нет"
 admin7-value-low: "Низкая"
 admin7-value-medium: "Средняя"
 admin7-value-high: "Высокая"
-admin7-value-positive: "Положительный"
-admin7-value-negative: "Отрицательный"
-admin7-value-cast: "Создание"
-admin7-value-replace: "Замена"
+admin7-value-positive: Лайк
+admin7-value-negative: Дизлайк
+admin7-value-cast: Оценка добавлена
+admin7-value-replace: Оценка изменена
 admin7-value-revoke: "Отзыв"
 admin7-bulk-started: "Пакетная операция {operation}. Используйте этот ID в /repadmin bulk status|resume|cancel."
 admin7-field-active: "Активные голоса"
 admin7-field-clusters: "Группы ограниченного детектора"
 admin7-field-graph_complete: "Граф детектора полный"
-admin7-field-recovery_reward: "Награды реабилитации"
+admin7-field-recovery_reward: Награды восстановления
 admin7-field-legacy_system: "Прежний системный вклад"
 admin7-field-operation_original: "Исходный ID операции/аудита"
 admin7-field-source_actor: "Исходная метка автора"
@@ -475,7 +475,7 @@ admin7-value-bulk_started: "Начало пакета"
 admin7-value-bulk_completed: "Завершение пакета"
 admin7-value-bulk_cancelled: "Отмена пакета"
 admin7-value-failed: "Ошибка"
-admin7-field-policy: "Политика"
+admin7-field-policy: Правило доступа
 admin7-field-override: "Переопределение"
 admin7-field-before_override: "Прежнее переопределение"
 admin7-field-after_override: "Итоговое переопределение"
@@ -493,7 +493,172 @@ admin7-field-resolution: "Решение проверки"
 admin7-field-before_community_units: "Прежние миллионные доли community"
 admin7-field-after_community_units: "Итоговые миллионные доли community"
 admin7-field-program: "Программа реабилитации"
-admin7-field-stage: "Этап"
+admin7-field-stage: Этап
 admin7-field-progress: "Прогресс"
 
 storage-verified: '<green>Проверка завершена: профилей {profiles}, голосов {votes}, SHA-256 {checksum}. Изменения оценок не выполнялись.</green>'
+
+# Administration UX and action feedback
+admin7-player-unknown: Неизвестный игрок
+admin7-console: Администрация
+admin7-system: Система
+admin-enabled: Включён
+admin-disabled: Выключен
+admin-force-usage: <yellow>/repadmin force <игрок> [on|off|status] — обойти только начальные требования для голосования.</yellow>
+admin-force-status: '<aqua>{player}</aqua><gray>: начальное ожидание для голосования — обход {state}.</gray>'
+admin-force-audit-reason: Изменение начального допуска к голосованию администратором
+admin-success-force-on: <green>✔ {player} теперь может голосовать без начального ожидания.</green>
+admin-success-force-off: <yellow>Для {player} восстановлены обычные начальные требования голосования.</yellow>
+admin-target-force-on: <green>Администратор {actor} разрешил вам голосовать без начального требования по времени игры и возрасту аккаунта.</green><newline><gray>Лимиты, задержки и защиты продолжают действовать.</gray>
+admin-target-force-off: <yellow>Для вас снова действуют обычные начальные требования голосования.</yellow>
+admin-success-set: '<green>✔ Репутация {player} установлена. Сейчас: {value}.</green><newline><gray>Причина: {reason}</gray>'
+admin-target-set: '<aqua>Администратор {actor} изменил вашу репутацию. Сейчас: {value}.</aqua><newline><gray>Причина: {reason}</gray>'
+admin-success-add: '<green>✔ Репутация {player} увеличена. Сейчас: {value}.</green><newline><gray>Причина: {reason}</gray>'
+admin-target-add: '<aqua>Администратор {actor} изменил вашу репутацию. Сейчас: {value}.</aqua><newline><gray>Причина: {reason}</gray>'
+admin-success-remove: '<green>✔ Репутация {player} уменьшена. Сейчас: {value}.</green><newline><gray>Причина: {reason}</gray>'
+admin-target-remove: '<aqua>Администратор {actor} изменил вашу репутацию. Сейчас: {value}.</aqua><newline><gray>Причина: {reason}</gray>'
+admin-success-lock: <green>✔ Голосование для {player} заблокировано.</green>
+admin-target-lock: '<red>Администратор {actor} заблокировал ваш доступ к лайкам и дизлайкам.</red><newline><gray>Причина: {reason}</gray>'
+admin-success-unlock: <green>✔ Голосование для {player} разблокировано.</green>
+admin-target-unlock: <green>Ваш доступ к лайкам и дизлайкам восстановлен.</green>
+admin-success-override: '<green>✔ Правило доступа для {player} обновлено.</green><newline><gray>Причина: {reason}</gray>'
+admin-target-override: '<aqua>Администратор {actor} обновил ваши правила доступа.</aqua><newline><gray>Причина: {reason}</gray>'
+admin7-action-applied: '<green>✔ {action}. Репутация: {value}.</green>'
+admin7-account-reviewed: <aqua>Администратор {actor} проверил и обновил состояние вашей репутации.</aqua>
+vote-reason-unknown: Причина не указана
+vote-error-policy: <red>✖ Голосование сейчас недоступно по правилам сервера.</red>
+vote-success-positive: '<green>✔ Вы повысили репутацию {player}.</green><newline><gray>Причина: {reason}</gray>'
+vote-target-positive: '<green>★ {player} повысил вашу репутацию.</green><newline><gray>Причина: {reason}</gray>'
+vote-success-negative: '<red>✔ Вы понизили репутацию {player}.</red><newline><gray>Причина: {reason}</gray>'
+vote-target-negative: '<red>★ {player} понизил вашу репутацию.</red><newline><gray>Причина: {reason}</gray>'
+vote-success-revoke: '<yellow>✔ Вы отозвали оценку игрока {player}.</yellow><newline><gray>Причина: {reason}</gray>'
+vote-target-revoke: '<yellow>★ {player} отозвал свою оценку вашей репутации.</yellow><newline><gray>Причина: {reason}</gray>'
+vote-reviewed-author: '<aqua>Ваша оценка игрока {player}: {status}.</aqua>'
+admin7-field-details: Дополнительные сведения
+admin7-human-row: <gray>{details}</gray>
+admin7-time-hours: '{hours} ч'
+admin7-value-other: Дополнительная запись
+admin7-value-available: Нет активной программы
+admin7-value-active: В процессе
+admin7-value-expired: Срок истёк
+admin7-value-allow: Доступно
+admin7-value-deny: Недоступно
+admin7-value-limited: С ограничениями
+admin7-value-set: Установлена репутация
+admin7-value-add: Увеличена репутация
+admin7-value-remove: Уменьшена репутация
+admin7-value-lock: Голосование заблокировано
+admin7-value-unlock: Голосование разблокировано
+admin7-value-override: Изменено правило доступа
+admin7-value-force_allow: Разрешено администратором
+admin7-value-force_deny: Запрещено администратором
+admin7-value-default: По правилам сервера
+admin7-ui-title: '<aqua>Управление: {player}</aqua>'
+admin7-ui-field: '<gray>{field}: <white>{value}</white></gray>'
+admin7-ui-click-open: <yellow>ЛКМ — открыть</yellow>
+admin7-ui-click-execute: <yellow>ЛКМ — выполнить</yellow>
+admin7-ui-click-confirm: <yellow>ЛКМ — перейти к подтверждению</yellow>
+admin7-ui-information: <gray>Информация — действие не выполняется</gray>
+admin7-ui-right-details: <aqua>ПКМ — технические подробности</aqua>
+admin7-ui-overview: <aqua>Обзор игрока</aqua>
+admin7-ui-access: <aqua>Доступ к голосованию</aqua>
+admin7-ui-bypass: <aqua>Начальный допуск без ожидания</aqua>
+admin7-ui-player-lock: <aqua>Личный доступ к голосованию</aqua>
+admin7-ui-policy: <aqua>Доступ по правилам сервера</aqua>
+admin7-ui-adjust: <aqua>Изменить репутацию</aqua>
+admin7-ui-given: <aqua>Выданные оценки</aqua>
+admin7-ui-debug: <aqua>Технические подробности</aqua>
+admin7-ui-lock: <red>Заблокировать голосование</red>
+admin7-ui-unlock: <green>Разблокировать голосование</green>
+admin7-ui-force-on: <green>Разрешить голосование без ожидания</green>
+admin7-ui-force-off: <yellow>Вернуть начальные требования</yellow>
+admin7-ui-add: <green>Добавить 1 к репутации</green>
+admin7-ui-remove: <red>Убрать 1 из репутации</red>
+admin7-ui-reset: <red>Установить репутацию 0</red>
+admin7-ui-custom-title: <gray>Другая величина</gray>
+admin7-ui-adjust-desc: <gray>Изменяет итоговую репутацию; причина сохраняется в аудите.</gray>
+admin7-ui-given-desc: <gray>Кого оценивал этот игрок и чем завершились оценки.</gray>
+admin7-ui-debug-desc: <gray>Идентификаторы и подробные поля на отдельных страницах.</gray>
+admin7-ui-lock-desc: <gray>Личная блокировка действует независимо от начального допуска.</gray>
+admin7-ui-force-desc: <gray>Снимает только начальные пороги времени игры и возраста аккаунта.</gray>
+admin7-ui-policy-desc: <gray>Общее правило сервера проверяется отдельно от личной блокировки.</gray>
+admin7-ui-recalculate-desc: <gray>Повторная проверка сохранённых данных; требуется подтверждение.</gray>
+admin7-ui-cancel-desc: <gray>Вернуться без изменений.</gray>
+admin7-ui-page-desc: <gray>Показать соседнюю страницу.</gray>
+admin7-ui-refresh-desc: <gray>Загрузить актуальные данные.</gray>
+admin7-ui-close-desc: <gray>Закрыть окно.</gray>
+admin7-ui-back-desc: <gray>Вернуться к предыдущему разделу.</gray>
+admin7-ui-confirm-warning: <gray>Проверьте действие и игрока. Повторный клик не повторит операцию.</gray>
+admin7-ui-custom-adjust: <gray>Используйте /repadmin set|add|remove <игрок> <число> <причина>.</gray>
+admin7-ui-confirm-player: '<white>Игрок: {player}</white>'
+admin7-ui-row: <aqua>{section} · {number}</aqua>
+admin7-ui-detail-field: <aqua>{field}</aqua>
+admin7-desc-inspect: <gray>Краткая сводка состояния игрока.</gray>
+admin7-desc-votes: <gray>Полученные оценки и их состояние.</gray>
+admin7-desc-pending: <gray>Оценки, ожидающие решения администратора.</gray>
+admin7-desc-trust: <gray>Доверие и ограничения; только для администрации.</gray>
+admin7-desc-flags: <gray>Сигналы для проверки; не автоматическое доказательство вины.</gray>
+admin7-desc-relations: <gray>Связи по выданным и полученным оценкам.</gray>
+admin7-desc-recovery: <gray>Состояние программы восстановления.</gray>
+admin7-desc-admin: <gray>История административных изменений.</gray>
+admin7-desc-audit: <gray>Кто, когда и почему изменял данные.</gray>
+admin7-desc-recalculate: <gray>Проверить согласованность сохранённых результатов.</gray>
+admin7-help-1: <aqua>Администрирование · 1/3</aqua><newline><gray>/repadmin gui <игрок> — управление игроком<newline>/repadmin inspect <игрок> — краткая сводка<newline>/repadmin force <игрок> [on|off|status] — начальный допуск<newline>/repadmin help 2 — изменения и ограничения</gray>
+admin7-help-2: <aqua>Администрирование · 2/3</aqua><newline><gray>/repadmin set|add|remove <игрок> <число> <причина><newline>/repadmin voting lock|unlock <игрок> <причина><newline>/repadmin voting status <игрок><newline>/repadmin help 3 — проверка оценок</gray>
+admin7-help-3: <aqua>Администрирование · 3/3</aqua><newline><gray>/repadmin history <игрок> — история<newline>/repadmin gui <игрок> — проверки и подтверждения<newline>/repadmin pending approve|reject <ID> <причина><newline>/repadmin reload — перечитать правила доступа</gray>
+admin7-help-page: '<yellow>Выберите страницу справки: /repadmin help 1, 2 или 3.</yellow>'
+
+admin7-action-invalidate: Аннулировать оценку
+admin7-action-restore: Восстановить оценку
+admin7-action-approve: Одобрить оценку
+admin7-action-reject: Отклонить оценку
+admin7-action-resolve_flag: Сохранить результат проверки сигнала
+admin7-recovery-pause: Приостановить восстановление
+admin7-recovery-resume: Продолжить восстановление
+admin7-recovery-start: Начать восстановление
+admin7-recovery-cancel: Отменить восстановление
+admin7-recovery-reset_stage: Сбросить текущий этап
+admin7-recovery-lock: Заблокировать восстановление
+admin7-recovery-unlock: Разблокировать восстановление
+admin7-recovery-applied: '<green>✔ {action}: {player}.</green>'
+admin7-ui-recovery-desc: <gray>Меняет состояние программы; действие сохранится в аудите.</gray>
+
+admin7-ui-label: '<gray>{field}: </gray>'
+admin7-ui-effective: <aqua>Итог по правилам доступа</aqua>
+
+admin-no-change: <gray>Для {player} состояние уже соответствует запросу. Повторного изменения нет.</gray>
+admin7-value-unavailable: Недоступно
+admin7-result-invalidate: Оценка аннулирована
+admin7-result-restore: Оценка восстановлена
+admin7-result-approve: Оценка одобрена
+admin7-result-reject: Оценка отклонена
+admin7-result-resolve_flag: Проверка сигнала сохранена
+admin7-result-recalculate_reputation: Репутация проверена
+admin7-result-recalculate_trust: Доверие проверено
+admin7-result-recalculate_tier: Уровень согласован
+admin7-result-recalculate_all: Проверка завершена
+
+admin7-ui-resolution: '<yellow>Результат: {value}</yellow>'
+vote-reviewed-approve: одобрена
+vote-reviewed-reject: отклонена
+vote-reviewed-invalidate: аннулирована
+vote-reviewed-restore: восстановлена
+
+admin7-ui-player: Игрок
+admin7-voting-blocked: Заблокирован
+admin7-voting-unblocked: Не заблокирован
+admin7-ui-vote-row: <aqua>{type} · {player}</aqua>
+admin7-ui-operation-row: <aqua>{action} · {player}</aqua>
+admin7-result-force-on: Начальный допуск разрешён
+admin7-result-force-off: Начальные требования восстановлены
+
+admin7-ui-click-close: <yellow>ЛКМ — закрыть</yellow>
+admin7-ui-click-back: <yellow>ЛКМ — назад</yellow>
+admin7-ui-click-refresh: <yellow>ЛКМ — обновить</yellow>
+admin7-recovery-result-start: Восстановление начато
+admin7-recovery-result-pause: Восстановление приостановлено
+admin7-recovery-result-resume: Восстановление продолжено
+admin7-recovery-result-cancel: Восстановление отменено
+admin7-recovery-result-reset_stage: Текущий этап сброшен
+admin7-recovery-result-lock: Восстановление заблокировано
+admin7-recovery-result-unlock: Восстановление разблокировано

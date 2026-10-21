@@ -110,6 +110,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         recoveryNotifications=new java.util.concurrent.ArrayBlockingQueue<>(settings.queueSize());
         recovery.onChanged(event->{if(event.kind()!=org.dextur.reputation.api.RecoveryService.Kind.PROGRESS_CHANGED)recoveryNotifications.offer(event);});
         var recoveryCommands=new RecoveryCommands(this,application,recovery,messages,settings.defaultLanguage());
+        policyCommands.recovery(recoveryCommands);
         recoveryGui=new RecoveryGui(this,recovery,recoveryCommands,messages,recoveryLayout,recoveryRules);recoveryCommands.gui(recoveryGui);
         recoveryActivity=new RecoveryActivity(this,recovery,recoveryRules,messages,application);
         getServer().getPluginManager().registerEvents(recoveryGui,this);getServer().getPluginManager().registerEvents(recoveryActivity,this);
@@ -126,6 +127,8 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         getServer().getPluginManager().registerEvents(investigationGui,this);
         investigation.onCommitted(event->onMain(()->{var player=getServer().getPlayer(event.target());if(player!=null)policyEffects.request(player);}));
         var votingCommands=new VotingCommands(this,application,voting,votingConfiguration,messages,settings.defaultLanguage());
+        investigationCommands.votes=votingCommands;
+        votingCommands.entryLookup(id->application.submit(()->storage.operation(id)));
         var gui=new VotingGui(this,voting,votingCommands,votingConfiguration,guiConfiguration,messages);
         votingGui=gui;gui.policies(policyEffects);gui.recovery(recoveryGui);recoveryGui.voting(gui);gui.tiers(tiers,displayFormatter,tierRules);
         votingCommands.gui(gui);
@@ -162,7 +165,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
                     display=new ReputationDisplay(this,application,tiers,displayFormatter,displayConfiguration);
                     getServer().getScheduler().runTaskTimer(this,()->{
                         display.tick();
-                        for(int i=0;i<displayConfiguration.batch();i++){var event=recoveryNotifications.poll();if(event==null)break;var player=getServer().getPlayer(event.snapshot().playerId());if(player!=null){var locale=application.cachedLanguage(player.getUniqueId());player.sendMessage(messages.render(locale,"recovery-event",Map.of("event",messages.plain(locale,"recovery-event-"+event.kind().name().toLowerCase(java.util.Locale.ROOT).replace('_','-')),"progress",Integer.toString(event.snapshot().progressPercent()))));}}
+                        for(int i=0;i<displayConfiguration.batch();i++){var event=recoveryNotifications.poll();if(event==null)break;if(!recoveryCommands.notifyEvent(event)){recoveryNotifications.offer(event);break;}}
                         for(int i=0;i<displayConfiguration.batch();i++) {var event=notificationQueue.poll();if(event==null)break;notifications.accept(event);}
                     },1L,displayConfiguration.interval());
                     if(displayConfiguration.luckperms().enabled()) {
@@ -196,6 +199,11 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
     org.dextur.reputation.application.TierPermissionSync permissionSynchronizer() {return permissionSync;}
     String tierName(UUID id,org.dextur.reputation.domain.PlayerLanguage language) {
         return tiers==null?messages.plain(language,"tier-neutral"):tiers.cachedTier(id).map(t->org.dextur.reputation.application.DisplayFormatter.plain(displayFormatter.name(t,language))).orElse(messages.plain(language,"tier-neutral"));
+    }
+    String tierLabel(String id,org.dextur.reputation.domain.PlayerLanguage language){
+        var definition=tierRules==null?null:tierRules.byId(id);
+        if(definition==null)return messages.plain(language,"tier-neutral");
+        return org.dextur.reputation.application.DisplayFormatter.plain(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(definition.names().getOrDefault(language.name(),definition.names().get("en_US"))));
     }
     private void defaults() throws IOException {
         Path directory = getDataFolder().toPath();

@@ -109,7 +109,8 @@ public final class JsonStorage implements StorageBackend {
     @Override public synchronized org.dextur.reputation.api.VoteReceipt vote(String scope, org.dextur.reputation.api.VoteRequest request,
             org.dextur.reputation.domain.VoterFacts facts, org.dextur.reputation.domain.VotingRules rules, java.time.Instant now) throws Exception {
         available();
-        if(operation(request.operationId())==null)checkVoting(request.voterId(),scope,now);
+        var access=operation(request.operationId())==null?checkVoting(request.voterId(),scope,now):null;
+        rules=org.dextur.reputation.domain.policy.InitialEligibility.rules(rules,access);
         if(protectionRules!=null) {
             var protectedResult=JournalProtection.apply(state,scope,request,facts,rules,protectionRules,now);
             if(!protectedResult.receipt().duplicate()) commit(protectedResult.state());return new VoteReceipt(protectedResult.receipt().entry(),protectedResult.receipt().duplicate(),JournalVoting.view(state,request.targetId(),scope,now));
@@ -204,13 +205,14 @@ public final class JsonStorage implements StorageBackend {
         available();var profile=getOrCreate(player,scope);var recovery=state.recovery().get(player,scope);
         return new org.dextur.reputation.domain.policy.PolicyEngine.Input(profile,state.administration().get(player,scope),recovery==null||recovery.current()==null?RecoverySnapshot.Status.AVAILABLE:recovery.current().status(),recovery==null?0:recovery.revision());
     }
-    private void checkVoting(UUID player,String scope,Instant now)throws Exception{
-        if(featuresRules==null&&state.administration().isEmpty())return;
+    private org.dextur.reputation.domain.policy.AdministrationData.State checkVoting(UUID player,String scope,Instant now)throws Exception{
+        if(featuresRules==null&&state.administration().isEmpty())return null;
         var recovery=state.recovery().get(player,scope);var input=new org.dextur.reputation.domain.policy.PolicyEngine.Input(JournalVoting.profile(state,player,scope,now),state.administration().get(player,scope),recovery==null||recovery.current()==null?RecoverySnapshot.Status.AVAILABLE:recovery.current().status(),recovery==null?0:recovery.revision());if(input.administration()!=null&&input.administration().votingLocked())throw new PolicyDeniedException("policy-reason-voting-lock");
         if(featuresRules!=null){var result=org.dextur.reputation.domain.policy.PolicyEngine.evaluate(input,featuresRules,"reputation.vote",Map.of(),now,true);if(!result.permitted())throw new PolicyDeniedException(result.reasonKey());}
+        return input.administration();
     }
     @Override public synchronized org.dextur.reputation.domain.policy.AdministrationData.Change administer(org.dextur.reputation.domain.policy.AdministrationData.Request request)throws Exception{
-        available();Objects.requireNonNull(featuresRules,"Features not configured");if(request.type()==org.dextur.reputation.domain.policy.AdministrationData.Type.OVERRIDE&&!featuresRules.policies().containsKey(request.policy()))throw new IllegalArgumentException("ADMIN_POLICY");Objects.requireNonNull(tierRules,"Tiers not configured");
+        available();Objects.requireNonNull(featuresRules,"Features not configured");if(request.type()==org.dextur.reputation.domain.policy.AdministrationData.Type.OVERRIDE&&!featuresRules.policies().containsKey(request.policy())&&!request.policy().equals(org.dextur.reputation.domain.policy.InitialEligibility.KEY))throw new IllegalArgumentException("ADMIN_POLICY");Objects.requireNonNull(tierRules,"Tiers not configured");
         var change=org.dextur.reputation.domain.policy.AdministrationData.apply(state.administration().get(request.player(),request.scope()),JournalVoting.profile(state,request.player(),request.scope(),request.at()),request,featuresRules.administration());
         if(!change.duplicate()){var profiles=new ArrayList<>(state.profiles());profiles.removeIf(p->p.playerId().equals(request.player())&&p.scopeId().equals(request.scope()));profiles.add(change.profile());commit(new StorageSnapshot(profiles,state.preferences(),state.votes(),state.protection(),TierSnapshot.empty(),state.recovery(),state.administration().put(change.state()),state.investigation()));}
         return new org.dextur.reputation.domain.policy.AdministrationData.Change(change.state(),JournalVoting.profile(state,request.player(),request.scope(),request.at()),change.audit(),change.duplicate());

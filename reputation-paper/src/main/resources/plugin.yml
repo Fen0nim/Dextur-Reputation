@@ -49,6 +49,8 @@ permissions:
     default: op
   dexturreputation.policies:
     default: true
+  dexturreputation.admin.force:
+    default: op
   dexturreputation.admin.set:
     default: op
   dexturreputation.admin.add:

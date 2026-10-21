@@ -142,7 +142,8 @@ public final class SqlStorage implements StorageBackend {
     @Override public synchronized org.dextur.reputation.api.VoteReceipt vote(String scope,org.dextur.reputation.api.VoteRequest request,
             org.dextur.reputation.domain.VoterFacts facts,org.dextur.reputation.domain.VotingRules rules,java.time.Instant now) throws Exception {
         if(tierSchema&&tierRules==null) throw new IllegalStateException("Tier configuration required for voting");
-        if(operation(request.operationId())==null)checkVoting(request.voterId(),scope,now);
+        var access=operation(request.operationId())==null?checkVoting(request.voterId(),scope,now):null;
+        rules=org.dextur.reputation.domain.policy.InitialEligibility.rules(rules,access);
         if(protectionRules!=null) return new SqlProtection(this).apply(scope,request,facts,rules,protectionRules,now);
         if(privateSchema&&!snapshot().protection().isEmpty()) throw new IllegalStateException("Protection configuration required for voting");
         return new SqlVoting(this).apply(scope,request,facts,rules,now);
@@ -292,15 +293,16 @@ public final class SqlStorage implements StorageBackend {
     @Override public synchronized org.dextur.reputation.domain.policy.PolicyEngine.Input policyInput(UUID player,String scope)throws Exception{
         try(var c=connect()){c.setAutoCommit(false);try{var profile=new SqlVoting(this).ensure(c,player,scope,StorageSnapshot.now());var result=policyInput(c,profile);c.commit();return result;}catch(Exception error){c.rollback();throw error;}}
     }
-    private void checkVoting(UUID player,String scope,Instant now)throws Exception{
-        if(featuresRules==null&&!administrationSchema)return;
+    private org.dextur.reputation.domain.policy.AdministrationData.State checkVoting(UUID player,String scope,Instant now)throws Exception{
+        if(featuresRules==null&&!administrationSchema)return null;
         org.dextur.reputation.domain.policy.PolicyEngine.Input input;
         try(var c=connect()){c.setAutoCommit(false);try{ReputationSnapshot profile=new ReputationSnapshot(player,scope,0,0,0,"NEUTRAL",0,now,now);try(var s=c.prepareStatement("SELECT * FROM dr_profiles WHERE player_uuid=? AND scope_id=?")){s.setString(1,player.toString());s.setString(2,scope);try(var r=s.executeQuery()){if(r.next())profile=profile(r);}}input=policyInput(c,profile);c.commit();}catch(Exception error){c.rollback();throw error;}}
         if(input.administration()!=null&&input.administration().votingLocked())throw new PolicyDeniedException("policy-reason-voting-lock");
         if(featuresRules!=null){var result=org.dextur.reputation.domain.policy.PolicyEngine.evaluate(input,featuresRules,"reputation.vote",Map.of(),now,true);if(!result.permitted())throw new PolicyDeniedException(result.reasonKey());}
+        return input.administration();
     }
     @Override public synchronized org.dextur.reputation.domain.policy.AdministrationData.Change administer(org.dextur.reputation.domain.policy.AdministrationData.Request request)throws Exception{
-        Objects.requireNonNull(featuresRules,"Features not configured");if(request.type()==org.dextur.reputation.domain.policy.AdministrationData.Type.OVERRIDE&&!featuresRules.policies().containsKey(request.policy()))throw new IllegalArgumentException("ADMIN_POLICY");Objects.requireNonNull(tierRules,"Tiers not configured");
+        Objects.requireNonNull(featuresRules,"Features not configured");if(request.type()==org.dextur.reputation.domain.policy.AdministrationData.Type.OVERRIDE&&!featuresRules.policies().containsKey(request.policy())&&!request.policy().equals(org.dextur.reputation.domain.policy.InitialEligibility.KEY))throw new IllegalArgumentException("ADMIN_POLICY");Objects.requireNonNull(tierRules,"Tiers not configured");
         try(var c=connect()){c.setAutoCommit(false);try{var old=new SqlVoting(this).ensure(c,request.player(),request.scope(),request.at());var repo=new SqlAdministration(this);var change=org.dextur.reputation.domain.policy.AdministrationData.apply(repo.get(c,request.player(),request.scope()),old,request,featuresRules.administration());
             if(!change.duplicate()){var p=change.profile();try(var s=c.prepareStatement("UPDATE dr_profiles SET system_score=?,visible_score=?,profile_revision=?,updated_at=? WHERE player_uuid=? AND scope_id=?")){s.setLong(1,p.systemScore());s.setLong(2,p.visibleScore());s.setLong(3,p.revision());timestamp(s,4,p.updatedAt());s.setString(5,p.playerId().toString());s.setString(6,p.scopeId());if(s.executeUpdate()!=1)throw new SQLException("Administration profile missing");}repo.put(c,change.state());captureLegacy(c,InvestigationLegacy.administration(change.audit()));}
             var result=reconcileTier(c,change.profile());c.commit();return new org.dextur.reputation.domain.policy.AdministrationData.Change(change.state(),result,change.audit(),change.duplicate());

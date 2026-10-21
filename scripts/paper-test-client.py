@@ -41,7 +41,7 @@ def string(value):
     return varint(len(data)) + data
 
 
-def run(port, username, walk=False):
+def run(port, username, walk=False, capture_messages=False):
     with socket.create_connection(("127.0.0.1", port), timeout=5) as connection:
         connection.settimeout(60)
         threshold = None
@@ -79,6 +79,7 @@ def run(port, username, walk=False):
         send(0, varint(776) + string("127.0.0.1") + struct.pack(">H", port) + varint(2))
         send(0, string(username) + uuid.UUID(bytes=bytes(identity)).bytes)
         state = "login"
+        message_packet = None
         while True:
             length = read_varint(read)
             if length > 8 * 1024 * 1024:
@@ -118,6 +119,12 @@ def run(port, username, walk=False):
                 elif packet_id == 2:
                     raise RuntimeError("Configuration disconnected")
             else:
+                if capture_messages:
+                    if b"UX_WIRE_MARKER" in body:
+                        message_packet = packet_id
+                    if packet_id == message_packet:
+                        import json
+                        print(json.dumps({"player": username, "packet": packet_id, "text": body.decode("utf-8", errors="replace")}, ensure_ascii=False), flush=True)
                 if packet_id == 0x2C:
                     send(0x1C, body)
                 elif packet_id == 0x48:
@@ -136,11 +143,12 @@ def main():
     parser.add_argument("--port", type=int, default=25566)
     parser.add_argument("--username", default="Phase2Voter")
     parser.add_argument("--walk",action="store_true",help="Send native movement for isolated Phase 5 activity tests")
+    parser.add_argument("--capture-messages", action="store_true", help="Capture QA-marked system-chat packets for notification verification")
     args = parser.parse_args()
     deadline = time.monotonic() + 160
     while time.monotonic() < deadline:
         try:
-            run(args.port, args.username,args.walk)
+            run(args.port, args.username,args.walk,args.capture_messages)
             return
         except (ConnectionRefusedError, ConnectionResetError, EOFError, socket.timeout):
             time.sleep(0.25)

@@ -27,6 +27,9 @@ public final class RuntimeProbe extends JavaPlugin {
                     return;
                 }
                 cancel();
+                if(Boolean.getBoolean("dextur.probe.admin-ux")) {
+                    new AdminUxRuntimeProbe(RuntimeProbe.this).start(()->{try{finish(null);}catch(Throwable failure){fail(failure);}},RuntimeProbe.this::fail);return;
+                }
                 if(Boolean.getBoolean("dextur.probe.release")) {
                     new ReleaseRuntimeProbe(RuntimeProbe.this).start(()->{
                         try {

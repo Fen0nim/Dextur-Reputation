@@ -39,6 +39,8 @@ PlaceholderAPI и LuckPerms необязательны. PAPI читает гот
 
 Эти значения не содержат тегов или цветовых кодов. `reputation_formatted` сохраняет MiniMessage-вывод; `%dexturreputation_reputation%` не зарегистрирован. [Полный список placeholders](docs/DISPLAY.md#placeholderapi--chat).
 
+Админское меню `/repadmin gui <игрок>` показывает состояние игрока, отдельные настройки голосования, историю и подтверждения изменений. `/repadmin force <игрок> [on|off|status]` снимает только начальные требования по времени игры/возрасту на сервере; лимиты, блокировки и anti-abuse продолжают действовать. [Меню, права и уведомления](docs/ADMIN_UX.md).
+
 ## Документация
 
 [Установка](docs/INSTALLATION.md) · [Конфигурация](docs/CONFIGURATION.md) · [Хранилища и миграции](docs/STORAGE.md) · [Обновление](docs/UPGRADE.md) · [Backup/restore](docs/BACKUP_RESTORE.md) · [Troubleshooting](docs/TROUBLESHOOTING.md)

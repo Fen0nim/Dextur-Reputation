@@ -34,7 +34,7 @@ class ReleasePaperAuditTest {
     }
     @Test void explicitAdminHelpListsNewCommandsWithoutQueryingStorage()throws Exception {
         var plugin=mock(DexturReputationPlugin.class);var app=mock(InvestigationApplication.class);var previous=mock(PolicyCommands.class);var sender=mock(CommandSender.class);when(sender.hasPermission("dexturreputation.admin.inspect")).thenReturn(true);
-        var commands=new InvestigationCommands(plugin,mock(ReputationApplication.class),app,mock(Settings.class),Messages.bundled(PlayerLanguage.ru_RU),previous);commands.onCommand(sender,mock(Command.class),"repadmin",new String[]{"help"});verify(previous).send(sender,"admin7-help",Map.of());verifyNoInteractions(app);
+        var commands=new InvestigationCommands(plugin,mock(ReputationApplication.class),app,mock(Settings.class),Messages.bundled(PlayerLanguage.ru_RU),previous);commands.onCommand(sender,mock(Command.class),"repadmin",new String[]{"help"});verify(previous).send(sender,"admin7-help-1",Map.of());commands.onCommand(sender,mock(Command.class),"repadmin",new String[]{"help","2"});verify(previous).send(sender,"admin7-help-2",Map.of());verifyNoInteractions(app);
     }
     @Test void caseInsensitivePlayerCompletionAndDeniedAdministrativeCompletion()throws Exception {
         var plugin=mock(DexturReputationPlugin.class);var server=mock(Server.class);when(plugin.getServer()).thenReturn(server);var player=mock(Player.class);when(player.getName()).thenReturn("MixedCaseName");doReturn(List.of(player)).when(server).getOnlinePlayers();var sender=mock(CommandSender.class);var commands=new PolicyCommands(plugin,mock(ReputationApplication.class),mock(PolicyApplication.class),mock(Settings.class),Messages.bundled(PlayerLanguage.ru_RU));

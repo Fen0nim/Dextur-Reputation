@@ -17,7 +17,17 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
     private final VotingConfiguration config;
     private final Messages messages;
     private final PlayerLanguage fallback;
+    private final Set<UUID> committedNotifications=new LinkedHashSet<>();
+    private final Set<String> statusNotifications=new LinkedHashSet<>();
+    private static <T> boolean first(Set<T> set,T key){if(!set.add(key))return false;if(set.size()>4096)set.remove(set.iterator().next());return true;}
     private VotingGui gui;
+    private java.util.function.Function<UUID,CompletionStage<VoteEntry>> entryLookup;
+    private final Map<UUID,UUID> moderators=new LinkedHashMap<>();
+    private final Map<UUID,String> reviewActions=new LinkedHashMap<>();
+    void entryLookup(java.util.function.Function<UUID,CompletionStage<VoteEntry>> lookup){entryLookup=lookup;}
+    void moderator(UUID operation,CommandSender sender,String action){if(reviewActions.size()>=4096){UUID oldest=reviewActions.keySet().iterator().next();reviewActions.remove(oldest);moderators.remove(oldest);}reviewActions.put(operation,action);if(sender instanceof Player p)moderators.put(operation,p.getUniqueId());}
+    private String reviewStatus(PlayerLanguage language,VotingService.VoteStatusChanged event){String action=reviewActions.get(event.transitionId());return messages.plain(language,action==null||!Set.of("APPROVE","REJECT","INVALIDATE","RESTORE").contains(action)?"protection-status-"+event.status().name().toLowerCase(Locale.ROOT):"vote-reviewed-"+action.toLowerCase(Locale.ROOT));}
+
     VotingCommands(DexturReputationPlugin plugin,ReputationApplication application,VotingService voting,
             VotingConfiguration config,Messages messages,PlayerLanguage fallback) {
         this.plugin=plugin;this.application=application;this.voting=voting;this.config=config;this.messages=messages;this.fallback=fallback;
@@ -31,16 +41,17 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
         return known!=null&&(online!=null||known.hasPlayedBefore())?known:null;
     }
     String name(UUID id) {
-        var known=plugin.getServer().getOfflinePlayer(id);return known.getName()==null?id.toString():known.getName();
+        var known=plugin.getServer().getOfflinePlayer(id);return known==null||known.getName()==null?messages.plain(fallback,"admin7-player-unknown"):known.getName();
     }
     String type(PlayerLanguage language,VoteType type) { return messages.plain(language,"vote-type-"+type.name().toLowerCase(Locale.ROOT)); }
     String action(PlayerLanguage language,VoteEntry.Action action) { return messages.plain(language,"vote-action-"+action.name().toLowerCase(Locale.ROOT)); }
+    boolean hasReason(String id){return config.rules().reasons().containsKey(id);}
     String reason(PlayerLanguage language,String id) {
-        var reason=config.rules().reasons().get(id);return reason==null?id:messages.plain(language,reason.messageKey());
+        var reason=config.rules().reasons().get(id);return reason==null?messages.plain(language,"vote-reason-unknown"):messages.plain(language,reason.messageKey());
     }
     void failed(CommandSender sender,Throwable error) {
         Throwable cause=error;while(cause.getCause()!=null&&cause.getCause()!=cause) cause=cause.getCause();
-        if(cause instanceof org.dextur.reputation.api.PolicyDeniedException policy)send(sender,policy.reasonKey(),Map.of());
+        if(cause instanceof org.dextur.reputation.api.PolicyDeniedException policy){try{send(sender,policy.reasonKey(),Map.of());}catch(IllegalArgumentException missing){send(sender,"vote-error-policy",Map.of());}}
         else if(cause instanceof VoteRejectedException rejected) send(sender,"vote-error-"+rejected.code().name().toLowerCase(Locale.ROOT).replace('_','-'),Map.of("seconds",Long.toString(rejected.remainingSeconds())));
         else { plugin.logFailure("voting",cause);send(sender,"error",Map.of()); }
     }
@@ -65,27 +76,33 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
                 if(receipt.duplicate()) {send(voter,"vote-duplicate",Map.of());after.run();return;}
                 var language=language(voter);var entry=receipt.entry();
                 if(outcome.status()==VoteProcessingOutcome.Status.PENDING) send(voter,"protection-pending",Map.of("player",name(entry.targetId())));
-                else send(voter,"vote-success",Map.of("player",name(entry.targetId()),"action",action(language,entry.action()),
-                        "type",type(language,entry.type()),"reputation",messages.number(language,receipt.currentView().profile().visibleScore())));
-                if(entry.calculationVersion()>=2&&entry.action()!=VoteEntry.Action.REVOKE&&outcome.status()==VoteProcessingOutcome.Status.ACCEPTED) send(voter,"protection-adjusted",Map.of());
+                else send(voter,"vote-success-"+(entry.action()==VoteEntry.Action.REVOKE?"revoke":entry.type()==VoteType.POSITIVE?"positive":"negative"),Map.of("player",name(entry.targetId()),"reason",reason(language,entry.reason()),"reputation",messages.number(language,receipt.currentView().profile().visibleScore())));
             }
             after.run();
         }));
     }
     void notifyTarget(VotingService.VoteCommitted event) {
-        if(!config.notifyTarget()) return;
+        if(!config.notifyTarget()||event.entry().voterId().equals(event.entry().targetId())||!first(committedNotifications,event.entry().operationId())) return;
         var target=plugin.getServer().getPlayer(event.entry().targetId());if(target==null) return;
         var entry=event.entry();
         complete(target,voting.outcome(entry.operationId()),outcome->{
         if(outcome.status()==VoteProcessingOutcome.Status.PENDING) {send(target,"protection-pending-received",Map.of());return;}
         var language=language(target);
-        send(target,"vote-notification",Map.of("player",name(entry.voterId()),"action",action(language,entry.action()),"type",type(language,entry.type()),
+        send(target,"vote-target-"+(entry.action()==VoteEntry.Action.REVOKE?"revoke":entry.type()==VoteType.POSITIVE?"positive":"negative"),Map.of("player",name(entry.voterId()),"action",action(language,entry.action()),"type",type(language,entry.type()),
                 "reason",reason(language,entry.reason()),"comment",entry.comment(),"reputation",messages.number(language,event.view().profile().visibleScore())));
         });
     }
     void notifyStatus(VotingService.VoteStatusChanged event) {
+        if(!config.notifyTarget()||!first(statusNotifications,event.transitionId()+"/"+event.operationId()))return;
+        var moderator=moderators.get(event.transitionId());
         var target=plugin.getServer().getPlayer(event.view().profile().playerId());
-        if(target!=null&&config.notifyTarget()) send(target,"protection-status-changed",Map.of("status",messages.plain(language(target),"protection-status-"+event.status().name().toLowerCase(Locale.ROOT))));
+        if(target!=null&&!target.getUniqueId().equals(moderator))send(target,"protection-status-changed",Map.of("status",reviewStatus(language(target),event)));
+        if(entryLookup!=null)entryLookup.apply(event.operationId()).whenComplete((entry,error)->plugin.onMain(()->{
+            if(error!=null){plugin.logFailure("vote notification",error);return;}
+            if(entry==null||entry.voterId().equals(entry.targetId())||entry.voterId().equals(moderator))return;
+            var voter=plugin.getServer().getPlayer(entry.voterId());
+            if(voter!=null)send(voter,"vote-reviewed-author",Map.of("player",name(entry.targetId()),"status",reviewStatus(language(voter),event)));
+        }));
     }
     @Override public boolean onCommand(CommandSender sender,Command command,String label,String[] args) {
         if(!CommandInput.valid(args)){send(sender,"vote-usage",Map.of());return true;}

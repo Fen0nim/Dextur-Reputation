@@ -51,3 +51,7 @@
 Подкоманды `/rep` также проверяют use. Новые оценки требуют vote и like/dislike; revoke требует vote и revoke. Recovery требует recovery и отдельный action/status node. Административный GUI дополнительно проверяет права раздела/действия; bulk — bulk плюс mutation node. Trust/flags не доступны обычным игрокам, PAPI их не публикует. Console разрешена в пределах administration.yml; GUI требует Player. Списки tab completion фильтруются правами и не раскрывают базу неизвестных offline игроков.
 
 [Команды](COMMANDS.md), [точные admin права](ADMINISTRATION.md).
+
+## Начальный допуск
+
+`dexturreputation.admin.force` (default: op) — чтение и изменение персонального начального допуска. Оно не отменяет player voting lock, серверные политики и anti-abuse. GUI требует также `dexturreputation.admin.gui` и право соответствующего раздела; действия проверяют собственные права повторно при подтверждении. [Подробности](ADMIN_UX.md).

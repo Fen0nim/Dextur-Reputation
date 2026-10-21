@@ -77,3 +77,7 @@ Private `/repadmin` investigation/moderation and GUI, administration.yml and sch
 ## Offline StorageAdmin
 
 `java -jar DexturReputation-StorageAdmin.jar verify --data-directory DIR --confirm STOPPED-ALL-WRITERS [--language ru_RU|en_US]` проверяет выбранное хранилище без ремонта оценок. `migrate` требует target-config и пустую цель; `recover-json` — candidate backup|temporary. Все writers должны быть остановлены; этот CLI не является серверной командой. [Полная процедура](STORAGE.md).
+
+## Управление начальным допуском
+
+`/repadmin force <известный игрок/UUID> [on|off|status]`, право `dexturreputation.admin.force`. Без режима — включить. Справка: `/repadmin help 1`, `2`, `3`. Для восстановления также поддерживается `/repadmin recovery <игрок> <status|start|pause|resume|cancel|reset_stage|lock|unlock> [причина]`. [Семантика, меню и уведомления](ADMIN_UX.md).

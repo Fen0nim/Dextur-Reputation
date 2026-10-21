@@ -196,3 +196,7 @@ java -jar DexturReputation-StorageAdmin.jar verify \
 ```
 
 Открывает выбранный backend с exclusive ownership, выполняет startup/schema validation и проверку полного canonical portable snapshot: profiles/journal/contributions/Trust/tier/recovery/admin/audit references. Печатает только counts и SHA-256; не исправляет оценки и не пересчитывает Trust. На старой схеме возможна обычная startup migration, поэтому backup обязателен до первого открытия новой версией. Полный snapshot загружается в память: это offline maintenance, не запрос публичного API. Публичные runtime reads/history/GUI SQL используют bounded queries. Ошибка verification возвращает ненулевой exit code; backend не заменяется.
+
+## Персональный начальный допуск
+
+`/repadmin force` сохраняется в существующем UUID/scope administration ledger, включая аудит. Форматы и SQL-схемы не меняются. Полный backup и штатная миграция включают состояние bypass. [Точные ограничения bypass](ADMIN_UX.md).

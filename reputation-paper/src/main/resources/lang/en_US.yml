@@ -233,7 +233,7 @@ recovery-event-administrative-lock-changed: 'Recovery administrative lock change
 recovery-reason-capacity: 'Activity tracker capacity reached; contact an administrator'
 
 # Phase 6
-admin-help: "/repadmin set|add|remove <player> <integer> <reason>; voting lock|unlock|status <player> [reason]; policy <player> <policy> allow|deny|reset <reason>; reload"
+admin-help: Start with /repadmin gui <player> or /repadmin help 1.
 admin-error-reason: "A non-empty reason is required."
 admin-error-remove: "remove requires a positive magnitude."
 admin-error-conflict: "The operation ID was already used with different parameters."
@@ -265,7 +265,7 @@ policy-reason-reputation: "Policy requirements are not met."
 policy-reason-configured: "Configured policy result. The feature retains its additional safety checks."
 
 # Phase 7 — private administration
-admin7-help: "/repadmin inspect|history|vote|invalidate|restore|pending|trust|flags|flag|relations|recalculate|audit|gui|bulk|confirm. Details: docs/ADMINISTRATION.md"
+admin7-help: 'Help pages: /repadmin help 1, 2, 3.'
 admin7-report: "{section} — page {page}, records: {total}"
 admin7-field: "{field}: {value}"
 admin7-row: "{id}: {details}"
@@ -276,7 +276,7 @@ admin7-confirm: "Confirm with /repadmin confirm {token} within {seconds} seconds
 admin7-bulk-result: "Bulk {operation}: {status}, processed {completed}/{total}."
 admin7-empty: "No records."
 admin7-gui-title: "Reputation administration"
-admin7-gui-reason: "Administrator confirmation in GUI"
+admin7-gui-reason: Changed through the player administration menu
 admin7-recalculate-reason: "Explicit administrative recalculation"
 admin7-previous: "Previous"
 admin7-next: "Next"
@@ -353,7 +353,7 @@ admin7-field-vote: "Vote"
 admin7-field-voter: "Voter"
 admin7-field-target: "Target"
 admin7-field-action: "Action"
-admin7-field-type: "Type"
+admin7-field-type: Vote type
 admin7-field-reason: "Reason"
 admin7-field-comment: "Comment"
 admin7-field-timestamp: "UTC timestamp"
@@ -392,12 +392,12 @@ admin7-field-operation: "Operation"
 admin7-field-count: "Count"
 admin7-field-page: "Page"
 admin7-field-total: "Total"
-admin7-field-neighbor: "Neighbor"
+admin7-field-neighbor: Other player
 admin7-field-outgoing: "Outgoing"
 admin7-field-incoming: "Incoming"
 admin7-field-reciprocity: "Reciprocal events"
 admin7-field-recent_burst: "Events in the last hour"
-admin7-field-evidence: "Evidence"
+admin7-field-evidence: Note
 admin7-field-complete: "Analysis complete within window"
 admin7-field-examined: "Examined"
 admin7-field-source: "Detector"
@@ -432,29 +432,29 @@ admin7-value-invalidated: "Invalidated"
 admin7-value-superseded: "Superseded"
 admin7-value-revoked: "Revoked"
 admin7-value-running: "Running"
-admin7-value-completed: "Completed"
-admin7-value-cancelled: "Cancelled"
-admin7-value-paused: "Paused"
+admin7-value-completed: Completed
+admin7-value-cancelled: Cancelled
+admin7-value-paused: Paused
 admin7-value-suspicion: "Suspicion, not proof"
 admin7-value-pending_review: "Pending review"
 admin7-value-confirmed_abuse: "Confirmed by moderator"
 admin7-value-false_positive: "Resolved: false positive"
-admin7-value-correlation_only: "Correlation, not proof of manipulation"
+admin7-value-correlation_only: Correlation alone does not prove abuse
 admin7-value-true: "Yes"
 admin7-value-false: "No"
 admin7-value-low: "Low"
 admin7-value-medium: "Medium"
 admin7-value-high: "High"
-admin7-value-positive: "Positive"
-admin7-value-negative: "Negative"
-admin7-value-cast: "Cast"
-admin7-value-replace: "Replace"
+admin7-value-positive: Like
+admin7-value-negative: Dislike
+admin7-value-cast: Vote added
+admin7-value-replace: Vote changed
 admin7-value-revoke: "Revoke"
 admin7-bulk-started: "Bulk operation {operation}. Use /repadmin bulk status|resume|cancel with this ID."
 admin7-field-active: "Active votes"
 admin7-field-clusters: "Bounded detector groups"
 admin7-field-graph_complete: "Detector graph complete"
-admin7-field-recovery_reward: "Recovery rewards"
+admin7-field-recovery_reward: Recovery rewards
 admin7-field-legacy_system: "Legacy system baseline"
 admin7-field-operation_original: "Original operation/audit ID"
 admin7-field-source_actor: "Original actor label"
@@ -475,7 +475,7 @@ admin7-value-bulk_started: "Bulk started"
 admin7-value-bulk_completed: "Bulk completed"
 admin7-value-bulk_cancelled: "Bulk cancelled"
 admin7-value-failed: "Failed"
-admin7-field-policy: "Policy"
+admin7-field-policy: Access rule
 admin7-field-override: "Override"
 admin7-field-before_override: "Previous override"
 admin7-field-after_override: "Resulting override"
@@ -493,7 +493,172 @@ admin7-field-resolution: "Resolution"
 admin7-field-before_community_units: "Previous community millionths"
 admin7-field-after_community_units: "Resulting community millionths"
 admin7-field-program: "Recovery program"
-admin7-field-stage: "Stage"
+admin7-field-stage: Stage
 admin7-field-progress: "Progress"
 
 storage-verified: '<green>Verification complete: {profiles} profiles, {votes} votes, SHA-256 {checksum}. No score repairs performed.</green>'
+
+# Administration UX and action feedback
+admin7-player-unknown: Unknown player
+admin7-console: Server administration
+admin7-system: System
+admin-enabled: Enabled
+admin-disabled: Disabled
+admin-force-usage: <yellow>/repadmin force <player> [on|off|status] — bypass initial voting requirements only.</yellow>
+admin-force-status: '<aqua>{player}</aqua><gray>: initial voting eligibility bypass — {state}.</gray>'
+admin-force-audit-reason: Administrator changed initial voting eligibility
+admin-success-force-on: <green>✔ {player} can now vote without the initial waiting period.</green>
+admin-success-force-off: <yellow>Normal initial voting requirements restored for {player}.</yellow>
+admin-target-force-on: <green>Administrator {actor} waived the initial playtime and account-age requirements for you.</green><newline><gray>Limits, cooldowns and protections still apply.</gray>
+admin-target-force-off: <yellow>Normal initial voting requirements apply to you again.</yellow>
+admin-success-set: '<green>✔ Reputation for {player} set. Current score: {value}.</green><newline><gray>Reason: {reason}</gray>'
+admin-target-set: '<aqua>Administrator {actor} changed your reputation. Current score: {value}.</aqua><newline><gray>Reason: {reason}</gray>'
+admin-success-add: '<green>✔ Reputation for {player} increased. Current score: {value}.</green><newline><gray>Reason: {reason}</gray>'
+admin-target-add: '<aqua>Administrator {actor} changed your reputation. Current score: {value}.</aqua><newline><gray>Reason: {reason}</gray>'
+admin-success-remove: '<green>✔ Reputation for {player} decreased. Current score: {value}.</green><newline><gray>Reason: {reason}</gray>'
+admin-target-remove: '<aqua>Administrator {actor} changed your reputation. Current score: {value}.</aqua><newline><gray>Reason: {reason}</gray>'
+admin-success-lock: <green>✔ Voting blocked for {player}.</green>
+admin-target-lock: '<red>Administrator {actor} blocked your access to likes and dislikes.</red><newline><gray>Reason: {reason}</gray>'
+admin-success-unlock: <green>✔ Voting unblocked for {player}.</green>
+admin-target-unlock: <green>Your access to likes and dislikes has been restored.</green>
+admin-success-override: '<green>✔ Access rule updated for {player}.</green><newline><gray>Reason: {reason}</gray>'
+admin-target-override: '<aqua>Administrator {actor} updated your access rules.</aqua><newline><gray>Reason: {reason}</gray>'
+admin7-action-applied: '<green>✔ {action}. Reputation: {value}.</green>'
+admin7-account-reviewed: <aqua>Administrator {actor} reviewed and updated your reputation status.</aqua>
+vote-reason-unknown: No reason provided
+vote-error-policy: <red>✖ Voting is currently unavailable under the server rules.</red>
+vote-success-positive: '<green>✔ You increased {player}''s reputation.</green><newline><gray>Reason: {reason}</gray>'
+vote-target-positive: '<green>★ {player} increased your reputation.</green><newline><gray>Reason: {reason}</gray>'
+vote-success-negative: '<red>✔ You decreased {player}''s reputation.</red><newline><gray>Reason: {reason}</gray>'
+vote-target-negative: '<red>★ {player} decreased your reputation.</red><newline><gray>Reason: {reason}</gray>'
+vote-success-revoke: '<yellow>✔ You withdrew your vote for {player}.</yellow><newline><gray>Reason: {reason}</gray>'
+vote-target-revoke: '<yellow>★ {player} withdrew their reputation vote for you.</yellow><newline><gray>Reason: {reason}</gray>'
+vote-reviewed-author: '<aqua>Your vote for {player}: {status}.</aqua>'
+admin7-field-details: Additional details
+admin7-human-row: <gray>{details}</gray>
+admin7-time-hours: '{hours} h'
+admin7-value-other: Other record
+admin7-value-available: Not enrolled
+admin7-value-active: Active
+admin7-value-expired: Expired
+admin7-value-allow: Allowed
+admin7-value-deny: Denied
+admin7-value-limited: Limited
+admin7-value-set: Reputation set
+admin7-value-add: Reputation increased
+admin7-value-remove: Reputation decreased
+admin7-value-lock: Voting blocked
+admin7-value-unlock: Voting unblocked
+admin7-value-override: Access rule changed
+admin7-value-force_allow: Allowed by administrator
+admin7-value-force_deny: Denied by administrator
+admin7-value-default: Server rules
+admin7-ui-title: '<aqua>Manage: {player}</aqua>'
+admin7-ui-field: '<gray>{field}: <white>{value}</white></gray>'
+admin7-ui-click-open: <yellow>Left click — open</yellow>
+admin7-ui-click-execute: <yellow>Left click — apply</yellow>
+admin7-ui-click-confirm: <yellow>Left click — review and confirm</yellow>
+admin7-ui-information: <gray>Information — no action is performed</gray>
+admin7-ui-right-details: <aqua>Right click — technical details</aqua>
+admin7-ui-overview: <aqua>Player overview</aqua>
+admin7-ui-access: <aqua>Voting access</aqua>
+admin7-ui-bypass: <aqua>Initial eligibility bypass</aqua>
+admin7-ui-player-lock: <aqua>Player voting access</aqua>
+admin7-ui-policy: <aqua>Access under server policy</aqua>
+admin7-ui-adjust: <aqua>Adjust reputation</aqua>
+admin7-ui-given: <aqua>Given votes</aqua>
+admin7-ui-debug: <aqua>Technical details</aqua>
+admin7-ui-lock: <red>Block voting</red>
+admin7-ui-unlock: <green>Unblock voting</green>
+admin7-ui-force-on: <green>Enable initial eligibility bypass</green>
+admin7-ui-force-off: <yellow>Restore initial requirements</yellow>
+admin7-ui-add: <green>Add 1 reputation</green>
+admin7-ui-remove: <red>Remove 1 reputation</red>
+admin7-ui-reset: <red>Set reputation to 0</red>
+admin7-ui-custom-title: <gray>Custom amount</gray>
+admin7-ui-adjust-desc: <gray>Changes the visible score and records a reason in the audit.</gray>
+admin7-ui-given-desc: <gray>Who this player voted for and the current vote outcomes.</gray>
+admin7-ui-debug-desc: <gray>Identifiers and detailed fields on separate pages.</gray>
+admin7-ui-lock-desc: <gray>The player lock applies even when initial eligibility is bypassed.</gray>
+admin7-ui-force-desc: <gray>Waives only initial playtime and account-age thresholds.</gray>
+admin7-ui-policy-desc: <gray>Server policy is checked separately from the player lock.</gray>
+admin7-ui-recalculate-desc: <gray>Rechecks persisted data; confirmation is required.</gray>
+admin7-ui-cancel-desc: <gray>Return without making changes.</gray>
+admin7-ui-page-desc: <gray>Show the adjacent page.</gray>
+admin7-ui-refresh-desc: <gray>Load current data.</gray>
+admin7-ui-close-desc: <gray>Close this window.</gray>
+admin7-ui-back-desc: <gray>Return to the previous section.</gray>
+admin7-ui-confirm-warning: <gray>Check the action and player. A second click cannot replay it.</gray>
+admin7-ui-custom-adjust: <gray>Use /repadmin set|add|remove <player> <amount> <reason>.</gray>
+admin7-ui-confirm-player: '<white>Player: {player}</white>'
+admin7-ui-row: <aqua>{section} · {number}</aqua>
+admin7-ui-detail-field: <aqua>{field}</aqua>
+admin7-desc-inspect: <gray>A concise overview of the player.</gray>
+admin7-desc-votes: <gray>Received votes and their outcomes.</gray>
+admin7-desc-pending: <gray>Votes awaiting an administrative decision.</gray>
+admin7-desc-trust: <gray>Trust and restrictions; private to administrators.</gray>
+admin7-desc-flags: <gray>Signals for review, not automatic proof of abuse.</gray>
+admin7-desc-relations: <gray>Connections through given and received votes.</gray>
+admin7-desc-recovery: <gray>Current rehabilitation program status.</gray>
+admin7-desc-admin: <gray>Administrative adjustment history.</gray>
+admin7-desc-audit: <gray>Who changed data, when and why.</gray>
+admin7-desc-recalculate: <gray>Check the consistency of stored outcomes.</gray>
+admin7-help-1: <aqua>Administration · 1/3</aqua><newline><gray>/repadmin gui <player> — manage a player<newline>/repadmin inspect <player> — overview<newline>/repadmin force <player> [on|off|status] — initial eligibility<newline>/repadmin help 2 — adjustments and restrictions</gray>
+admin7-help-2: <aqua>Administration · 2/3</aqua><newline><gray>/repadmin set|add|remove <player> <amount> <reason><newline>/repadmin voting lock|unlock <player> <reason><newline>/repadmin voting status <player><newline>/repadmin help 3 — vote review</gray>
+admin7-help-3: <aqua>Administration · 3/3</aqua><newline><gray>/repadmin history <player> — history<newline>/repadmin gui <player> — review and confirmation<newline>/repadmin pending approve|reject <ID> <reason><newline>/repadmin reload — reload access policies</gray>
+admin7-help-page: '<yellow>Choose a help page: /repadmin help 1, 2 or 3.</yellow>'
+
+admin7-action-invalidate: Invalidate vote
+admin7-action-restore: Restore vote
+admin7-action-approve: Approve vote
+admin7-action-reject: Reject vote
+admin7-action-resolve_flag: Save flag review outcome
+admin7-recovery-pause: Pause rehabilitation
+admin7-recovery-resume: Resume rehabilitation
+admin7-recovery-start: Start rehabilitation
+admin7-recovery-cancel: Cancel rehabilitation
+admin7-recovery-reset_stage: Reset current stage
+admin7-recovery-lock: Lock rehabilitation
+admin7-recovery-unlock: Unlock rehabilitation
+admin7-recovery-applied: '<green>✔ {action}: {player}.</green>'
+admin7-ui-recovery-desc: <gray>Changes program state and records the action in the audit.</gray>
+
+admin7-ui-label: '<gray>{field}: </gray>'
+admin7-ui-effective: <aqua>Effective policy access</aqua>
+
+admin-no-change: <gray>{player} already has the requested state. No change was repeated.</gray>
+admin7-value-unavailable: Unavailable
+admin7-result-invalidate: Vote invalidated
+admin7-result-restore: Vote restored
+admin7-result-approve: Vote approved
+admin7-result-reject: Vote rejected
+admin7-result-resolve_flag: Flag review saved
+admin7-result-recalculate_reputation: Reputation checked
+admin7-result-recalculate_trust: Trust checked
+admin7-result-recalculate_tier: Tier reconciled
+admin7-result-recalculate_all: Review completed
+
+admin7-ui-resolution: '<yellow>Outcome: {value}</yellow>'
+vote-reviewed-approve: approved
+vote-reviewed-reject: rejected
+vote-reviewed-invalidate: invalidated
+vote-reviewed-restore: restored
+
+admin7-ui-player: Player
+admin7-voting-blocked: Blocked
+admin7-voting-unblocked: Unblocked
+admin7-ui-vote-row: <aqua>{type} · {player}</aqua>
+admin7-ui-operation-row: <aqua>{action} · {player}</aqua>
+admin7-result-force-on: Initial eligibility bypass enabled
+admin7-result-force-off: Initial requirements restored
+
+admin7-ui-click-close: <yellow>Left click — close</yellow>
+admin7-ui-click-back: <yellow>Left click — back</yellow>
+admin7-ui-click-refresh: <yellow>Left click — refresh</yellow>
+admin7-recovery-result-start: Rehabilitation started
+admin7-recovery-result-pause: Rehabilitation paused
+admin7-recovery-result-resume: Rehabilitation resumed
+admin7-recovery-result-cancel: Rehabilitation cancelled
+admin7-recovery-result-reset_stage: Current stage reset
+admin7-recovery-result-lock: Rehabilitation locked
+admin7-recovery-result-unlock: Rehabilitation unlocked
