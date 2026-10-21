@@ -39,6 +39,7 @@ Requires the complete PlaceholderAPI release (verified with 2.12.3), not its Mav
 | Placeholder suffix | Return value |
 | --- | --- |
 | score | Existing plain decimal visible score: `100`, `-25`, `0`; no leading plus or separators. |
+| score_color | Plain color name by score sign: positive `green`, zero `gray`, negative `red`; no tags or angle brackets. |
 | score_signed | Plain signed decimal: `+100`, `-25`, `0`. |
 | score_bracketed | Plain signed decimal in parentheses: `(+100)`, `(-25)`, `(0)`. |
 | score_formatted | Existing contract: localized grouped signed number; plain text. |
@@ -55,18 +56,18 @@ Wrap a suffix as `%dexturreputation_<suffix>%`. For a MiniMessage-aware external
 For consumers such as DexturChat that do not parse MiniMessage returned by PlaceholderAPI, use plain data and let the consumer own formatting:
 
 ```text
-<green>(%dexturreputation_score_signed%)</green>
+<%dexturreputation_score_color%>(%dexturreputation_score_signed%)</%dexturreputation_score_color%>
 ```
 
-`score`, `score_signed` and `score_bracketed` use the cached visible score directly, without localization, separators, MiniMessage tags, color codes or Adventure serialization. Their existing cache/readiness rules still apply: missing data returns an empty string, not `0`. `reputation_formatted` retains its existing MiniMessage output unchanged. `%dexturreputation_reputation%` is not a registered placeholder.
+`score`, `score_signed` and `score_bracketed` use the cached visible score directly, without localization, separators, MiniMessage tags, color codes or Adventure serialization. Their existing cache/readiness rules still apply: missing data returns an empty string, not `0`. `score_color` follows the same cache/readiness rules and returns only `green`, `gray` or `red` based on the visible score sign, independently of configured tier colors. `reputation_formatted` retains its existing MiniMessage output unchanged. `%dexturreputation_reputation%` is not a registered placeholder.
 
 Existing suffixes retained unchanged (wrap each as `%dexturreputation_<suffix>%`):
 
-- Score/display: `score`, `score_formatted`, `tier`, `tier_name`, `tier_id`, `prefix`, `suffix`, `color`, `positive`, `negative`, `reputation_formatted`.
+- Score/display: `score`, `score_signed`, `score_bracketed`, `score_formatted`, `tier`, `tier_name`, `tier_id`, `prefix`, `suffix`, `color`, `positive`, `negative`, `reputation_formatted`.
 - Recovery: `recovery_status`, `recovery_stage`, `recovery_progress`, `recovery_completed_tasks`, `recovery_total_tasks`, `recovery_eligible`.
 - Policy/health: `policy_vote`, `policy_chat_send`, `health_modifier`.
 
-Added plain-text suffixes: `score_signed`, `score_bracketed`.
+Added plain-text suffix: `score_color`.
 
 DexturReputation registers no chat interception/channel replacement and changes no other repository.
 

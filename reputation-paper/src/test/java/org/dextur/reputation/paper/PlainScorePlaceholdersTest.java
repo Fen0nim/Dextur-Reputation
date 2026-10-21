@@ -55,8 +55,20 @@ class PlainScorePlaceholdersTest {
         verify(app,never()).getProfile(any());verify(tiers,never()).getTier(any());
     }
 
+    @ParameterizedTest
+    @CsvSource({"100,green","0,gray","-25,red"})
+    void scoreColorIsOnlyThePlainColorNameForItsSign(long score,String expected) {
+        cache(score);
+        for(var language:List.of(PlayerLanguage.ru_RU,PlayerLanguage.en_US)) {
+            when(app.cachedLanguage(id)).thenReturn(language);
+            assertEquals(expected,expansion.onRequest(player,"score_color"));
+        }
+        verifyNoInteractions(formatter,messages);
+        verify(app,never()).getProfile(any());verify(tiers,never()).getTier(any());
+    }
+
     @Test void cacheMissesAndUnreadyPlayersRemainEmpty() {
-        for(String key:List.of("score","score_signed","score_bracketed")) {
+        for(String key:List.of("score","score_signed","score_bracketed","score_color")) {
             assertEquals("",expansion.onRequest(null,key));
             when(plugin.ready()).thenReturn(false);assertEquals("",expansion.onRequest(player,key));when(plugin.ready()).thenReturn(true);
             when(app.cachedProfile(id)).thenReturn(Optional.empty());assertEquals("",expansion.onRequest(player,key));cache(100);

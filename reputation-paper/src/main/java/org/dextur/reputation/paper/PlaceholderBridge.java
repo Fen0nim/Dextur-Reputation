@@ -43,6 +43,7 @@ final class PlaceholderBridge extends PlaceholderExpansion {
         if(tiers!=null&&tier.isEmpty()) return "";
         return switch (parameter) {
             case "score" -> Long.toString(cached.get().visibleScore());
+            case "score_color" -> cached.get().visibleScore()>0?"green":cached.get().visibleScore()<0?"red":"gray";
             case "score_signed" -> (cached.get().visibleScore()>0?"+":"")+cached.get().visibleScore();
             case "score_bracketed" -> "("+(cached.get().visibleScore()>0?"+":"")+cached.get().visibleScore()+")";
             case "score_formatted" -> messages.number(language, cached.get().visibleScore());
