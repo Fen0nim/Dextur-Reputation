@@ -52,9 +52,9 @@ reason-friendly: 'Дружелюбие'
 reason-fair: 'Честная игра'
 reason-rude: 'Грубость'
 reason-unfair: 'Нечестная игра'
-gui-profile-title: 'Репутация: {player}'
-gui-reasons-title: 'Выберите причину: {player}'
-gui-history-title: 'История: {player}, {page}'
+gui-profile-title: "<aqua>Репутация: {player}</aqua>"
+gui-reasons-title: "<aqua>Выберите причину: {player}</aqua>"
+gui-history-title: "<aqua>История: {player}, {page}</aqua>"
 gui-profile: '{player}: {reputation}'
 gui-stats: '+{positive} / −{negative} | авторов: {unique}'
 gui-like: 'Положительный голос'
@@ -62,10 +62,10 @@ gui-dislike: 'Отрицательный голос'
 gui-revoke: 'Отозвать мой голос'
 gui-history: 'Полученные голоса'
 gui-given: 'Мои отправленные голоса'
-gui-close: 'Закрыть'
-gui-back: 'Назад'
-gui-next: 'Следующая страница'
-gui-previous: 'Предыдущая страница'
+gui-close: "<yellow>Закрыть</yellow>"
+gui-back: "<yellow>Назад</yellow>"
+gui-next: "<yellow>Следующая страница</yellow>"
+gui-previous: "<yellow>Предыдущая страница</yellow>"
 gui-entry: '{action}: {type} — {reason}'
 gui-entry-detail: '{voter} → {target} | {time} | {state}'
 gui-entry-comment: 'Комментарий: {comment}'
@@ -122,7 +122,7 @@ gui-tier-maximum: '<gray>Более высокий положительный у
 gui-tier-benefits: '<gray>Описание: {benefits}</gray>'
 display-conflict: '<yellow>Оформление пропущено: {reason}. Используйте placeholders/API.</yellow>'
 
-recovery-title: 'Восстановление репутации'
+recovery-title: "<aqua>Восстановление репутации</aqua>"
 
 recovery-help: '/rep recovery [status|start|tasks|progress|rewards|cancel|help]'
 
@@ -245,7 +245,7 @@ admin-voting-status: "Игрок {player}: голосование — {state}."
 admin-locked: "заблокировано администратором"
 admin-unlocked: "без административной блокировки; действуют обычные проверки"
 admin-applied: "Операция {operation} подтверждена. Игрок: {player}; репутация: {value}; административный вклад: {admin}."
-policy-title: "Последствия репутации"
+policy-title: "<aqua>Последствия репутации</aqua>"
 policy-help: "/rep policies [идентификатор политики]"
 policy-information-disabled: "Отображение политик отключено."
 policy-reloaded: "Политики успешно проверены и активированы."
@@ -278,15 +278,15 @@ admin7-empty: "Записей нет."
 admin7-gui-title: "Администрирование репутации"
 admin7-gui-reason: Изменение через меню управления игроком
 admin7-recalculate-reason: "Явный административный перерасчёт"
-admin7-previous: "Назад"
-admin7-next: "Далее"
-admin7-refresh: "Обновить"
+admin7-previous: "<yellow>Назад</yellow>"
+admin7-next: "<yellow>Далее</yellow>"
+admin7-refresh: "<yellow>Обновить</yellow>"
 admin7-confirm-action: "Подтвердить указанное действие"
 admin7-cancel: "Отмена"
 admin7-section-inspect: "Обзор"
 admin7-section-votes: "Голоса"
 admin7-section-admin: "Административные изменения"
-admin7-section-trust: "Диагностика Trust"
+admin7-section-trust: "Доверие"
 admin7-section-recovery: "Реабилитация"
 admin7-section-flags: "Антиабузные сигналы"
 admin7-section-relations: "Связи — только корреляция"
@@ -297,7 +297,7 @@ admin7-section-operation: "Операция"
 admin7-section-bulks: "Пакетные операции"
 admin7-section-recalculate: "Перерасчёт"
 admin7-action-recalculate_reputation: "Пересчитать репутацию"
-admin7-action-recalculate_trust: "Пересчитать Trust"
+admin7-action-recalculate_trust: "Пересчитать доверие"
 admin7-action-recalculate_tier: "Согласовать уровень"
 admin7-action-recalculate_all: "Полное согласование"
 admin7-error-input: "Некорректный ввод или превышен предел длины."
@@ -334,8 +334,8 @@ admin7-field-administrative: "Административный вклад"
 admin7-field-system_recovery: "Системный вклад и recovery без admin"
 admin7-field-tier: "Уровень"
 admin7-field-revision: "Ревизия"
-admin7-field-trust: "Trust"
-admin7-field-trust_revision: "Ревизия Trust"
+admin7-field-trust: "Доверие"
+admin7-field-trust_revision: "Ревизия доверия"
 admin7-field-updated: "Обновлено"
 admin7-field-voting_lock: "Блокировка голосования"
 admin7-field-overrides: "Переопределения политик"
@@ -351,7 +351,7 @@ admin7-field-flags: "Неразрешённые сигналы"
 admin7-field-unique_voters: "Уникальные голосовавшие"
 admin7-field-vote: "Голос"
 admin7-field-voter: "Автор"
-admin7-field-target: "Цель"
+admin7-field-target: "Игрок"
 admin7-field-action: "Действие"
 admin7-field-type: Оценка
 admin7-field-reason: "Причина"
@@ -362,7 +362,7 @@ admin7-field-base_weight: "Базовый вес"
 admin7-field-effective_weight: "Точный подписанный вклад"
 admin7-field-model: "Модель"
 admin7-field-previous_operation: "Предыдущая операция"
-admin7-field-trust_multiplier: "Множитель Trust"
+admin7-field-trust_multiplier: "Множитель доверия"
 admin7-field-reciprocity_multiplier: "Взаимность"
 admin7-field-repeat_multiplier: "Повторы"
 admin7-field-diversity_multiplier: "Разнообразие"
@@ -383,9 +383,9 @@ admin7-field-maturity: "Общая зрелость"
 admin7-field-account_maturity: "Возрастная зрелость"
 admin7-field-playtime_maturity: "Зрелость по времени игры"
 admin7-field-stale: "Требует обновления"
-admin7-field-actor: "Администратор"
-admin7-field-before: "До"
-admin7-field-after: "После"
+admin7-field-actor: "Инициатор"
+admin7-field-before: "Было"
+admin7-field-after: "Стало"
 admin7-field-contribution: "Вклад"
 admin7-field-legacy_history: "Разделы прежней истории"
 admin7-field-operation: "Операция"
@@ -419,10 +419,10 @@ admin7-field-before_tier: "До: Уровень"
 admin7-field-after_tier: "После: Уровень"
 admin7-field-before_revision: "До: Ревизия"
 admin7-field-after_revision: "После: Ревизия"
-admin7-field-before_trust: "До: Trust"
-admin7-field-after_trust: "После: Trust"
-admin7-field-before_trust_revision: "До: Ревизия Trust"
-admin7-field-after_trust_revision: "После: Ревизия Trust"
+admin7-field-before_trust: "Доверие до"
+admin7-field-after_trust: "Доверие после"
+admin7-field-before_trust_revision: "Версия данных доверия до"
+admin7-field-after_trust_revision: "Версия данных доверия после"
 admin7-value-applied: "Применено"
 admin7-value-no_change: "Состояние уже установлено"
 admin7-value-accepted: "Принят"
@@ -461,13 +461,13 @@ admin7-field-source_actor: "Исходная метка автора"
 admin7-loading: "Загрузка…"
 admin7-gui-votes-hint: "ЛКМ: детали; в деталях ЛКМ для инвалидации/восстановления."
 admin7-gui-pending-hint: "ЛКМ: одобрить; ПКМ: отклонить. Требуется подтверждение."
-admin7-gui-flags-hint: "ЛКМ: ложное срабатывание; ПКМ: подтверждённое нарушение. Классификация не начисляет штраф Trust."
+admin7-gui-flags-hint: "ЛКМ: ложное срабатывание; ПКМ: подтверждённое нарушение. Классификация не начисляет штраф доверия."
 admin7-value-invalidate: "Инвалидация"
 admin7-value-restore: "Восстановление"
 admin7-value-approve: "Одобрение"
 admin7-value-reject: "Отклонение"
 admin7-value-recalculate_reputation: "Перерасчёт репутации"
-admin7-value-recalculate_trust: "Перерасчёт Trust"
+admin7-value-recalculate_trust: "Перерасчёт доверия"
 admin7-value-recalculate_tier: "Согласование уровня"
 admin7-value-recalculate_all: "Полное согласование"
 admin7-value-resolve_flag: "Разрешение сигнала"
@@ -487,11 +487,11 @@ admin7-field-before_administrative: "Прежний административн
 admin7-field-after_administrative: "Итоговый административный вклад"
 admin7-field-before_status: "Прежнее состояние"
 admin7-field-after_status: "Итоговое состояние"
-admin7-section-trust_history: "История Trust"
+admin7-section-trust_history: "История доверия"
 admin7-field-input_revision: "Ревизия исходных данных"
 admin7-field-resolution: "Решение проверки"
-admin7-field-before_community_units: "Прежние миллионные доли community"
-admin7-field-after_community_units: "Итоговые миллионные доли community"
+admin7-field-before_community_units: "Прежние миллионные доли общественной репутации"
+admin7-field-after_community_units: "Итоговые миллионные доли общественной репутации"
 admin7-field-program: "Программа реабилитации"
 admin7-field-stage: Этап
 admin7-field-progress: "Прогресс"
@@ -500,7 +500,7 @@ storage-verified: '<green>Проверка завершена: профилей 
 
 # Administration UX and action feedback
 admin7-player-unknown: Неизвестный игрок
-admin7-console: Администрация
+admin7-console: "Консоль"
 admin7-system: Система
 admin-enabled: Включён
 admin-disabled: Выключен
@@ -553,14 +553,14 @@ admin7-value-override: Изменено правило доступа
 admin7-value-force_allow: Разрешено администратором
 admin7-value-force_deny: Запрещено администратором
 admin7-value-default: По правилам сервера
-admin7-ui-title: '<aqua>Управление: {player}</aqua>'
+admin7-ui-title: "<aqua>Управление: {player}</aqua>"
 admin7-ui-field: '<gray>{field}: <white>{value}</white></gray>'
 admin7-ui-click-open: <yellow>ЛКМ — открыть</yellow>
 admin7-ui-click-execute: <yellow>ЛКМ — выполнить</yellow>
 admin7-ui-click-confirm: <yellow>ЛКМ — перейти к подтверждению</yellow>
 admin7-ui-information: <gray>Информация — действие не выполняется</gray>
 admin7-ui-right-details: <aqua>ПКМ — технические подробности</aqua>
-admin7-ui-overview: <aqua>Обзор игрока</aqua>
+admin7-ui-overview: "<aqua>Игрок</aqua>"
 admin7-ui-access: <aqua>Доступ к голосованию</aqua>
 admin7-ui-bypass: <aqua>Начальный допуск без ожидания</aqua>
 admin7-ui-player-lock: <aqua>Личный доступ к голосованию</aqua>
@@ -662,3 +662,51 @@ admin7-recovery-result-cancel: Восстановление отменено
 admin7-recovery-result-reset_stage: Текущий этап сброшен
 admin7-recovery-result-lock: Восстановление заблокировано
 admin7-recovery-result-unlock: Восстановление разблокировано
+
+# Dedicated menus and canonical reason history
+admin7-ui-screen-title: "<aqua>{section}</aqua>"
+admin7-ui-label-value: "<white>{value}</white>"
+admin7-trust-history: "<yellow>История доверия</yellow>"
+admin7-identity-uuid: "<dark_gray>UUID: {uuid}</dark_gray>"
+admin7-technical-field: "Техническое поле ({id})"
+admin7-field-record_id: "ID записи"
+admin7-field-delta: "Изменение репутации"
+admin7-field-actor_name: "Инициатор: имя"
+admin7-field-actor_uuid: "Инициатор: UUID"
+admin7-field-target_name: "Игрок: имя"
+admin7-field-target_uuid: "Игрок: UUID"
+admin7-field-voter_name: "Автор оценки: имя"
+admin7-field-voter_uuid: "Автор оценки: UUID"
+admin7-field-neighbor_name: "Связанный игрок: имя"
+admin7-field-neighbor_uuid: "Связанный игрок: UUID"
+admin7-field-source_actor_name: "Исходный инициатор: имя"
+admin7-field-source_actor_uuid: "Исходный инициатор: UUID"
+gui-reason-title: "<aqua>История: {player}</aqua>"
+gui-reason-player: "<aqua>{player}</aqua>"
+gui-reason-summary: "<gray>Действующих оценок: <gold>{active}</gold><newline>Всего событий: <white>{events}</white></gray>"
+gui-reason-unspecified: "Причина не указана"
+gui-reason-archived: "Архивная причина ({id})"
+gui-reason-category: "<yellow>{reason}</yellow>"
+gui-reason-counts: "<gray>Действующие: <green>{active}</green><newline>События журнала: <white>{events}</white></gray>"
+gui-reason-open: "<gray>Открыть записи с этой причиной.</gray>"
+gui-reason-vote: "<gray>Выбрать эту причину для оценки.</gray>"
+gui-filter-all: "<yellow>Все причины</yellow>"
+gui-filter-positive: "<green>Положительные причины</green>"
+gui-filter-negative: "<red>Отрицательные причины</red>"
+gui-filter-selected: "<gold>Выбранный фильтр</gold>"
+gui-filter-active: "<green>Только действующие оценки</green>"
+gui-filter-journal: "<yellow>Полный журнал событий</yellow>"
+gui-filter-records: "<yellow>Записи истории</yellow>"
+gui-history-record: "<yellow>{type}</yellow> <gray>· {reason}</gray>"
+gui-history-action: "<gray>Действие: <white>{action}</white></gray>"
+gui-history-voter: "<gray>Автор: <aqua>{player}</aqua></gray>"
+gui-history-recipient: "<gray>Получатель: <aqua>{player}</aqua></gray>"
+gui-history-time: "<gray>Дата: <white>{time}</white></gray>"
+gui-history-active: "<green>Действующая оценка</green>"
+gui-history-inactive: "<dark_gray>Не действует (запись журнала)</dark_gray>"
+gui-history-empty: "<gray>Подходящих записей нет</gray>"
+admin7-field-administrator: "Администратор"
+admin7-field-administrator_name: "Администратор: имя"
+admin7-field-administrator_uuid: "Администратор: UUID"
+admin7-field-action_id: "Тип действия (ID)"
+gui-history-open-link: "<yellow>Открыть историю по причинам: /rep gui {player}</yellow>"

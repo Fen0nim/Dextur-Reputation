@@ -40,14 +40,16 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
         var online=plugin.getServer().getPlayerExact(name);var known=online==null?plugin.getServer().getOfflinePlayerIfCached(name):online;
         return known!=null&&(online!=null||known.hasPlayedBefore())?known:null;
     }
-    String name(UUID id) {
-        var known=plugin.getServer().getOfflinePlayer(id);return known==null||known.getName()==null?messages.plain(fallback,"admin7-player-unknown"):known.getName();
+    String name(UUID id) {return name(id,fallback);}
+    String name(UUID id,PlayerLanguage language) {
+        String name=PlayerMessages.cachedName(plugin.getServer(),id);return name==null?messages.plain(language,"admin7-player-unknown"):name;
     }
     String type(PlayerLanguage language,VoteType type) { return messages.plain(language,"vote-type-"+type.name().toLowerCase(Locale.ROOT)); }
     String action(PlayerLanguage language,VoteEntry.Action action) { return messages.plain(language,"vote-action-"+action.name().toLowerCase(Locale.ROOT)); }
     boolean hasReason(String id){return config.rules().reasons().containsKey(id);}
     String reason(PlayerLanguage language,String id) {
-        var reason=config.rules().reasons().get(id);return reason==null?messages.plain(language,"vote-reason-unknown"):messages.plain(language,reason.messageKey());
+        if(id==null||id.isEmpty())return messages.plain(language,"gui-reason-unspecified");var reason=config.rules().reasons().get(id);if(reason!=null)return messages.plain(language,reason.messageKey());
+        try{return messages.plain(language,"reason-"+id);}catch(IllegalArgumentException absent){return DisplayFormatter.plain(messages.content(language,"gui-reason-archived",Map.of("id",id)));}
     }
     void failed(CommandSender sender,Throwable error) {
         Throwable cause=error;while(cause.getCause()!=null&&cause.getCause()!=cause) cause=cause.getCause();
@@ -161,6 +163,7 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
             var language=result.getKey();var view=result.getValue();
             sender.sendMessage(messages.render(language,"profile",Map.of("player",display,"reputation",messages.number(language,view.profile().visibleScore()),"tier",java.util.Objects.requireNonNullElse(plugin.tierName(target,language),messages.plain(language,"tier-neutral")))));
             stats(sender,view);
+            if(sender instanceof Player&&allowed(sender,"gui")&&allowed(sender,"history"))sender.sendMessage(messages.content(language,"gui-history-open-link",Map.of("player",display)).clickEvent(net.kyori.adventure.text.event.ClickEvent.runCommand("/rep gui "+display)));
         });
         return true;
     }

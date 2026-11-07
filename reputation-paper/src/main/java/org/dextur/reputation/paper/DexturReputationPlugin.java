@@ -130,7 +130,8 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         investigationCommands.votes=votingCommands;
         votingCommands.entryLookup(id->application.submit(()->storage.operation(id)));
         var gui=new VotingGui(this,voting,votingCommands,votingConfiguration,guiConfiguration,messages);
-        votingGui=gui;gui.policies(policyEffects);gui.recovery(recoveryGui);recoveryGui.voting(gui);gui.tiers(tiers,displayFormatter,tierRules);
+        gui.history(new ReasonHistoryGui(this,votingCommands,messages,votingConfiguration,voting::reasonHistory));
+        votingGui=gui;policyEffects.voting(gui);gui.policies(policyEffects);gui.recovery(recoveryGui);recoveryGui.voting(gui);gui.tiers(tiers,displayFormatter,tierRules);
         votingCommands.gui(gui);
         voting.onCommitted(event->onMain(()->votingCommands.notifyTarget(event)));
         voting.onStatusChanged(event->onMain(()->votingCommands.notifyStatus(event)));
@@ -205,6 +206,7 @@ public final class DexturReputationPlugin extends JavaPlugin implements Listener
         if(definition==null)return messages.plain(language,"tier-neutral");
         return org.dextur.reputation.application.DisplayFormatter.plain(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(definition.names().getOrDefault(language.name(),definition.names().get("en_US"))));
     }
+    void invalidateGuiSessions(){if(investigationGui!=null)investigationGui.invalidate();if(votingGui!=null)votingGui.closeAll();if(recoveryGui!=null)recoveryGui.closeAll();if(policyEffects!=null)policyEffects.closePanels();}
     private void defaults() throws IOException {
         Path directory = getDataFolder().toPath();
         Files.createDirectories(directory.resolve("lang"));

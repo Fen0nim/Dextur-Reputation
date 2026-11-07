@@ -206,6 +206,14 @@ abstract class DatabaseContract {
             }
         } finally { resetPortableTables(); }
     }
+    @Test void canonicalReasonHistoryUsesCurrentActiveIndex()throws Exception {
+        resetPortableTables();var environment=Map.of("TEST_DB_PASSWORD",container().getPassword());
+        try(var manager=new StorageManager()){
+            manager.open(directory,new Settings("global",PlayerLanguage.ru_RU,10,30,2,32,10,false,configuration()),environment);
+            ReasonHistoryContract.check(manager.backend());assertEquals(5,manager.reasonHistory(ReasonHistoryContract.TARGET,"global",ReasonHistoryContract.query(null,null,false,1,36)).total());
+        }
+        finally{resetPortableTables();}
+    }
     @Test void votingLifecycleConcurrentRequestsLimitsAndRestart() throws Exception {
         resetPortableTables();var environment=Map.of("TEST_DB_PASSWORD",container().getPassword());StorageSnapshot before;
         try(var backend=SqlStorage.mysql(configuration(),environment,false)) {

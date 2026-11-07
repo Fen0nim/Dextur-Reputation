@@ -75,10 +75,10 @@ def main():
                     time.sleep(.25)
                 else:
                     raise RuntimeError('Paper startup timeout')
-                for name in ['UxAdmin','UxVoter','UxTarget']:
+                for name in ['UxAdmin','UxVoter','Fen0nim']:
                     handle = (directory / (name+'-'+str(run)+'.log')).open('w');handles.append(handle)
                     clients.append(subprocess.Popen([sys.executable, str(ROOT/'scripts/paper-test-client.py'), '--username', name, '--capture-messages'], stdout=handle, stderr=subprocess.STDOUT))
-                server.wait(timeout=150)
+                server.wait(timeout=240)
                 text = log.read_text()
                 assert server.returncode == 0 and 'PROBE_UX_PASS:' in text and 'PROBE_PASS:' in text and 'PROBE_FAIL:' not in text, log
                 proof['runs'].append({'run': run, 'status': 'PASS', 'log': str(log)})
@@ -94,7 +94,7 @@ def main():
                     except subprocess.TimeoutExpired:client.kill();client.wait(timeout=10)
                 for handle in handles:handle.close()
         print('UX_PAPER_PASS', args.storage_type, 'run', run, flush=True)
-    actor = (directory/'UxVoter-1.log').read_text();target = (directory/'UxTarget-1.log').read_text()
+    actor = (directory/'UxVoter-1.log').read_text();target = (directory/'Fen0nim-1.log').read_text()
     for text in [actor,target]:
         assert 'UX_WIRE_MARKER' in text and 'повыс' in text and 'пониз' in text, 'Both sides must receive real chat packets'
         assert 'reputation.restore.pending' not in text

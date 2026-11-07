@@ -45,3 +45,7 @@ Downgrade требует полного pre-upgrade backup. JSON atomic replace/
 ## События
 
 Внутренний `InvestigationApplication.onCommitted` публикует VoteInvalidated, VoteRestored, PendingVoteReviewed, ReputationRecalculated, TrustRecalculated, остальные typed action names и AdministrationBulkOperationCompleted. Только после commit; duplicate и NO_CHANGE не повторяют changed effects. Listener failures не отменяют committed outcome. Callbacks работают на IO worker, не являются durable outbox. Bulk ограничен batch size; Bukkit/LP handlers работают вне SQL transaction. После crash возможна потеря уведомления, поэтому внешние эффекты сверяют persisted revisions/IDs.
+
+## Отображение участников
+
+GUI аудита показывает имя и UUID отдельно для администратора/инициатора, затронутого игрока и других явно типизированных участников, включая вторую страницу. ID оценки или операции не интерпретируются как игроки. Console и неизвестные offline-имена имеют локализованные подписи; UUID неизвестного игрока сохраняется. Исторические записи не переписываются. [Структура экранов](ADMIN_UX.md#участники-аудита).

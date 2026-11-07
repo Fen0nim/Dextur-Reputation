@@ -10,4 +10,7 @@ public interface VotingRepository {
     VoteReceipt vote(String scope, VoteRequest request, VoterFacts facts, VotingRules rules, Instant now) throws Exception;
     ReputationView votingView(UUID player, String scope) throws Exception;
     VotePage votingHistory(UUID player, String scope, VotePage.Direction direction, int page, int size) throws Exception;
+    default ReasonHistory.Page reasonHistory(UUID player,String scope,ReasonHistory.Query query)throws Exception {
+        throw new UnsupportedOperationException("Reason history unavailable");
+    }
 }

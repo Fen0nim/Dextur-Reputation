@@ -337,4 +337,8 @@ public final class SqlStorage implements StorageBackend {
     @Override public synchronized void close() throws Exception {
         if(!closed) { closed=true;if(database!=null) database.close();if(lease!=null) lease.close(); }
     }
+    @Override public synchronized org.dextur.reputation.domain.ReasonHistory.Page reasonHistory(UUID player,String scope,org.dextur.reputation.domain.ReasonHistory.Query query)throws Exception {
+        return new SqlVoting(this).reasons(player,scope,query);
+    }
+
 }

@@ -28,6 +28,9 @@ final class InvestigationReports {
             case OPERATION->{var a=s.record(Kind.AUDIT,q.id());var b=s.record(Kind.BULK,q.id());if(a!=null&&a.scope().equals(q.scope()))rows.add(record(a));if(b!=null&&b.scope().equals(q.scope()))rows.add(record(b));for(String source:List.of("legacy-admin","legacy-recovery","legacy-protection")){var legacy=s.record(Kind.AUDIT,InvestigationLegacy.id(source,q.id()));if(legacy!=null&&legacy.scope().equals(q.scope()))rows.add(record(legacy));}if(rows.isEmpty()){throw new IllegalArgumentException("INV_UNKNOWN");}total=rows.size();}
             case BULKS->{for(var r:s.records(Kind.BULK,q.scope(),null,null,q.size()+1,offset).stream().limit(q.size()).toList())rows.add(record(r));total=offset+rows.size();}
         }
+        if(q.player()!=null&&(q.section()==Section.ADMIN||q.section()==Section.RECOVERY)){
+            var enriched=new ArrayList<Row>();for(var row:rows){var v=new TreeMap<>(row.values());v.put("target",q.player().toString());enriched.add(new Row(row.id(),v));}rows=enriched;
+        }
         summary.put("page",Integer.toString(q.page()));summary.put("total",Long.toString(total));return new Report(summary,rows,total,InvestigationEngine.hash(List.of(summary,rows)));
     }
     private String uniqueVoters(UUID player,String scope)throws Exception{var votes=s.select(scope,filter(player,null,""),s.rules.relationEvents()+1,0);return (votes.size()>s.rules.relationEvents()?">=":"")+votes.stream().limit(s.rules.relationEvents()).map(VoteEntry::voterId).distinct().count();}

@@ -75,7 +75,7 @@ Dry-run и реальное исполнение используют один s
 
 ## GUI
 
-`/repadmin gui Player`: Overview, Votes, Pending, Trust, Flags, Relations, Recovery, Admin Adjustments, Audit, Recalculate. Async loading и bounded pagination; только main thread создаёт/меняет inventories. Layout/materials/slots задаются в administration.yml, пересечения и неизвестные материалы отклоняются до enable.
+`/repadmin gui Player` открывает главное меню на 27 слотов. История, доверие, сигналы, связи, реабилитация, изменения, аудит и перерасчёт имеют отдельные адаптивные экраны без повторных кнопок чужих разделов. Загрузка асинхронна; inventory изменяется на main thread. Legacy layout валидируется, но геометрия определяется назначением экрана. [Размеры, аудит участников и фильтры](ADMIN_UX.md).
 
 Votes: ЛКМ открывает детали; в деталях ЛКМ предлагает invalidate/restore. Pending: ЛКМ approve, ПКМ reject. Flags: ЛКМ false positive, ПКМ confirmed classification. Recalculate содержит четыре отдельных действия. Каждая mutation открывает отдельное подтверждение с UUID, причиной и operation ID. GUI-причина — явно показанное локализованное «Подтверждено администратором в GUI»; произвольную причину вводите через команду.
 

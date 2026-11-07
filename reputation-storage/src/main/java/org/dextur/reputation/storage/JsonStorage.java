@@ -243,4 +243,8 @@ public final class JsonStorage implements StorageBackend {
     }
     @Override public synchronized void finishMigration() throws IOException { available();Files.deleteIfExists(pending);AtomicFiles.syncDirectory(directory); }
     @Override public synchronized void close() throws IOException { if(!closed) { closed=true;lease.close(); } }
+    @Override public synchronized org.dextur.reputation.domain.ReasonHistory.Page reasonHistory(UUID player,String scope,org.dextur.reputation.domain.ReasonHistory.Query query)throws Exception {
+        available();return JournalVoting.reasons(state,player,scope,query);
+    }
+
 }

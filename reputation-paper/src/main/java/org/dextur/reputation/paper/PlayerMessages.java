@@ -15,9 +15,21 @@ final class PlayerMessages {
     PlayerMessages(DexturReputationPlugin plugin,ReputationApplication profiles,Messages messages,PlayerLanguage fallback) {
         this.plugin=plugin;this.profiles=profiles;this.messages=messages;this.fallback=fallback;
     }
-    String name(UUID id) {
-        var player=plugin.getServer().getOfflinePlayer(id);
-        return player==null||player.getName()==null?messages.plain(fallback,"admin7-player-unknown"):player.getName();
+    String name(UUID id) {return name(id,fallback);}
+    String name(UUID id,PlayerLanguage language) {
+        String name=cachedName(plugin.getServer(),id);
+        return name==null?messages.plain(language,"admin7-player-unknown"):name;
+    }
+    /** Cache-only UUID lookup. CraftOfflinePlayer.getName() can fall back to synchronous player-NBT reads. */
+    static String cachedName(org.bukkit.Server server,UUID id){
+        var online=server.getPlayer(id);if(online!=null)return online.getName();
+        var profile=cachedProfile(server,id);String name=profile==null?null:profile.getName();
+        return name==null||name.isBlank()?null:name;
+    }
+    static com.destroystokyo.paper.profile.PlayerProfile cachedProfile(org.bukkit.Server server,UUID id){
+        var profile=server.createProfile(id);
+        if(profile!=null)profile.completeFromCache(false,true); // UUID already supplied; never query Mojang by name.
+        return profile;
     }
     String actor(CommandSender sender) {return sender instanceof Player p?p.getName():messages.plain(fallback,"admin7-console");}
     void target(CommandSender actor,UUID target,String key,java.util.function.Function<PlayerLanguage,Map<String,String>> values) {

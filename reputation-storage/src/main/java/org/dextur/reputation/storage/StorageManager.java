@@ -47,6 +47,9 @@ public final class StorageManager implements org.dextur.reputation.domain.invest
     @Override public org.dextur.reputation.api.VotePage votingHistory(UUID id,String scope,org.dextur.reputation.api.VotePage.Direction direction,int page,int size) throws Exception {
         return backend().votingHistory(id,scope,direction,page,size);
     }
+    @Override public org.dextur.reputation.domain.ReasonHistory.Page reasonHistory(UUID id,String scope,org.dextur.reputation.domain.ReasonHistory.Query query)throws Exception {
+        return backend().reasonHistory(id,scope,query);
+    }
     @Override public void protection(org.dextur.reputation.domain.protection.ProtectionRules rules) throws Exception { protectionRules=java.util.Objects.requireNonNull(rules);if(backend!=null) backend.protection(rules); }
     @Override public org.dextur.reputation.api.VoteProcessingOutcome outcome(UUID id) throws Exception { return backend().outcome(id); }
     @Override public org.dextur.reputation.domain.protection.ProtectionData.Trust inspectTrust(UUID id,String scope) throws Exception { return backend().inspectTrust(id,scope); }

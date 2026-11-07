@@ -52,9 +52,9 @@ reason-friendly: 'Friendliness'
 reason-fair: 'Fair play'
 reason-rude: 'Rudeness'
 reason-unfair: 'Unfair play'
-gui-profile-title: 'Reputation: {player}'
-gui-reasons-title: 'Choose a reason: {player}'
-gui-history-title: 'History: {player}, {page}'
+gui-profile-title: "<aqua>Reputation: {player}</aqua>"
+gui-reasons-title: "<aqua>Choose a reason: {player}</aqua>"
+gui-history-title: "<aqua>History: {player}, {page}</aqua>"
 gui-profile: '{player}: {reputation}'
 gui-stats: '+{positive} / −{negative} | voters: {unique}'
 gui-like: 'Positive vote'
@@ -62,10 +62,10 @@ gui-dislike: 'Negative vote'
 gui-revoke: 'Revoke my vote'
 gui-history: 'Received votes'
 gui-given: 'My submitted votes'
-gui-close: 'Close'
-gui-back: 'Back'
-gui-next: 'Next page'
-gui-previous: 'Previous page'
+gui-close: "<yellow>Close</yellow>"
+gui-back: "<yellow>Back</yellow>"
+gui-next: "<yellow>Next page</yellow>"
+gui-previous: "<yellow>Previous page</yellow>"
 gui-entry: '{action}: {type} — {reason}'
 gui-entry-detail: '{voter} → {target} | {time} | {state}'
 gui-entry-comment: 'Comment: {comment}'
@@ -122,7 +122,7 @@ gui-tier-maximum: '<gray>No higher positive tier is configured.</gray>'
 gui-tier-benefits: '<gray>Description: {benefits}</gray>'
 display-conflict: '<yellow>Display skipped: {reason}. Use placeholders/API.</yellow>'
 
-recovery-title: 'Reputation rehabilitation'
+recovery-title: "<aqua>Reputation rehabilitation</aqua>"
 
 recovery-help: '/rep recovery [status|start|tasks|progress|rewards|cancel|help]'
 
@@ -245,7 +245,7 @@ admin-voting-status: "Player {player}: voting is {state}."
 admin-locked: "administratively locked"
 admin-unlocked: "administratively unlocked; normal checks apply"
 admin-applied: "Operation {operation} committed. Player: {player}; reputation: {value}; administrative contribution: {admin}."
-policy-title: "Reputation effects"
+policy-title: "<aqua>Reputation effects</aqua>"
 policy-help: "/rep policies [policy ID]"
 policy-information-disabled: "Policy information is disabled."
 policy-reloaded: "Policies validated and activated."
@@ -278,9 +278,9 @@ admin7-empty: "No records."
 admin7-gui-title: "Reputation administration"
 admin7-gui-reason: Changed through the player administration menu
 admin7-recalculate-reason: "Explicit administrative recalculation"
-admin7-previous: "Previous"
-admin7-next: "Next"
-admin7-refresh: "Refresh"
+admin7-previous: "<yellow>Previous</yellow>"
+admin7-next: "<yellow>Next</yellow>"
+admin7-refresh: "<yellow>Refresh</yellow>"
 admin7-confirm-action: "Confirm this action"
 admin7-cancel: "Cancel"
 admin7-section-inspect: "Overview"
@@ -500,7 +500,7 @@ storage-verified: '<green>Verification complete: {profiles} profiles, {votes} vo
 
 # Administration UX and action feedback
 admin7-player-unknown: Unknown player
-admin7-console: Server administration
+admin7-console: "Console"
 admin7-system: System
 admin-enabled: Enabled
 admin-disabled: Disabled
@@ -553,7 +553,7 @@ admin7-value-override: Access rule changed
 admin7-value-force_allow: Allowed by administrator
 admin7-value-force_deny: Denied by administrator
 admin7-value-default: Server rules
-admin7-ui-title: '<aqua>Manage: {player}</aqua>'
+admin7-ui-title: "<aqua>Manage: {player}</aqua>"
 admin7-ui-field: '<gray>{field}: <white>{value}</white></gray>'
 admin7-ui-click-open: <yellow>Left click — open</yellow>
 admin7-ui-click-execute: <yellow>Left click — apply</yellow>
@@ -662,3 +662,51 @@ admin7-recovery-result-cancel: Rehabilitation cancelled
 admin7-recovery-result-reset_stage: Current stage reset
 admin7-recovery-result-lock: Rehabilitation locked
 admin7-recovery-result-unlock: Rehabilitation unlocked
+
+# Dedicated menus and canonical reason history
+admin7-ui-screen-title: "<aqua>{section}</aqua>"
+admin7-ui-label-value: "<white>{value}</white>"
+admin7-trust-history: "<yellow>Trust history</yellow>"
+admin7-identity-uuid: "<dark_gray>UUID: {uuid}</dark_gray>"
+admin7-technical-field: "Technical field ({id})"
+admin7-field-record_id: "Record ID"
+admin7-field-delta: "Reputation change"
+admin7-field-actor_name: "Initiator: name"
+admin7-field-actor_uuid: "Initiator: UUID"
+admin7-field-target_name: "Affected player: name"
+admin7-field-target_uuid: "Affected player: UUID"
+admin7-field-voter_name: "Vote author: name"
+admin7-field-voter_uuid: "Vote author: UUID"
+admin7-field-neighbor_name: "Related player: name"
+admin7-field-neighbor_uuid: "Related player: UUID"
+admin7-field-source_actor_name: "Original initiator: name"
+admin7-field-source_actor_uuid: "Original initiator: UUID"
+gui-reason-title: "<aqua>History: {player}</aqua>"
+gui-reason-player: "<aqua>{player}</aqua>"
+gui-reason-summary: "<gray>Active ratings: <gold>{active}</gold><newline>Total journal events: <white>{events}</white></gray>"
+gui-reason-unspecified: "Reason not specified"
+gui-reason-archived: "Archived reason ({id})"
+gui-reason-category: "<yellow>{reason}</yellow>"
+gui-reason-counts: "<gray>Active: <green>{active}</green><newline>Journal events: <white>{events}</white></gray>"
+gui-reason-open: "<gray>Open records with this reason.</gray>"
+gui-reason-vote: "<gray>Use this reason for your rating.</gray>"
+gui-filter-all: "<yellow>All reasons</yellow>"
+gui-filter-positive: "<green>Positive reasons</green>"
+gui-filter-negative: "<red>Negative reasons</red>"
+gui-filter-selected: "<gold>Selected filter</gold>"
+gui-filter-active: "<green>Active ratings only</green>"
+gui-filter-journal: "<yellow>Full event journal</yellow>"
+gui-filter-records: "<yellow>History records</yellow>"
+gui-history-record: "<yellow>{type}</yellow> <gray>· {reason}</gray>"
+gui-history-action: "<gray>Action: <white>{action}</white></gray>"
+gui-history-voter: "<gray>Author: <aqua>{player}</aqua></gray>"
+gui-history-recipient: "<gray>Recipient: <aqua>{player}</aqua></gray>"
+gui-history-time: "<gray>Date: <white>{time}</white></gray>"
+gui-history-active: "<green>Active rating</green>"
+gui-history-inactive: "<dark_gray>Inactive journal record</dark_gray>"
+gui-history-empty: "<gray>No matching records</gray>"
+admin7-field-administrator: "Administrator"
+admin7-field-administrator_name: "Administrator: name"
+admin7-field-administrator_uuid: "Administrator: UUID"
+admin7-field-action_id: "Action type (ID)"
+gui-history-open-link: "<yellow>Open history by reason: /rep gui {player}</yellow>"

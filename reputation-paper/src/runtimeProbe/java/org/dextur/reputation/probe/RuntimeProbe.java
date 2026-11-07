@@ -127,7 +127,7 @@ public final class RuntimeProbe extends JavaPlugin {
         getServer().getPluginManager().disablePlugin(target);
         for(var player:getServer().getOnlinePlayers()) {
             var holder=player.getOpenInventory().getTopInventory().getHolder();
-            if(holder!=null&&(holder.getClass().getName().endsWith("VotingGui$Session")||holder.getClass().getName().endsWith("RecoveryGui$Session")||holder.getClass().getName().endsWith("PolicyEffects$Panel")||holder.getClass().getName().endsWith("InvestigationGui$Session"))) throw new AssertionError("GUI remained open after listener cleanup");
+            if(holder!=null&&(holder.getClass().getName().endsWith("VotingGui$Session")||holder.getClass().getName().endsWith("ReasonHistoryGui$Session")||holder.getClass().getName().endsWith("RecoveryGui$Session")||holder.getClass().getName().endsWith("PolicyEffects$Panel")||holder.getClass().getName().endsWith("InvestigationGui$Session"))) throw new AssertionError("GUI remained open after listener cleanup");
         }
         if(getServer().getServicesManager().load(policyApi)!=null)throw new AssertionError("Policy API leaked on shutdown");
         for(var player:getServer().getOnlinePlayers()){var health=player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH);if(health!=null&&health.getModifiers().stream().anyMatch(m->m.getKey().equals(new org.bukkit.NamespacedKey("dexturreputation","reputation-health"))))throw new AssertionError("Owned health modifier leaked on shutdown");}

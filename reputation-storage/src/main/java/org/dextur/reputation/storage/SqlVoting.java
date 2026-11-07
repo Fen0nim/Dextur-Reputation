@@ -181,4 +181,27 @@ final class SqlVoting {
             } catch(Exception e) { c.rollback();throw e; }
         }
     }
+    org.dextur.reputation.domain.ReasonHistory.Page reasons(UUID player,String scope,org.dextur.reputation.domain.ReasonHistory.Query q)throws Exception {
+        String column=q.direction()==VotePage.Direction.RECEIVED?"v.target_uuid":"v.voter_uuid";
+        String base=" FROM dr_votes v LEFT JOIN dr_active_votes a ON a.operation_id=v.operation_id WHERE v.scope_id=? AND "+column+"=?";
+        String where=base+(q.type()==null?"":" AND v.vote_type=?")+(q.reason()==null?"":" AND COALESCE(v.reason_id,'')=?")+(q.activeOnly()?" AND a.operation_id IS NOT NULL":"");
+        try(var c=owner.connect()){c.setAutoCommit(false);try{
+            var groups=new ArrayList<org.dextur.reputation.domain.ReasonHistory.Group>();
+            try(var s=c.prepareStatement("SELECT COALESCE(v.reason_id,'') AS reason_id,v.vote_type,COUNT(*) AS events,SUM(CASE WHEN a.operation_id IS NOT NULL THEN 1 ELSE 0 END) AS active_count"+base+" GROUP BY COALESCE(v.reason_id,''),v.vote_type ORDER BY v.vote_type,reason_id")){
+                s.setString(1,scope);s.setString(2,player.toString());try(var r=s.executeQuery()){while(r.next())groups.add(new org.dextur.reputation.domain.ReasonHistory.Group(r.getString("reason_id"),VoteType.valueOf(r.getString("vote_type")),r.getLong("active_count"),r.getLong("events")));}
+            }
+            long total;try(var s=c.prepareStatement("SELECT COUNT(*)"+where)){bindReason(s,scope,player,q);try(var r=s.executeQuery()){r.next();total=r.getLong(1);}}
+            var rows=new ArrayList<VotePage.Item>();
+            try(var s=c.prepareStatement("SELECT v.*,a.operation_id AS active_id"+where+" ORDER BY v.sequence_no DESC LIMIT ? OFFSET ?")){
+                int n=bindReason(s,scope,player,q);s.setInt(n++,q.size());s.setLong(n,(long)(q.page()-1)*q.size());
+                try(var r=s.executeQuery()){while(r.next())rows.add(new VotePage.Item(read(r),r.getString("active_id")!=null));}
+            }
+            c.commit();return new org.dextur.reputation.domain.ReasonHistory.Page(groups,rows,total,q);
+        }catch(Exception error){c.rollback();throw error;}}
+    }
+    private static int bindReason(PreparedStatement s,String scope,UUID player,org.dextur.reputation.domain.ReasonHistory.Query q)throws SQLException {
+        s.setString(1,scope);s.setString(2,player.toString());int n=3;
+        if(q.type()!=null)s.setString(n++,q.type().name());if(q.reason()!=null)s.setString(n++,q.reason());return n;
+    }
+
 }

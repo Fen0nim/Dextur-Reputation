@@ -31,7 +31,7 @@ class VotingGuiTest {
         when(plugin.getServer()).thenReturn(server);when(server.getScheduler()).thenReturn(scheduler);when(plugin.ready()).thenReturn(true);
         scheduled=new ArrayList<>();doAnswer(i->{scheduled.add(i.getArgument(1));return null;}).when(scheduler).runTask(eq(plugin),any(Runnable.class));
         var messages=Messages.bundled(PlayerLanguage.ru_RU);var config=VotingConfiguration.load(directory,messages);
-        gui=new VotingGui(plugin,mock(VotingService.class),mock(VotingCommands.class),config,GuiConfiguration.load(directory,m->true),messages);
+        var commands=mock(VotingCommands.class);when(commands.allowed(any(),anyString())).thenReturn(true);gui=new VotingGui(plugin,mock(VotingService.class),commands,config,GuiConfiguration.load(directory,m->true),messages);
         player=mock(Player.class);var id=UUID.randomUUID();when(player.getUniqueId()).thenReturn(id);when(player.isOnline()).thenReturn(true);
         session=new VotingGui.Session(id,UUID.randomUUID(),"Target");session.inventory=mock(Inventory.class);when(session.inventory.getSize()).thenReturn(54);when(session.inventory.getHolder()).thenReturn(session);
         view=mock(InventoryView.class);when(view.getTopInventory()).thenReturn(session.inventory);when(player.getOpenInventory()).thenReturn(view);

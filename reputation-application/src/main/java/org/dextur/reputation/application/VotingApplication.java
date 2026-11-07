@@ -79,6 +79,10 @@ public final class VotingApplication implements VotingService {
         if(!(repository instanceof org.dextur.reputation.domain.protection.ProtectionRepository protection)) return VotingService.super.outcome(id);
         return application.submit(()->protection.outcome(id));
     }
+    public CompletionStage<ReasonHistory.Page> reasonHistory(UUID player,ReasonHistory.Query query) {
+        Objects.requireNonNull(player);Objects.requireNonNull(query);
+        return application.submit(()->repository.reasonHistory(player,settings.scope(),query));
+    }
     @Override public AutoCloseable onStatusChanged(Consumer<VoteStatusChanged> listener) { Objects.requireNonNull(listener);statusListeners.add(listener);return ()->statusListeners.remove(listener); }
     void statusCommitted(VoteStatusChanged event) {
         for(var listener:statusListeners) try { listener.accept(event); } catch(Throwable error) { try { listenerFailure.accept(error); } catch(RuntimeException ignored) { } }
