@@ -25,6 +25,13 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@v4
+      - name: Verify IDEA source dependencies (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./gradlew -I scripts/verify-idea-sources.init.gradle verifyIdeaSources --no-configuration-cache --dependency-verification strict
+      - name: Verify IDEA source dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\gradlew.bat -I scripts/verify-idea-sources.init.gradle verifyIdeaSources --no-configuration-cache --dependency-verification strict
       - name: Normal build (Linux/macOS)
         if: runner.os != 'Windows'
         run: ./gradlew clean build --no-build-cache

@@ -1,0 +1,61 @@
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier
+import org.gradle.api.artifacts.result.UnresolvedArtifactResult
+import org.gradle.api.artifacts.result.UnresolvedComponentResult
+import org.gradle.jvm.JvmLibrary
+import org.gradle.language.base.artifact.SourcesArtifact
+
+// IDEA attaches sources to JAR libraries, not BOMs or plugin-marker POMs.
+gradle.projectsEvaluated {
+    def root = gradle.rootProject
+    root.tasks.register('verifyIdeaSources') {
+        notCompatibleWithConfigurationCache('One-shot IDE source resolution across all project and plugin classpaths')
+        doLast {
+            def libraries = { configurations ->
+                def ids = new LinkedHashSet()
+                configurations.findAll { it.canBeResolved }.each { configuration ->
+                    // Project outputs need not exist during an initial IDE import.
+                    def external = configuration.incoming.artifactView {
+                        componentFilter { it instanceof ModuleComponentIdentifier }
+                    }
+                    external.artifacts.artifacts.each { artifact ->
+                        if (artifact.id.componentIdentifier instanceof ModuleComponentIdentifier && artifact.file.name.endsWith('.jar')) ids.add(artifact.id.componentIdentifier)
+                    }
+                }
+                ids
+            }
+            def projectIds = new LinkedHashSet()
+            def groups = []
+            root.allprojects.each { project ->
+                projectIds.addAll(libraries(project.configurations))
+                def pluginIds = libraries(project.buildscript.configurations)
+                if (!pluginIds.empty) groups.add([project.buildscript.dependencies, pluginIds])
+            }
+            groups.add([root.dependencies, projectIds])
+            def allIds = groups.collectMany { it[1].toList() }.toSet()
+            def report = System.getProperty('idea.sources.report')
+            if (report) new File(report + '.components').text = allIds.collect { "${it.group}:${it.module}:${it.version}" }.sort().join('\n') + '\n'
+            def lines = new TreeSet()
+            def failures = []
+            groups.each { group ->
+                def results = group[0].createArtifactResolutionQuery().forComponents(group[1]).withArtifacts(JvmLibrary, SourcesArtifact).execute()
+                results.components.findAll { it instanceof UnresolvedComponentResult }.each { component -> failures.add("${component.id}: ${component.failure}") }
+                results.resolvedComponents.each { component ->
+                    def artifacts = component.getArtifacts(SourcesArtifact)
+                    if (artifacts.empty) lines.add("UNPUBLISHED\t${component.id}\tNo source artifact published")
+                    artifacts.each { artifact ->
+                        if (artifact instanceof UnresolvedArtifactResult) {
+                            def cause = artifact.failure
+                            while (cause.cause != null && cause.cause != cause) cause = cause.cause
+                            if (cause.class.simpleName == 'ArtifactNotFoundException') lines.add("UNPUBLISHED\t${component.id}\t${artifact.id.displayName}")
+                            else failures.add("${component.id}: ${artifact.failure}")
+                        } else lines.add("VERIFIED\t${component.id}\t${artifact.file}")
+                    }
+                }
+            }
+            if (report) new File(report).text = lines.join('\n') + '\n'
+            lines.each { logger.lifecycle(it) }
+            if (!failures.empty) throw new GradleException('IDE source resolution failed:\n' + failures.join('\n'))
+            logger.lifecycle("IDE sources: ${lines.count { it.startsWith('VERIFIED') }} verified, ${lines.count { it.startsWith('UNPUBLISHED') }} not published")
+        }
+    }
+}
