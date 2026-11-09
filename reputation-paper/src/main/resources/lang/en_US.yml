@@ -33,7 +33,7 @@ vote-duplicate: 'This request was already saved. No additional change.'
 vote-notification: '{player}: {action}, {type}; reason: {reason}; comment: {comment}. Reputation: {reputation}.'
 vote-stats: 'Active votes: +{positive} / −{negative}. Historical unique voters: {unique}. Operations: {total}.'
 vote-reasons: 'Available reasons (code — description):'
-vote-reason-line: '{reason} — {description} ({type})'
+vote-reason-line: '{reason} ({type})'
 vote-history: 'History: {direction}, page {page}, entries {total}.'
 vote-history-line: '{time} | {voter} → {target} | {action}, {type}, {reason} | {comment} | {state}'
 vote-empty: 'No history yet.'
@@ -51,7 +51,7 @@ reason-helpful: 'Helping players'
 reason-friendly: 'Friendliness'
 reason-fair: 'Fair play'
 reason-rude: 'Rudeness'
-reason-unfair: 'Unfair play'
+reason-unfair: 'Unfair behavior'
 gui-profile-title: "<aqua>Reputation: {player}</aqua>"
 gui-reasons-title: "<aqua>Choose a reason: {player}</aqua>"
 gui-history-title: "<aqua>History: {player}, {page}</aqua>"
@@ -689,7 +689,7 @@ gui-reason-archived: "Archived reason ({id})"
 gui-reason-category: "<yellow>{reason}</yellow>"
 gui-reason-counts: "<gray>Active: <green>{active}</green><newline>Journal events: <white>{events}</white></gray>"
 gui-reason-open: "<gray>Open records with this reason.</gray>"
-gui-reason-vote: "<gray>Use this reason for your rating.</gray>"
+gui-reason-vote: "<gray>Use this reason for your rating.</gray> <yellow>Left click — vote</yellow>"
 gui-filter-all: "<yellow>All reasons</yellow>"
 gui-filter-positive: "<green>Positive reasons</green>"
 gui-filter-negative: "<red>Negative reasons</red>"
@@ -710,3 +710,46 @@ admin7-field-administrator_name: "Administrator: name"
 admin7-field-administrator_uuid: "Administrator: UUID"
 admin7-field-action_id: "Action type (ID)"
 gui-history-open-link: "<yellow>Open history by reason: /rep gui {player}</yellow>"
+
+reason-trustworthy: 'Trustworthiness'
+reason-active: 'Useful activity'
+reason-community: 'Community contribution'
+reason-builder: 'Great building'
+reason-trader: 'Fair trading'
+reason-teamwork: 'Teamwork'
+reason-mentor: 'Mentoring newcomers'
+reason-toxic: 'Toxicity'
+reason-scam: 'Scamming'
+reason-griefing: 'Griefing'
+reason-spam: 'Spam'
+reason-harassment: 'Harassment'
+reason-rulebreaking: 'Rule breaking'
+reason-unreliable: 'Unreliability'
+reason-disruptive: 'Disruptive behavior'
+gui-reason-unavailable: "Archived reason"
+gui-score: "<green>Reputation</green>"
+gui-score-value: "<gray>Current score: <white>{reputation}</white></gray>"
+gui-score-desc: "<gray>Your score from votes and reputation changes.</gray>"
+gui-tier-title: "<aqua>Reputation tier</aqua>"
+gui-tier-desc: "<gray>Current status and progress to the next tier.</gray>"
+gui-received: "<yellow>Received reasons</yellow>"
+gui-received-desc: "<gray>Reasons for ratings and their vote counts.</gray>"
+gui-help: "<yellow>Help</yellow>"
+gui-help-desc: "<gray>Voting commands and rules.</gray>"
+gui-like-desc: "<gray>Choose a reason for a positive rating.</gray>"
+gui-dislike-desc: "<gray>Choose a reason for a negative rating.</gray>"
+gui-revoke-desc: "<gray>Withdraw your active vote for this player.</gray>"
+gui-history-desc: "<gray>All received vote changes in time order.</gray>"
+gui-given-desc: "<gray>Who you rated and the reasons you chose.</gray>"
+gui-my-recovery: "<aqua>My recovery</aqua>"
+gui-recovery-desc: "<gray>Recovery stages and current progress.</gray>"
+gui-my-access: "<aqua>My access and benefits</aqua>"
+gui-refresh: "<yellow>Refresh</yellow>"
+gui-control-refresh: "<gray>Reload the current state.</gray>"
+gui-control-open: "<gray>Open this section for details.</gray>"
+gui-control-back: "<gray>Return to the previous screen.</gray>"
+gui-control-close: "<gray>Close the reputation menu.</gray>"
+gui-click-help: "<yellow>Left click — show commands</yellow>"
+gui-access-desc: "<gray>Restrictions and benefits from your reputation.</gray>"
+gui-recovery-start-desc: "<gray>Start the available recovery program.</gray>"
+gui-recovery-cancel-desc: "<gray>Cancel your current recovery program.</gray>"

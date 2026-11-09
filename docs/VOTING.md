@@ -2,8 +2,8 @@
 
 ## Правила и расчёт
 
-`/like <игрок> <причина> [комментарий]` и `/dislike` принимают обязательный код причины
-из `/rep reasons`. Разрешены известные серверу офлайн-игроки; поиск имени использует только
+`/like <игрок> <причина> [комментарий]` и `/dislike` принимают обязательное локализованное название причины
+из `/rep reasons` или прежний стабильный ID. Разрешены известные серверу офлайн-игроки; поиск имени использует только
 онлайн-игроков и кэш Paper. Некэшированное имя не вызывает запрос к Mojang. За себя голосовать
 нельзя. Истории: `/rep history [страница]` (полученные) и `/rep given [страница]` (отправленные).
 
@@ -178,3 +178,67 @@ Private protection state введён в format/schema 3; текущая вер�
 ## История по причинам
 
 `/rep gui <игрок>` открывает профиль с переходом в причины и историю. При `open-gui-on-profile: true` доступен также `/rep <игрок>`; текстовый режим сохраняет подсказку перехода. Категории: все, положительные, отрицательные, отдельный canonical reason ID; режимы полного журнала и действующих оценок. Счётчики учитывают текущий active index, включая замену, отзыв и модерацию. Отключённые причины остаются доступны. RU/EN меняют подписи, не запросы и не записи. [Подробности и размеры](ADMIN_UX.md#причины-и-история-игрока).
+
+## Локализация и настройка причин
+
+Для `ru_RU` автодополнение, ответы автору, уведомления цели, история и меню используют русские названия; для `en_US` — английские. Язык выбирается существующей `/rep language`. API, Trust и журнал продолжают использовать ID. Старые записи не мигрируют.
+
+| ID | RU | EN | Тип |
+|---|---|---|---|
+| helpful | Помощь игрокам | Helping players | + |
+| friendly | Дружелюбие | Friendliness | + |
+| fair | Честная игра | Fair play | + |
+| trustworthy | Надёжность | Trustworthiness | + |
+| active | Полезная активность | Useful activity | + |
+| community | Вклад в сообщество | Community contribution | + |
+| builder | Хорошее строительство | Great building | + |
+| trader | Честные сделки | Fair trading | + |
+| teamwork | Командная работа | Teamwork | + |
+| mentor | Помощь новичкам | Mentoring newcomers | + |
+| rude | Грубость | Rudeness | − |
+| unfair | Нечестное поведение | Unfair behavior | − |
+| toxic | Токсичность | Toxicity | − |
+| scam | Обман | Scamming | − |
+| griefing | Гриферство | Griefing | − |
+| spam | Спам | Spam | − |
+| harassment | Преследование | Harassment | − |
+| rulebreaking | Нарушение правил | Rule breaking | − |
+| unreliable | Ненадёжность | Unreliability | − |
+| disruptive | Мешает другим игрокам | Disruptive behavior | − |
+
+Примеры:
+
+```text
+/like Fen0nim Помощь игрокам Спасибо за ресурсы
+/dislike Fen0nim Грубость
+/like Fen0nim friendly
+/like Fen0nim "Helping players" Thank you
+```
+
+Названия сопоставляются без учёта регистра в выбранном языке. Поддерживаются фразы с пробелами и двойными кавычками. Самое длинное подходящее название в начале строки становится причиной, оставшаяся часть — комментарием; кавычки позволяют явно отделить причину. ID `friendly`, `rude` и другие остаются допустимыми. Положительная причина не подходит `/dislike`, отрицательная не подходит `/like`.
+
+В `voting.yml`:
+
+```yaml
+reasons:
+  friendly:
+    enabled: true
+    message: reason-friendly
+    types: [POSITIVE]
+  scam:
+    enabled: false
+```
+
+В `lang/ru_RU.yml` и `lang/en_US.yml` соответственно:
+
+```yaml
+reason-friendly: 'Доброе общение'
+```
+
+```yaml
+reason-friendly: 'Kindness'
+```
+
+Отсутствующие встроенные причины дополняются в памяти новыми значениями по умолчанию, без перезаписи файлов. Чтобы исключить причину, используйте `enabled: false`: она исчезнет из автодополнения/выбора и будет отклонена при новом голосовании, сохранив перевод в истории. Не удаляйте её перевод или ID ради выключения. Отсутствующий `enabled` означает `true`; должен оставаться хотя бы один включённый пункт. Пользовательские `message`, `types` и переводы сохраняются. Названия должны быть непустыми, уникальными в каждом языке, до 100 символов, без двойных кавычек и управляющих символов; конфликт с чужим ID отклоняется при запуске. Изменения причин и переводов требуют перезапуска плагина/сервера: `/repadmin reload` по-прежнему перечитывает только прежние правила доступа.
+
+EN: reason labels and completion follow the viewer's selected language. Raw IDs remain accepted and stored. Configure `reasons.<id>.enabled` in `voting.yml`, and rename `reason-<id>` in each language file. Missing built-ins receive additive defaults; explicitly disable unwanted reasons. Restart after changing the catalog or translations. Disabled reasons remain localized in history; no historical IDs or votes are rewritten.

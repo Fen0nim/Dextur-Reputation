@@ -30,19 +30,86 @@ permissions:
   history: dexturreputation.history
   gui: dexturreputation.gui
   reasons: dexturreputation.reasons
+# Stable IDs are stored in the journal. Display text lives in lang/<locale>.yml.
+# Missing built-in reasons receive defaults on upgrade; use enabled: false to opt out.
 reasons:
   helpful:
+    enabled: true
     message: reason-helpful
     types: [POSITIVE]
   friendly:
+    enabled: true
     message: reason-friendly
     types: [POSITIVE]
   fair:
+    enabled: true
     message: reason-fair
     types: [POSITIVE]
+  trustworthy:
+    enabled: true
+    message: reason-trustworthy
+    types: [POSITIVE]
+  active:
+    enabled: true
+    message: reason-active
+    types: [POSITIVE]
+  community:
+    enabled: true
+    message: reason-community
+    types: [POSITIVE]
+  builder:
+    enabled: true
+    message: reason-builder
+    types: [POSITIVE]
+  trader:
+    enabled: true
+    message: reason-trader
+    types: [POSITIVE]
+  teamwork:
+    enabled: true
+    message: reason-teamwork
+    types: [POSITIVE]
+  mentor:
+    enabled: true
+    message: reason-mentor
+    types: [POSITIVE]
   rude:
+    enabled: true
     message: reason-rude
     types: [NEGATIVE]
   unfair:
+    enabled: true
     message: reason-unfair
+    types: [NEGATIVE]
+  toxic:
+    enabled: true
+    message: reason-toxic
+    types: [NEGATIVE]
+  scam:
+    enabled: true
+    message: reason-scam
+    types: [NEGATIVE]
+  griefing:
+    enabled: true
+    message: reason-griefing
+    types: [NEGATIVE]
+  spam:
+    enabled: true
+    message: reason-spam
+    types: [NEGATIVE]
+  harassment:
+    enabled: true
+    message: reason-harassment
+    types: [NEGATIVE]
+  rulebreaking:
+    enabled: true
+    message: reason-rulebreaking
+    types: [NEGATIVE]
+  unreliable:
+    enabled: true
+    message: reason-unreliable
+    types: [NEGATIVE]
+  disruptive:
+    enabled: true
+    message: reason-disruptive
     types: [NEGATIVE]

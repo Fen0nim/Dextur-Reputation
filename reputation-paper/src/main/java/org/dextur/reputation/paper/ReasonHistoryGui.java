@@ -26,12 +26,9 @@ final class ReasonHistoryGui {
     ReasonHistoryGui(DexturReputationPlugin plugin,VotingCommands commands,Messages messages,VotingConfiguration config,Reader reader){this.plugin=plugin;this.commands=commands;this.messages=messages;this.config=config;this.reader=reader;}
     private boolean allowed(Player p){return commands.allowed(p,"gui")&&commands.allowed(p,"history");}
     private boolean current(Player p,Session s){return p.isOnline()&&p.getUniqueId().equals(s.owner)&&p.getOpenInventory().getTopInventory().getHolder()==s;}
-    private Component text(Player p,String key,Map<String,String> values){return messages.content(commands.language(p),key,values);}
+    private Component text(Player p,String key,Map<String,String> values){return GuiText.normal(messages.content(commands.language(p),key,values));}
     String reason(PlayerLanguage locale,String id){
-        if(ReasonHistory.canonical(id).isEmpty())return messages.plain(locale,"gui-reason-unspecified");
-        var configured=config.rules().reasons().get(id);
-        if(configured!=null)return messages.plain(locale,configured.messageKey());
-        try{return messages.plain(locale,"reason-"+id);}catch(IllegalArgumentException missing){return DisplayFormatter.plain(messages.content(locale,"gui-reason-archived",Map.of("id",id)));}
+        return config.reasonLabel(messages,locale,ReasonHistory.canonical(id));
     }
     void open(Player p,UUID target,String name,VotePage.Direction direction,Runnable back){
         show(p,target,name,new ReasonHistory.Query(direction,null,null,false,1,config.pageSize()),View.REASONS,back);
@@ -47,9 +44,9 @@ final class ReasonHistoryGui {
         }));
     }
     private void item(Player p,Session s,int slot,Material icon,String key,Map<String,String> values,List<Component> lore,Runnable action){
-        var item=new ItemStack(icon);var meta=item.getItemMeta();meta.displayName(text(p,key,values).colorIfAbsent(icon==Material.PLAYER_HEAD?net.kyori.adventure.text.format.NamedTextColor.AQUA:net.kyori.adventure.text.format.NamedTextColor.YELLOW));meta.lore(lore.stream().map(line->line.colorIfAbsent(net.kyori.adventure.text.format.NamedTextColor.GRAY)).toList());item.setItemMeta(meta);s.inventory.setItem(slot,item);if(action!=null)s.actions.put(slot,action);
+        var item=new ItemStack(icon);var meta=item.getItemMeta();meta.displayName(text(p,key,values).colorIfAbsent(icon==Material.PLAYER_HEAD?net.kyori.adventure.text.format.NamedTextColor.AQUA:net.kyori.adventure.text.format.NamedTextColor.YELLOW));meta.lore(lore.stream().map(line->GuiText.normal(line).colorIfAbsent(net.kyori.adventure.text.format.NamedTextColor.GRAY)).toList());item.setItemMeta(meta);s.inventory.setItem(slot,item);if(action!=null)s.actions.put(slot,action);
     }
-    private void control(Player p,Session s,int slot,Material icon,String key,Runnable action){item(p,s,slot,icon,key,Map.of(),List.of(),action);}
+    private void control(Player p,Session s,int slot,Material icon,String key,Runnable action){item(p,s,slot,icon,key,Map.of(),GuiText.control(messages,commands.language(p),key),action);}
     private void render(Player p,Session s,ReasonHistory.Page page){
         var groups=page.groups().stream().filter(g->s.query.type()==null||g.type()==s.query.type()).toList();
         int start=(s.query.page()-1)*s.query.size();int visible=s.view==View.REASONS?Math.max(0,Math.min(s.query.size(),groups.size()-start)):page.entries().size();
@@ -57,7 +54,7 @@ final class ReasonHistoryGui {
         s.inventory.clear();s.actions.clear();
         item(p,s,4,Material.PLAYER_HEAD,"gui-reason-player",Map.of("player",s.name),List.of(text(p,"gui-reason-summary",Map.of("active",Long.toString(page.groups().stream().mapToLong(ReasonHistory.Group::active).sum()),"events",Long.toString(page.groups().stream().mapToLong(ReasonHistory.Group::historical).sum())))),null);
         for(int i=0;i<3;i++){VoteType type=i==0?null:i==1?VoteType.POSITIVE:VoteType.NEGATIVE;String key=i==0?"all":i==1?"positive":"negative";
-            item(p,s,i,s.query.type()==type?Material.GOLD_NUGGET:i==0?Material.BOOK:i==1?Material.LIME_DYE:Material.RED_DYE,"gui-filter-"+key,Map.of(),s.query.type()==type?List.of(text(p,"gui-filter-selected",Map.of())):List.of(),()->show(p,s.target,s.name,new ReasonHistory.Query(s.query.direction(),type,null,s.query.activeOnly(),1,s.query.size()),View.REASONS,s.back));
+            item(p,s,i,s.query.type()==type?Material.GOLD_NUGGET:i==0?Material.BOOK:i==1?Material.LIME_DYE:Material.RED_DYE,"gui-filter-"+key,Map.of(),List.of(text(p,s.query.type()==type?"gui-filter-selected":"gui-control-open",Map.of()),text(p,"admin7-ui-click-open",Map.of())),()->show(p,s.target,s.name,new ReasonHistory.Query(s.query.direction(),type,null,s.query.activeOnly(),1,s.query.size()),View.REASONS,s.back));
         }
         control(p,s,6,s.query.activeOnly()?Material.EMERALD:Material.CLOCK,s.query.activeOnly()?"gui-filter-active":"gui-filter-journal",()->show(p,s.target,s.name,new ReasonHistory.Query(s.query.direction(),s.query.type(),s.query.reason(),!s.query.activeOnly(),1,s.query.size()),s.view,s.back));
         control(p,s,8,Material.WRITABLE_BOOK,"gui-filter-records",()->show(p,s.target,s.name,s.query.page(1),View.ENTRIES,()->show(p,s.target,s.name,s.query,s.view,s.back)));

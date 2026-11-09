@@ -48,36 +48,53 @@ final class VotingGui implements Listener {
     }
     private Session screen(Player player,UUID target,String name,String title,Map<String,String> values) {
         var session=new Session(player.getUniqueId(),target,name);
-        session.inventory=Bukkit.createInventory(session,27,messages.content(commands.language(player),title,values));
+        session.inventory=Bukkit.createInventory(session,27,GuiText.normal(messages.content(commands.language(player),title,values)));
         button(session,player,"close",()->player.closeInventory());player.openInventory(session.inventory);return session;
     }
     private ItemStack item(org.bukkit.Material material,Component name,List<Component> lore) {
-        var item=new ItemStack(material);var meta=item.getItemMeta();meta.displayName(name.colorIfAbsent(material==org.bukkit.Material.PLAYER_HEAD?net.kyori.adventure.text.format.NamedTextColor.AQUA:material==org.bukkit.Material.LIME_DYE?net.kyori.adventure.text.format.NamedTextColor.GREEN:material==org.bukkit.Material.RED_DYE?net.kyori.adventure.text.format.NamedTextColor.RED:net.kyori.adventure.text.format.NamedTextColor.YELLOW));meta.lore(lore.stream().map(line->line.colorIfAbsent(net.kyori.adventure.text.format.NamedTextColor.GRAY)).toList());item.setItemMeta(meta);return item;
+        var item=new ItemStack(material);var meta=item.getItemMeta();meta.displayName(GuiText.normal(name).colorIfAbsent(material==org.bukkit.Material.PLAYER_HEAD?net.kyori.adventure.text.format.NamedTextColor.AQUA:material==org.bukkit.Material.LIME_DYE?net.kyori.adventure.text.format.NamedTextColor.GREEN:material==org.bukkit.Material.RED_DYE?net.kyori.adventure.text.format.NamedTextColor.RED:net.kyori.adventure.text.format.NamedTextColor.YELLOW));meta.lore(lore.stream().map(line->GuiText.normal(line).colorIfAbsent(net.kyori.adventure.text.format.NamedTextColor.GRAY)).toList());item.setItemMeta(meta);return item;
     }
     private void button(Session session,Player player,String key,Runnable action) {
         var button=config.buttons().get(key);
-        session.inventory.setItem(profileSlot(key,session.inventory.getSize()),item(button.material(),messages.content(commands.language(player),"gui-"+key,Map.of()),List.of()));
+        session.inventory.setItem(profileSlot(key,session.inventory.getSize()),item(button.material(),GuiText.normal(messages.content(commands.language(player),"gui-"+key,Map.of())),controlLore(player,"gui-"+key)));
         session.actions.put(profileSlot(key,session.inventory.getSize()),action);
     }
-    private static int profileSlot(String key,int size){return switch(key){case "profile"->4;case "like"->9;case "dislike"->11;case "revoke"->13;case "history"->15;case "given"->17;case "close"->MenuGeometry.close(size);case "back"->MenuGeometry.back(size);case "previous"->MenuGeometry.previous(size);case "next"->MenuGeometry.next(size);default->throw new IllegalArgumentException(key);};}
+    private List<Component> controlLore(Player player,String key) {
+        if(Set.of("gui-like","gui-dislike","gui-revoke","gui-history","gui-given","gui-received","gui-help").contains(key))
+            return List.of(GuiText.normal(messages.content(commands.language(player),key+"-desc",Map.of())),GuiText.normal(messages.content(commands.language(player),key.equals("gui-revoke")?"admin7-ui-click-execute":key.equals("gui-help")?"gui-click-help":"admin7-ui-click-open",Map.of())));
+        return GuiText.control(messages,commands.language(player),key);
+    }
+    private void control(Session session,Player player,int slot,org.bukkit.Material material,String key,Runnable action) {
+        session.inventory.setItem(slot,item(material,GuiText.normal(messages.content(commands.language(player),key,Map.of())),controlLore(player,key)));session.actions.put(slot,action);
+    }
+    static int profileSlot(String key,int size){return switch(key){case "profile"->4;case "like"->20;case "dislike"->24;case "revoke"->22;case "history"->11;case "received"->13;case "given"->15;case "recovery"->29;case "help"->31;case "access"->33;case "refresh"->MenuGeometry.refresh(size);case "close"->MenuGeometry.close(size);case "back"->MenuGeometry.back(size);case "previous"->MenuGeometry.previous(size);case "next"->MenuGeometry.next(size);default->throw new IllegalArgumentException(key);};}
     void open(Player player,UUID target,String name) {
         if(!commands.allowed(player,"gui")) { commands.send(player,"no-permission",Map.of());return; }
-        var session=screen(player,target,name,"gui-profile-title",Map.of("player",name));session.busy=true;
+        var session=new Session(player.getUniqueId(),target,name);
+        session.inventory=Bukkit.createInventory(session,45,GuiText.normal(messages.content(commands.language(player),"gui-profile-title",Map.of("player",name))));player.openInventory(session.inventory);session.busy=true;
         voting.view(target).whenComplete((view,error)->plugin.onMain(()->{
             if(!current(player,session)) return;
             session.busy=false;if(!commands.allowed(player,"gui")){player.closeInventory();return;}if(error!=null) { commands.failed(player,error);player.closeInventory();return; }
             var language=commands.language(player);var s=view.statistics();var button=config.buttons().get("profile");
-            session.inventory.setItem(4,item(button.material(),messages.content(language,"gui-profile",Map.of("player",name,"reputation",messages.number(language,view.profile().visibleScore()))),
-                    List.of(messages.content(language,"gui-stats",Map.of("positive",Long.toString(s.positive()),"negative",Long.toString(s.negative()),"unique",Long.toString(s.uniqueVoters()))))));
+            session.inventory.setItem(4,item(button.material(),GuiText.normal(messages.content(language,"gui-profile",Map.of("player",name,"reputation",messages.number(language,view.profile().visibleScore())))),
+                    List.of(GuiText.normal(messages.content(language,"gui-stats",Map.of("positive",Long.toString(s.positive()),"negative",Long.toString(s.negative()),"unique",Long.toString(s.uniqueVoters())))))));
+            var head=session.inventory.getItem(4);var headMeta=head.getItemMeta();
+            if(headMeta instanceof org.bukkit.inventory.meta.SkullMeta skull){skull.setPlayerProfile(PlayerMessages.cachedProfile(plugin.getServer(),target));head.setItemMeta(skull);}
+            session.inventory.setItem(2,item(org.bukkit.Material.EMERALD,GuiText.normal(messages.content(language,"gui-score",Map.of())),List.of(GuiText.normal(messages.content(language,"gui-score-value",Map.of("reputation",messages.number(language,view.profile().visibleScore())))),GuiText.normal(messages.content(language,"gui-score-desc",Map.of())))));
+            if(config.tierPanel().enabled())session.inventory.setItem(6,item(org.bukkit.Material.NAME_TAG,GuiText.normal(messages.content(language,"gui-tier-title",Map.of())),List.of(GuiText.normal(messages.content(language,"gui-tier",Map.of("tier",plugin.tierLabel(view.profile().tier(),language)))),GuiText.normal(messages.content(language,"gui-tier-desc",Map.of())))));
             if(tiers!=null&&config.tierPanel().enabled()) tiers.cachedTier(target).ifPresent(tier->{
-                var lore=new ArrayList<>(session.inventory.getItem(4).getItemMeta().lore());
+                var lore=new ArrayList<Component>();lore.add(GuiText.normal(messages.content(language,"gui-tier-desc",Map.of())));
                 for(String key:config.tierPanel().lore()) {
-                    if(key.equals("gui-tier"))lore.add(messages.content(language,key,Map.of("tier",DisplayFormatter.plain(formatter.name(tier,language)))));
-                    else if(key.equals("gui-tier-progress"))lore.add(tier.nextPositiveThreshold()==null?messages.content(language,"gui-tier-maximum",Map.of()):messages.content(language,key,Map.of("threshold",Long.toString(tier.nextPositiveThreshold()),"remaining",java.math.BigInteger.valueOf(tier.nextPositiveThreshold()).subtract(java.math.BigInteger.valueOf(tier.score())).toString())));
-                    else {var description=config.tierPanel().benefits().get(tier.id());if(description!=null&&!description.get(language.name()).isBlank())lore.add(messages.content(language,key,Map.of("benefits",description.get(language.name()))));}
+                    if(key.equals("gui-tier"))lore.add(GuiText.normal(messages.content(language,key,Map.of("tier",DisplayFormatter.plain(formatter.name(tier,language))))));
+                    else if(key.equals("gui-tier-progress"))lore.add(tier.nextPositiveThreshold()==null?GuiText.normal(messages.content(language,"gui-tier-maximum",Map.of())):GuiText.normal(messages.content(language,key,Map.of("threshold",Long.toString(tier.nextPositiveThreshold()),"remaining",java.math.BigInteger.valueOf(tier.nextPositiveThreshold()).subtract(java.math.BigInteger.valueOf(tier.score())).toString()))));
+                    else {var description=config.tierPanel().benefits().get(tier.id());if(description!=null&&!description.get(language.name()).isBlank())lore.add(GuiText.normal(messages.content(language,key,Map.of("benefits",description.get(language.name())))));}
                 }
-                session.inventory.setItem(4,item(config.tierPanel().icons().getOrDefault(tier.id(),config.tierPanel().material()),messages.content(language,"gui-profile",Map.of("player",name,"reputation",messages.number(language,tier.score()))),lore));
+                session.inventory.setItem(6,item(config.tierPanel().icons().getOrDefault(tier.id(),config.tierPanel().material()),GuiText.normal(messages.content(language,"gui-tier-title",Map.of())),lore));
             });
+            button(session,player,"close",player::closeInventory);
+            button(session,player,"back",()->{if(player.getUniqueId().equals(target))player.closeInventory();else open(player,player.getUniqueId(),player.getName());});
+            control(session,player,MenuGeometry.refresh(45),org.bukkit.Material.CLOCK,"gui-refresh",()->open(player,target,name));
+            control(session,player,31,org.bukkit.Material.KNOWLEDGE_BOOK,"gui-help",()->{commands.send(player,"vote-help",Map.of());session.busy=false;});
             if(recovery!=null)recovery.attach(player,session);
             if(policies!=null)policies.attach(player,session);
             if(!player.getUniqueId().equals(target)) {
@@ -88,7 +105,8 @@ final class VotingGui implements Listener {
                 });
             }
             if(commands.allowed(player,"history")) {
-                button(session,player,"history",()->{if(history!=null)history.open(player,target,name,VotePage.Direction.RECEIVED,()->open(player,target,name));else history(player,target,name,VotePage.Direction.RECEIVED,1);});
+                button(session,player,"history",()->{if(history!=null)history.show(player,target,name,new org.dextur.reputation.domain.ReasonHistory.Query(VotePage.Direction.RECEIVED,null,null,false,1,votingConfig.pageSize()),ReasonHistoryGui.View.ENTRIES,()->open(player,target,name));else history(player,target,name,VotePage.Direction.RECEIVED,1);});
+                control(session,player,13,org.bukkit.Material.BOOK,"gui-received",()->{if(history!=null)history.open(player,target,name,VotePage.Direction.RECEIVED,()->open(player,target,name));else history(player,target,name,VotePage.Direction.RECEIVED,1);});
                 button(session,player,"given",()->{if(history!=null)history.open(player,player.getUniqueId(),player.getName(),VotePage.Direction.GIVEN,()->open(player,target,name));else history(player,player.getUniqueId(),player.getName(),VotePage.Direction.GIVEN,1);});
             }
         }));
@@ -97,10 +115,10 @@ final class VotingGui implements Listener {
         var session=screen(player,target,name,"gui-reasons-title",Map.of("player",name));
         var reasons=votingConfig.rules().reasons().values().stream().filter(r->r.types().contains(type)).sorted(Comparator.comparing(r->r.id())).toList();
         int capacity=Math.min(36,config.contentSlots().size());int start=(page-1)*capacity;
-        session.actions.clear();session.inventory=Bukkit.createInventory(session,MenuGeometry.size(Math.min(capacity,Math.max(1,reasons.size()-start))),messages.content(commands.language(player),"gui-reasons-title",Map.of("player",name)));player.openInventory(session.inventory);button(session,player,"close",player::closeInventory);
+        session.actions.clear();session.inventory=Bukkit.createInventory(session,MenuGeometry.size(Math.min(capacity,Math.max(1,reasons.size()-start))),GuiText.normal(messages.content(commands.language(player),"gui-reasons-title",Map.of("player",name))));player.openInventory(session.inventory);button(session,player,"close",player::closeInventory);
         for(int i=start;i<Math.min(start+capacity,reasons.size());i++) {
             var reason=reasons.get(i);int slot=i-start;
-            session.inventory.setItem(slot,item(config.reasonMaterial(),messages.content(commands.language(player),reason.messageKey(),Map.of()),List.of(messages.content(commands.language(player),"gui-reason-vote",Map.of()))));
+            session.inventory.setItem(slot,item(config.reasonMaterial(),Component.text(commands.reason(commands.language(player),reason.id())),List.of(GuiText.normal(messages.content(commands.language(player),"gui-reason-vote",Map.of())))));
             session.actions.put(slot,()->{
                 session.busy=true;commands.cast(player,target,type,reason.id(),"",()->{ if(current(player,session)) open(player,target,name); });
             });
@@ -115,13 +133,13 @@ final class VotingGui implements Listener {
         voting.history(target,direction,page).whenComplete((result,error)->plugin.onMain(()->{
             if(!current(player,session)) return;
             session.busy=false;if(error!=null) { commands.failed(player,error);player.closeInventory();return; }
-            session.actions.clear();session.inventory=Bukkit.createInventory(session,MenuGeometry.size(result.entries().size()),messages.content(commands.language(player),"gui-history-title",Map.of("player",name,"page",Integer.toString(page))));player.openInventory(session.inventory);button(session,player,"close",player::closeInventory);
+            session.actions.clear();session.inventory=Bukkit.createInventory(session,MenuGeometry.size(result.entries().size()),GuiText.normal(messages.content(commands.language(player),"gui-history-title",Map.of("player",name,"page",Integer.toString(page)))));player.openInventory(session.inventory);button(session,player,"close",player::closeInventory);
             var language=commands.language(player);int slot=0;
             for(var row:result.entries()) {
                 var e=row.entry();
-                session.inventory.setItem(slot++,item(config.entryMaterial(),messages.content(language,"gui-entry",Map.of("action",commands.action(language,e.action()),"type",commands.type(language,e.type()),"reason",commands.reason(language,e.reason()))),
-                        List.of(messages.content(language,"gui-entry-detail",Map.of("voter",commands.name(e.voterId()),"target",commands.name(e.targetId()),"time",e.createdAt().toString(),"state",messages.plain(language,row.active()?"vote-active":"vote-inactive"))),
-                                messages.content(language,"gui-entry-comment",Map.of("comment",e.comment())))));
+                session.inventory.setItem(slot++,item(config.entryMaterial(),GuiText.normal(messages.content(language,"gui-entry",Map.of("action",commands.action(language,e.action()),"type",commands.type(language,e.type()),"reason",commands.reason(language,e.reason())))),
+                        List.of(GuiText.normal(messages.content(language,"gui-entry-detail",Map.of("voter",commands.name(e.voterId()),"target",commands.name(e.targetId()),"time",e.createdAt().toString(),"state",messages.plain(language,row.active()?"vote-active":"vote-inactive")))),
+                                GuiText.normal(messages.content(language,"gui-entry-comment",Map.of("comment",e.comment()))))));
             }
             button(session,player,"back",()->open(player,target,name));
             if(page>1) button(session,player,"previous",()->history(player,target,name,direction,page-1));

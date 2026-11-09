@@ -120,7 +120,7 @@ def run(port, username, walk=False, capture_messages=False):
                     raise RuntimeError("Configuration disconnected")
             else:
                 if capture_messages:
-                    if b"UX_WIRE_MARKER" in body:
+                    if b"UX_WIRE_MARKER" in body or b"POLISH_WIRE_MARKER" in body:
                         message_packet = packet_id
                     if packet_id == message_packet:
                         import json

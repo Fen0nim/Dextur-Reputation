@@ -33,7 +33,7 @@ Trust/admin команды описаны в ADMINISTRATION.md; reload обно�
 | /rep revoke player [comment] | Отзыв своей активной оценки | use + vote + revoke |
 | /rep history [page] | Собственная полученная история | use + history |
 | /rep given [page] | Собственная отправленная история | use + history |
-| /rep reasons | Коды причин с переводами и типами | use + reasons |
+| /rep reasons | Локализованные причины и типы | use + reasons |
 | /rep gui [player] | Профиль, статистика, действия и история | use + gui |
 | /rep help | Справка по голосованию | use |
 

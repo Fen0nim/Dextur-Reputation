@@ -24,6 +24,7 @@ def sha(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--accept-eula', action='store_true')
+    parser.add_argument('--ux-polish', action='store_true', help='One focused localized voting/GUI polish session')
     parser.add_argument('--directory', type=Path, required=True)
     parser.add_argument('--paper-jar', type=Path, required=True)
     parser.add_argument('--mojang-cache', type=Path, required=True)
@@ -56,15 +57,16 @@ def main():
         # QA-only short waits and raised operation capacity. Initial eligibility thresholds stay unchanged.
         voting = archive.read('voting.yml').decode().replace('cooldown-seconds: 7200','cooldown-seconds: 1').replace('base-daily-limit: 3','base-daily-limit: 100')
         (config / 'voting.yml').write_text(voting)
-        (config / 'anti-abuse.yml').write_text(archive.read('anti-abuse.yml').decode().replace('suspicious-count: 10','suspicious-count: 2'))
+        if not args.ux_polish:
+            (config / 'anti-abuse.yml').write_text(archive.read('anti-abuse.yml').decode().replace('suspicious-count: 10','suspicious-count: 2'))
     java = str(Path(os.environ['JAVA_HOME']) / 'bin/java')
     proof = {'storage': args.storage_type, 'artifacts': hashes, 'runs': [], 'visual_client_review': 'NOT PERFORMED',
-             'qa_configuration': 'Initial thresholds unchanged; cooldowns 1s, base daily limit 100, burst threshold 2 for focused scenarios'}
-    for run in [1, 2]:
+             'qa_configuration': 'Initial thresholds unchanged; cooldowns 1s, base daily limit 100; burst threshold '+('unchanged' if args.ux_polish else '2')}
+    for run in ([1] if args.ux_polish else [1, 2]):
         log = directory / ('server-'+str(run)+'.log')
         clients, handles = [], []
         with log.open('w') as output:
-            server = subprocess.Popen([java, '-Xms256m', '-Xmx1200m', '-Dio.netty.eventLoopThreads=2', '-Ddextur.probe.admin-ux=true', '-Ddextur.probe.ux-run='+str(run), '-jar', 'paper.jar', '--nogui'], cwd=directory, stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT)
+            server = subprocess.Popen([java, '-Xms256m', '-Xmx1200m', '-Dio.netty.eventLoopThreads=2', '-Ddextur.probe.ux-polish=true' if args.ux_polish else '-Ddextur.probe.admin-ux=true', '-Ddextur.probe.ux-run='+str(run), '-jar', 'paper.jar', '--nogui'], cwd=directory, stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT)
             try:
                 deadline = time.monotonic()+120
                 while time.monotonic()<deadline:
@@ -80,7 +82,7 @@ def main():
                     clients.append(subprocess.Popen([sys.executable, str(ROOT/'scripts/paper-test-client.py'), '--username', name, '--capture-messages'], stdout=handle, stderr=subprocess.STDOUT))
                 server.wait(timeout=240)
                 text = log.read_text()
-                assert server.returncode == 0 and 'PROBE_UX_PASS:' in text and 'PROBE_PASS:' in text and 'PROBE_FAIL:' not in text, log
+                assert server.returncode == 0 and ('PROBE_POLISH_PASS:' if args.ux_polish else 'PROBE_UX_PASS:') in text and 'PROBE_PASS:' in text and 'PROBE_FAIL:' not in text, log
                 proof['runs'].append({'run': run, 'status': 'PASS', 'log': str(log)})
             finally:
                 if server.poll() is None:
@@ -96,14 +98,19 @@ def main():
         print('UX_PAPER_PASS', args.storage_type, 'run', run, flush=True)
     actor = (directory/'UxVoter-1.log').read_text();target = (directory/'Fen0nim-1.log').read_text()
     for text in [actor,target]:
-        assert 'UX_WIRE_MARKER' in text and 'повыс' in text and 'пониз' in text, 'Both sides must receive real chat packets'
+        assert ('POLISH_WIRE_MARKER' if args.ux_polish else 'UX_WIRE_MARKER') in text
+        assert 'повыс' in text and 'пониз' in text, 'Both sides must receive real chat packets'
         assert 'reputation.restore.pending' not in text
-        assert 'аннулирована' in text and 'восстановлена' in text, 'Both vote author and recipient need moderation feedback'
-    assert 'заблокировал' in actor and 'восстановлен' in actor, 'Restriction target feedback missing'
+        if args.ux_polish:
+            assert 'Помощь игрокам' in text and 'Грубость' in text, 'Localized reasons missing in wire messages'
+        else:
+            assert 'аннулирована' in text and 'восстановлена' in text, 'Both vote author and recipient need moderation feedback'
+    if not args.ux_polish:
+        assert 'заблокировал' in actor and 'восстановлен' in actor, 'Restriction target feedback missing'
     proof['notification_wire_verification'] = 'PASS'
     proof['status'] = 'PASS'
-    (directory/'ux-proof.json').write_text(json.dumps(proof, indent=2, ensure_ascii=False)+'\n')
-    print('UX_VERIFIED', args.storage_type, '2 launches, GUI routes, force restart and both-sided chat packets', flush=True)
+    (directory/('polish-proof.json' if args.ux_polish else 'ux-proof.json')).write_text(json.dumps(proof, indent=2, ensure_ascii=False)+'\n')
+    print('UX_VERIFIED', args.storage_type, '1 launch, localized votes/history, GUI styling/refresh and both-sided chat packets' if args.ux_polish else '2 launches, GUI routes, force restart and both-sided chat packets', flush=True)
 
 if __name__ == '__main__':
     main()

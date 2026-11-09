@@ -138,7 +138,7 @@ class AdminGuiUxTest {
         historyClick(h,6);assertTrue(h.queries().getLast().activeOnly());assertEquals(org.dextur.reputation.api.VoteType.POSITIVE,h.queries().getLast().type());
     }
     @Test void reasonNamesAreLocalizedWithoutChangingHistoricalCanonicalIds()throws Exception {
-        var h=history(PlayerLanguage.ru_RU);assertTrue(h.gui().reason(PlayerLanguage.ru_RU,"friendly").contains("Дружелюб"));assertTrue(h.gui().reason(PlayerLanguage.en_US,"friendly").contains("Friendliness"));assertEquals("Причина не указана",h.gui().reason(PlayerLanguage.ru_RU,""));assertTrue(h.gui().reason(PlayerLanguage.ru_RU,"retired_reason").contains("retired_reason"));assertTrue(h.gui().reason(PlayerLanguage.en_US,"retired_reason").contains("Archived"));
+        var h=history(PlayerLanguage.ru_RU);assertTrue(h.gui().reason(PlayerLanguage.ru_RU,"friendly").contains("Дружелюб"));assertTrue(h.gui().reason(PlayerLanguage.en_US,"friendly").contains("Friendliness"));assertEquals("Причина не указана",h.gui().reason(PlayerLanguage.ru_RU,""));assertEquals("Архивная причина",h.gui().reason(PlayerLanguage.ru_RU,"retired_reason"));assertTrue(h.gui().reason(PlayerLanguage.en_US,"retired_reason").contains("Archived"));
     }
     @Test void historyPermissionRevocationPreventsEvenReadNavigation()throws Exception {
         var h=history(PlayerLanguage.en_US);h.gui().open(player,target,"Target",org.dextur.reputation.api.VotePage.Direction.RECEIVED,()->{});int reads=h.queries().size();when(h.commands().allowed(player,"history")).thenReturn(false);historyClick(h,1);assertEquals(reads,h.queries().size());
@@ -159,4 +159,55 @@ class AdminGuiUxTest {
         String full=contents.get(top.get()).entrySet().stream().sorted(Map.Entry.comparingByKey()).map(Map.Entry::getValue).filter(i->PlainTextComponentSerializer.plainText().serialize(i.getItemMeta().displayName()).contains("Причина")).flatMap(i->i.getItemMeta().lore().stream()).map(PlainTextComponentSerializer.plainText()::serialize).collect(java.util.stream.Collectors.joining());assertEquals(reason,full);
     }
 
+
+    private void assertNormalInventory(){
+        for(var item:contents.get(top.get()).values()){
+            assertEquals(net.kyori.adventure.text.format.TextDecoration.State.FALSE,item.getItemMeta().displayName().decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC));
+            for(var line:item.getItemMeta().lore())assertEquals(net.kyori.adventure.text.format.TextDecoration.State.FALSE,line.decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC));
+        }
+    }
+    @Test void adminAndHistoryTextIsNonItalicAndRefreshRetainsFilter()throws Exception {
+        gui.open(player,target,Section.INSPECT,1);assertNormalInventory();click(MenuGeometry.refresh(27));assertNormalInventory();
+        var h=history(PlayerLanguage.ru_RU);h.gui().open(player,target,"Target",org.dextur.reputation.api.VotePage.Direction.RECEIVED,()->{});historyClick(h,1);historyClick(h,9);
+        var filter=h.queries().getLast();int count=h.queries().size();historyClick(h,MenuGeometry.refresh(top.get().getSize()));assertEquals(count+1,h.queries().size());assertEquals(filter,h.queries().getLast());assertNormalInventory();
+        assertTrue(PlainTextComponentSerializer.plainText().serialize(top.get().getItem(9).getItemMeta().displayName()).contains("Дружелюбие"));
+    }
+    private VotingGui playerMenu(HistoryHarness h,org.dextur.reputation.api.VotingService service)throws Exception {
+        when(player.getName()).thenReturn("Viewer");
+        var messages=Messages.bundled(PlayerLanguage.ru_RU);var config=VotingConfiguration.load(directory,messages);
+        when(h.commands().reason(any(),anyString())).thenAnswer(i->config.reasonLabel(messages,i.getArgument(0),i.getArgument(1)));
+        var menu=new VotingGui(plugin,service,h.commands(),config,GuiConfiguration.load(directory,m->true),messages);menu.history(h.gui());return menu;
+    }
+    private void menuClick(VotingGui menu,int slot){menu.click(clickEvent(slot));}
+    private InventoryClickEvent clickEvent(int slot){var event=mock(InventoryClickEvent.class);when(event.getView()).thenReturn(view);when(event.getWhoClicked()).thenReturn(player);when(event.getClick()).thenReturn(ClickType.LEFT);when(event.getRawSlot()).thenReturn(slot);return event;}
+    private org.dextur.reputation.api.ReputationView profile(long score){return new org.dextur.reputation.api.ReputationView(new org.dextur.reputation.api.ReputationSnapshot(target,"global",score,0,score,"NEUTRAL",1,Instant.EPOCH,Instant.EPOCH),new org.dextur.reputation.api.VoteStatistics(0,0,0,0));}
+    @Test void playerMenuHasSymmetricGroupsRoutesAndFreshScore()throws Exception {
+        var h=history(PlayerLanguage.ru_RU);var service=mock(org.dextur.reputation.api.VotingService.class);when(service.view(target)).thenReturn(CompletableFuture.completedFuture(profile(7)),CompletableFuture.completedFuture(profile(12)));
+        var menu=playerMenu(h,service);menu.open(player,target,"Target");assertEquals(45,top.get().getSize());
+        for(int slot:new int[]{2,4,6,11,13,15,20,22,24,31,38,40,42})assertNotNull(top.get().getItem(slot),"slot "+slot);
+        assertNormalInventory();var old=top.get();menuClick(menu,40);assertNotSame(old,top.get());assertTrue(PlainTextComponentSerializer.plainText().serialize(top.get().getItem(2).getItemMeta().lore().getFirst()).contains("12"));
+        menuClick(menu,11);assertEquals(ReasonHistoryGui.View.ENTRIES,((ReasonHistoryGui.Session)top.get().getHolder()).view);
+        menu.open(player,target,"Target");menuClick(menu,13);assertEquals(ReasonHistoryGui.View.REASONS,((ReasonHistoryGui.Session)top.get().getHolder()).view);
+        menu.open(player,target,"Target");menuClick(menu,15);assertEquals(org.dextur.reputation.api.VotePage.Direction.GIVEN,h.queries().getLast().direction());assertEquals(owner,((ReasonHistoryGui.Session)top.get().getHolder()).target);
+        menu.open(player,target,"Target");menuClick(menu,20);assertEquals(10,((VotingGui.Session)top.get().getHolder()).actions.size()-2);assertNormalInventory();
+        assertTrue(contents.get(top.get()).values().stream().map(i->PlainTextComponentSerializer.plainText().serialize(i.getItemMeta().displayName())).anyMatch("Дружелюбие"::equals));
+        menu.open(player,target,"Target");menuClick(menu,24);assertTrue(contents.get(top.get()).values().stream().map(i->PlainTextComponentSerializer.plainText().serialize(i.getItemMeta().displayName())).anyMatch("Грубость"::equals));
+        menu.open(player,target,"Target");menuClick(menu,31);verify(h.commands()).send(player,"vote-help",Map.of());assertFalse(((VotingGui.Session)top.get().getHolder()).busy);
+    }
+    @Test void recoveryRefreshReloadsAndDoesNotMutateProgress()throws Exception {
+        var messages=Messages.bundled(PlayerLanguage.ru_RU);var profiles=mock(ReputationApplication.class);when(profiles.cachedLanguage(owner)).thenReturn(PlayerLanguage.ru_RU);
+        var service=mock(RecoveryApplication.class);var snapshot=new org.dextur.reputation.api.RecoverySnapshot(owner,"global",1,org.dextur.reputation.api.RecoverySnapshot.Status.AVAILABLE,true,"","","",Map.of(),"",Map.of(),List.of(),List.of(),List.of(),"COMPASS",Instant.EPOCH,Instant.EPOCH,Instant.EPOCH);
+        when(service.status(owner)).thenReturn(CompletableFuture.completedFuture(snapshot));
+        var commands=new RecoveryCommands(plugin,profiles,service,messages,PlayerLanguage.ru_RU);
+        var layout=new RecoveryGui.Layout(true,29,54,List.of(),4,1,7,38,42,Material.COMPASS,Material.PAPER,Material.EMERALD,Material.LIME_DYE,Material.RED_DYE);
+        var recovery=new RecoveryGui(plugin,service,commands,messages,layout,null);recovery.open(player);assertNormalInventory();
+        recovery.click(clickEvent(MenuGeometry.refresh(top.get().getSize())));verify(service,times(2)).status(owner);verify(service,never()).start(any());verify(service,never()).cancel(any());assertNormalInventory();
+    }
+    @Test void accessRefreshRebuildsAndRechecksPermission()throws Exception {
+        var config=mock(PolicyRules.class);when(config.informationEnabled()).thenReturn(true);when(policies.configuration()).thenReturn(config);
+        var profiles=mock(ReputationApplication.class);when(profiles.cachedLanguage(owner)).thenReturn(PlayerLanguage.ru_RU);var settings=mock(Settings.class);when(settings.defaultLanguage()).thenReturn(PlayerLanguage.ru_RU);
+        var messages=Messages.bundled(PlayerLanguage.ru_RU);var effects=new PolicyEffects(plugin,policies,new PolicyCommands(plugin,profiles,policies,settings,messages),messages,new PolicyEffects.Layout(true,33,27,Material.SHIELD));
+        effects.open(player);assertNormalInventory();var old=top.get();effects.click(clickEvent(MenuGeometry.refresh(27)));assertNotSame(old,top.get());verify(policies,times(2)).evaluate(owner,"reputation.vote");
+        when(player.hasPermission("dexturreputation.policies")).thenReturn(false);effects.click(clickEvent(MenuGeometry.refresh(27)));verify(policies,times(2)).evaluate(owner,"reputation.vote");
+    }
 }

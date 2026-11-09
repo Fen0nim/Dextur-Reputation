@@ -33,7 +33,7 @@ vote-duplicate: 'Этот запрос уже был сохранён. Повт�
 vote-notification: '{player}: {action}, {type}; причина: {reason}; комментарий: {comment}. Репутация: {reputation}.'
 vote-stats: 'Активные голоса: +{positive} / −{negative}. Уникальных авторов за всё время: {unique}. Операций: {total}.'
 vote-reasons: 'Доступные причины (код — описание):'
-vote-reason-line: '{reason} — {description} ({type})'
+vote-reason-line: '{reason} ({type})'
 vote-history: 'История: {direction}, страница {page}, записей {total}.'
 vote-history-line: '{time} | {voter} → {target} | {action}, {type}, {reason} | {comment} | {state}'
 vote-empty: 'История пуста.'
@@ -51,7 +51,7 @@ reason-helpful: 'Помощь игрокам'
 reason-friendly: 'Дружелюбие'
 reason-fair: 'Честная игра'
 reason-rude: 'Грубость'
-reason-unfair: 'Нечестная игра'
+reason-unfair: 'Нечестное поведение'
 gui-profile-title: "<aqua>Репутация: {player}</aqua>"
 gui-reasons-title: "<aqua>Выберите причину: {player}</aqua>"
 gui-history-title: "<aqua>История: {player}, {page}</aqua>"
@@ -689,7 +689,7 @@ gui-reason-archived: "Архивная причина ({id})"
 gui-reason-category: "<yellow>{reason}</yellow>"
 gui-reason-counts: "<gray>Действующие: <green>{active}</green><newline>События журнала: <white>{events}</white></gray>"
 gui-reason-open: "<gray>Открыть записи с этой причиной.</gray>"
-gui-reason-vote: "<gray>Выбрать эту причину для оценки.</gray>"
+gui-reason-vote: "<gray>Выбрать эту причину для оценки.</gray> <yellow>ЛКМ — голосовать</yellow>"
 gui-filter-all: "<yellow>Все причины</yellow>"
 gui-filter-positive: "<green>Положительные причины</green>"
 gui-filter-negative: "<red>Отрицательные причины</red>"
@@ -710,3 +710,46 @@ admin7-field-administrator_name: "Администратор: имя"
 admin7-field-administrator_uuid: "Администратор: UUID"
 admin7-field-action_id: "Тип действия (ID)"
 gui-history-open-link: "<yellow>Открыть историю по причинам: /rep gui {player}</yellow>"
+
+reason-trustworthy: 'Надёжность'
+reason-active: 'Полезная активность'
+reason-community: 'Вклад в сообщество'
+reason-builder: 'Хорошее строительство'
+reason-trader: 'Честные сделки'
+reason-teamwork: 'Командная работа'
+reason-mentor: 'Помощь новичкам'
+reason-toxic: 'Токсичность'
+reason-scam: 'Обман'
+reason-griefing: 'Гриферство'
+reason-spam: 'Спам'
+reason-harassment: 'Преследование'
+reason-rulebreaking: 'Нарушение правил'
+reason-unreliable: 'Ненадёжность'
+reason-disruptive: 'Мешает другим игрокам'
+gui-reason-unavailable: "Архивная причина"
+gui-score: "<green>Репутация</green>"
+gui-score-value: "<gray>Текущая оценка: <white>{reputation}</white></gray>"
+gui-score-desc: "<gray>Результат голосов и изменений репутации.</gray>"
+gui-tier-title: "<aqua>Уровень репутации</aqua>"
+gui-tier-desc: "<gray>Текущий статус и прогресс до следующего уровня.</gray>"
+gui-received: "<yellow>Полученные причины</yellow>"
+gui-received-desc: "<gray>За что вас оценивают: причины и число голосов.</gray>"
+gui-help: "<yellow>Помощь</yellow>"
+gui-help-desc: "<gray>Команды и правила голосования.</gray>"
+gui-like-desc: "<gray>Выбрать причину положительной оценки.</gray>"
+gui-dislike-desc: "<gray>Выбрать причину отрицательной оценки.</gray>"
+gui-revoke-desc: "<gray>Отозвать свой действующий голос этому игроку.</gray>"
+gui-history-desc: "<gray>Все изменения полученных голосов по времени.</gray>"
+gui-given-desc: "<gray>Кому и за что вы отдавали свои голоса.</gray>"
+gui-my-recovery: "<aqua>Моё восстановление</aqua>"
+gui-recovery-desc: "<gray>Этапы восстановления и текущий прогресс.</gray>"
+gui-my-access: "<aqua>Мои возможности</aqua>"
+gui-refresh: "<yellow>Обновить</yellow>"
+gui-control-refresh: "<gray>Обновить текущее состояние.</gray>"
+gui-control-open: "<gray>Открыть раздел и посмотреть подробности.</gray>"
+gui-control-back: "<gray>Вернуться на предыдущий экран.</gray>"
+gui-control-close: "<gray>Закрыть меню репутации.</gray>"
+gui-click-help: "<yellow>ЛКМ — показать команды</yellow>"
+gui-access-desc: "<gray>Ограничения и бонусы вашей репутации.</gray>"
+gui-recovery-start-desc: "<gray>Начать доступную программу восстановления.</gray>"
+gui-recovery-cancel-desc: "<gray>Отменить текущую программу восстановления.</gray>"

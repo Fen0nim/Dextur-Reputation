@@ -46,10 +46,9 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
     }
     String type(PlayerLanguage language,VoteType type) { return messages.plain(language,"vote-type-"+type.name().toLowerCase(Locale.ROOT)); }
     String action(PlayerLanguage language,VoteEntry.Action action) { return messages.plain(language,"vote-action-"+action.name().toLowerCase(Locale.ROOT)); }
-    boolean hasReason(String id){return config.rules().reasons().containsKey(id);}
+    boolean hasReason(String id){return config.reasonMessages().containsKey(id);}
     String reason(PlayerLanguage language,String id) {
-        if(id==null||id.isEmpty())return messages.plain(language,"gui-reason-unspecified");var reason=config.rules().reasons().get(id);if(reason!=null)return messages.plain(language,reason.messageKey());
-        try{return messages.plain(language,"reason-"+id);}catch(IllegalArgumentException absent){return DisplayFormatter.plain(messages.content(language,"gui-reason-archived",Map.of("id",id)));}
+        return config.reasonLabel(messages,language,id);
     }
     void failed(CommandSender sender,Throwable error) {
         Throwable cause=error;while(cause.getCause()!=null&&cause.getCause()!=cause) cause=cause.getCause();
@@ -113,7 +112,11 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
         if(!allowed(sender,"vote")) { send(sender,"no-permission",Map.of());return true; }
         if(args.length<2) { send(sender,"vote-usage",Map.of());return true; }
         var target=known(args[0]);if(target==null) { send(sender,"unknown-player",Map.of("player",args[0]));return true; }
-        cast(voter,target.getUniqueId(),command.getName().equals("like")?VoteType.POSITIVE:VoteType.NEGATIVE,args[1],String.join(" ",Arrays.copyOfRange(args,2,args.length)),()->{});
+        VoteType type=command.getName().equals("like")?VoteType.POSITIVE:VoteType.NEGATIVE;
+        if(!allowed(sender,type==VoteType.POSITIVE?"positive":"negative")){send(sender,"no-permission",Map.of());return true;}
+        var parsed=new VoteReasonInput(config,messages).parse(language(sender),type,String.join(" ",Arrays.copyOfRange(args,1,args.length)));
+        if(parsed==null){failed(sender,new VoteRejectedException(VoteRejectedException.Code.REASON));return true;}
+        cast(voter,target.getUniqueId(),type,parsed.id(),parsed.comment(),()->{});
         return true;
     }
     /** Returns false only for the existing /rep language command. */
@@ -127,7 +130,7 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
             if(!allowed(sender,"reasons")) { send(sender,"no-permission",Map.of());return true; }
             send(sender,"vote-reasons",Map.of());var language=language(sender);
             config.rules().reasons().values().stream().sorted(Comparator.comparing(r->r.id())).forEach(r->
-                    send(sender,"vote-reason-line",Map.of("reason",r.id(),"description",reason(language,r.id()),"type",r.types().stream().sorted().map(t->type(language,t)).collect(java.util.stream.Collectors.joining(", ")))));
+                    send(sender,"vote-reason-line",Map.of("reason",reason(language,r.id()),"description",reason(language,r.id()),"type",r.types().stream().sorted().map(t->type(language,t)).collect(java.util.stream.Collectors.joining(", ")))));
             return true;
         }
         if(action.equals("history")||action.equals("given")) {
@@ -186,9 +189,9 @@ final class VotingCommands implements CommandExecutor,TabCompleter {
             candidates=options;
         }
         else if(!rep&&(!allowed(sender,"vote")||!allowed(sender,command.getName().equals("like")?"positive":"negative"))) return List.of();
-        else if(!rep&&args.length==2) {
+        else if(!rep&&args.length>=2) {
             VoteType type=command.getName().equals("like")?VoteType.POSITIVE:VoteType.NEGATIVE;
-            candidates=config.rules().reasons().values().stream().filter(r->r.types().contains(type)).map(r->r.id()).sorted().toList();
+            return new VoteReasonInput(config,messages).suggest(language(sender),type,args);
         } else if((!rep&&args.length==1)||(rep&&args.length==2&&(args[0].equalsIgnoreCase("gui")||args[0].equalsIgnoreCase("revoke"))))
             candidates=plugin.getServer().getOnlinePlayers().stream().map(Player::getName).toList();
         else if(rep&&args.length==2&&args[0].equalsIgnoreCase("language")) candidates=List.of("ru_RU","en_US");

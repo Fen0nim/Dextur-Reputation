@@ -153,7 +153,7 @@ class PaperAdaptersTest {
             assertEquals(voter,request.getValue().voterId());assertEquals(target,request.getValue().targetId());assertEquals("helpful",request.getValue().reason());assertEquals("literal <red>comment</red>",request.getValue().comment());
             var reply=mainTasks.poll(3,TimeUnit.SECONDS);assertNotNull(reply);reply.run();
             assertEquals(PlainTextComponentSerializer.plainText().serialize(messages.render(PlayerLanguage.ru_RU,"error",Map.of())),lastMessage(sender));
-            assertTrue(commands.onTabComplete(sender,like,"like",new String[]{"Known","he"}).contains("helpful"));
+            assertTrue(commands.onTabComplete(sender,like,"like",new String[]{"Known","Пом"}).contains("Помощь игрокам"));
         }
     }
     private String lastMessage(CommandSender sender) {
